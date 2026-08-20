@@ -1,0 +1,169 @@
+import os
+
+
+# ============================================================
+# IPM-RADAR-V3
+# CONFIGURAÇÃO CENTRAL
+#
+# IMPORTANTE:
+# Nenhuma chave de API deve ser colocada neste arquivo.
+# As chaves serão fornecidas pelas variáveis de ambiente.
+# ============================================================
+
+
+# ------------------------------------------------------------
+# IDENTIFICAÇÃO DO PROJETO
+# ------------------------------------------------------------
+
+NOME_BOT = "IPM-RADAR-V3"
+VERSAO = "3.0.0"
+
+
+# ------------------------------------------------------------
+# FUSO HORÁRIO
+# ------------------------------------------------------------
+
+FUSO_HORARIO = "America/Sao_Paulo"
+
+
+# ------------------------------------------------------------
+# BANCO DE DADOS
+# ------------------------------------------------------------
+
+DATABASE_FILE = os.getenv(
+    "DATABASE_FILE",
+    "radar_ipm.db"
+)
+
+
+# ------------------------------------------------------------
+# TELEGRAM
+# ------------------------------------------------------------
+
+TELEGRAM_BOT_TOKEN = os.getenv(
+    "TELEGRAM_BOT_TOKEN",
+    ""
+)
+
+TELEGRAM_CHAT_ID = os.getenv(
+    "TELEGRAM_CHAT_ID",
+    ""
+)
+
+
+# ------------------------------------------------------------
+# FONTES DE DADOS
+#
+# As fontes são independentes.
+# O BOT não deve depender de uma única API.
+# ------------------------------------------------------------
+
+ODDS_API_KEY = os.getenv(
+    "ODDS_API_KEY",
+    ""
+)
+
+ODDS_API_IO_KEY = os.getenv(
+    "ODDS_API_IO_KEY",
+    ""
+)
+
+API_FOOTBALL_KEY = os.getenv(
+    "API_FOOTBALL_KEY",
+    ""
+)
+
+API_FOOTBALL_KEY_2 = os.getenv(
+    "API_FOOTBALL_KEY_2",
+    ""
+)
+
+SPORTSGAMEODDS_API_KEY = os.getenv(
+    "SPORTSGAMEODDS_API_KEY",
+    ""
+)
+
+
+# ------------------------------------------------------------
+# INTERVALOS DE COLETA
+# ------------------------------------------------------------
+
+COLETA_SEGUNDOS = int(
+    os.getenv(
+        "COLETA_SEGUNDOS",
+        "60"
+    )
+)
+
+
+# ------------------------------------------------------------
+# RADAR
+# ------------------------------------------------------------
+
+MAX_JOGOS_RADAR = int(
+    os.getenv(
+        "MAX_JOGOS_RADAR",
+        "10"
+    )
+)
+
+
+# ------------------------------------------------------------
+# HISTÓRICO
+# ------------------------------------------------------------
+
+RADAR_HISTORICO = int(
+    os.getenv(
+        "RADAR_HISTORICO",
+        "100"
+    )
+)
+
+
+# ------------------------------------------------------------
+# CONFIGURAÇÃO DE LOG
+# ------------------------------------------------------------
+
+DEBUG = os.getenv(
+    "DEBUG",
+    "true"
+).lower() == "true"
+
+
+# ------------------------------------------------------------
+# FUNÇÃO DE DIAGNÓSTICO
+# ------------------------------------------------------------
+
+def status_configuracao():
+
+    return {
+        "bot": NOME_BOT,
+        "versao": VERSAO,
+
+        "telegram": bool(
+            TELEGRAM_BOT_TOKEN
+            and TELEGRAM_CHAT_ID
+        ),
+
+        "odds_api": bool(
+            ODDS_API_KEY
+        ),
+
+        "odds_api_io": bool(
+            ODDS_API_IO_KEY
+        ),
+
+        "api_football": bool(
+            API_FOOTBALL_KEY
+        ),
+
+        "api_football_2": bool(
+            API_FOOTBALL_KEY_2
+        ),
+
+        "sports_game_odds": bool(
+            SPORTSGAMEODDS_API_KEY
+        ),
+
+        "database": DATABASE_FILE
+    }
