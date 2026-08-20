@@ -53,13 +53,8 @@ def fazer_requisicao(url):
         requisicao,
         timeout=20
     ) as resposta:
-
-        conteudo = resposta.read().decode(
-            "utf
-def buscar_jogos_ao_vivo():
-    """
-    Busca todos os jogos de futebol ao vivo.
-    """
+        conteudo = resposta.read().decode("utf-8")
+        return json.loads(conteudo)
 
     api_key = obter_api_key()
 
