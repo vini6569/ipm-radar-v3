@@ -55,7 +55,7 @@ def fazer_requisicao(url):
     ) as resposta:
         conteudo = resposta.read().decode("utf-8")
         return json.loads(conteudo)
-
+def buscar_jogos_ao_vivo():
     api_key = obter_api_key()
 
     parametros = urllib.parse.urlencode({
