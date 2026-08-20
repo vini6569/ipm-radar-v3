@@ -6,6 +6,9 @@ TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 
 print("=" * 50)
 print("DESCOBRINDO CHAT ID - IPM RADAR")
+
+print("=" * 50)
+print("DESCOBRINDO CHAT ID - IPM RADAR")
 print("=" * 50)
 
 if not TOKEN:
