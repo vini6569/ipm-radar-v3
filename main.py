@@ -1,9 +1,25 @@
 import time
+import os
 from config import NOME_BOT, VERSAO
 from odds_api import buscar_jogos_ao_vivo
 from historico import quantidade_jogos
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"IPM RADAR V3 ONLINE")
+
+    def log_message(self, format, *args):
+        return
 
 
+def iniciar_servidor():
+    porta = int(os.environ.get("PORT", 10000))
+    servidor = HTTPServer(("0.0.0.0", porta), HealthHandler)
+    servidor.serve_forever()
 def iniciar():
     print("=" * 60)
     print(NOME_BOT)
@@ -49,4 +65,10 @@ def iniciar():
 
 
 if __name__ == "__main__":
+    threading.Thread(
+        target=iniciar_servidor,
+        daemon=True
+    ).start()
+
     iniciar()
+
