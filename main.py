@@ -1,11 +1,14 @@
 import time
 import os
+import threading
 from config import NOME_BOT, VERSAO
 from odds_api import buscar_jogos_ao_vivo
 from historico import quantidade_jogos
-import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
+
+
 class HealthHandler(BaseHTTPRequestHandler):
+
     def do_GET(self):
         self.send_response(200)
         self.send_header("Content-type", "text/plain")
@@ -17,16 +20,23 @@ class HealthHandler(BaseHTTPRequestHandler):
 
 
 def iniciar_servidor():
+
     porta = int(os.environ.get("PORT", 10000))
-    servidor = HTTPServer(("0.0.0.0", porta), HealthHandler)
+
+    servidor = HTTPServer(
+        ("0.0.0.0", porta),
+        HealthHandler
+    )
+
     servidor.serve_forever()
+
+
 def iniciar():
-    print()
-print("Nova consulta em 60 segundos...", flush=True)
 
-time.sleep(60)
-
-print("60 segundos concluídos. Iniciando nova consulta...", flush=True)
+    print("=" * 60)
+    print(NOME_BOT)
+    print("VERSÃO:", VERSAO)
+    print("=" * 60)
 
     print("IPM-RADAR-V3 iniciado.")
     print("Histórico registrado:", quantidade_jogos())
@@ -35,6 +45,7 @@ print("60 segundos concluídos. Iniciando nova consulta...", flush=True)
     while True:
 
         try:
+
             jogos = buscar_jogos_ao_vivo()
 
             print("Jogos ao vivo encontrados:", len(jogos))
@@ -67,10 +78,10 @@ print("60 segundos concluídos. Iniciando nova consulta...", flush=True)
 
 
 if __name__ == "__main__":
+
     threading.Thread(
         target=iniciar_servidor,
         daemon=True
     ).start()
 
     iniciar()
-
