@@ -1,6 +1,7 @@
 import time
 import os
 import threading
+
 from config import NOME_BOT, VERSAO
 from odds_api import buscar_jogos_ao_vivo
 from historico import quantidade_jogos
@@ -62,12 +63,12 @@ def iniciar():
 
                 print("ID:", jogo.get("id"))
                 print("PLACAR:", jogo.get("scores"))
-    print()
-print("Nova consulta em 60 segundos...", flush=True)
 
-print("ENTRANDO NO SLEEP DE 60 SEGUNDOS...", flush=True)
-time.sleep(60)
-print("SAÍ DO SLEEP! VOU FAZER NOVA CONSULTA...", flush=True)
+            print()
+            print("Nova consulta em 60 segundos...")
+
+            time.sleep(60)
+
         except Exception as erro:
 
             print("ERRO NO RADAR:")
