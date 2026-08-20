@@ -56,3 +56,23 @@ def fazer_requisicao(url):
 
         conteudo = resposta.read().decode(
             "utf
+def buscar_jogos_ao_vivo():
+    """
+    Busca todos os jogos de futebol ao vivo.
+    """
+
+    api_key = obter_api_key()
+
+    parametros = urllib.parse.urlencode({
+        "apiKey": api_key,
+        "sport": "football"
+    })
+
+    url = BASE_URL + "/events/live?" + parametros
+
+    resposta = fazer_requisicao(url)
+
+    if not isinstance(resposta, list):
+        return []
+
+    return resposta
