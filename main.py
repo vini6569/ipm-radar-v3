@@ -21,10 +21,12 @@ def iniciar_servidor():
     servidor = HTTPServer(("0.0.0.0", porta), HealthHandler)
     servidor.serve_forever()
 def iniciar():
-    print("=" * 60)
-    print(NOME_BOT)
-    print("VERSÃO:", VERSAO)
-    print("=" * 60)
+    print()
+print("Nova consulta em 60 segundos...", flush=True)
+
+time.sleep(60)
+
+print("60 segundos concluídos. Iniciando nova consulta...", flush=True)
 
     print("IPM-RADAR-V3 iniciado.")
     print("Histórico registrado:", quantidade_jogos())
