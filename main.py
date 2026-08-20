@@ -62,12 +62,12 @@ def iniciar():
 
                 print("ID:", jogo.get("id"))
                 print("PLACAR:", jogo.get("scores"))
+    print()
+print("Nova consulta em 60 segundos...", flush=True)
 
-            print()
-            print("Nova consulta em 60 segundos...")
-
-            time.sleep(60)
-
+print("ENTRANDO NO SLEEP DE 60 SEGUNDOS...", flush=True)
+time.sleep(60)
+print("SAÍ DO SLEEP! VOU FAZER NOVA CONSULTA...", flush=True)
         except Exception as erro:
 
             print("ERRO NO RADAR:")
