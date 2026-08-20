@@ -1,86 +1,66 @@
-# ============================================================
-# TELEGRAM
-# IPM-RADAR-V3
-#
-# Responsável exclusivamente pelo envio de mensagens
-# para o Telegram.
-#
-# O TOKEN e o CHAT_ID ficam protegidos nas variáveis
-# de ambiente do Render.
-# ============================================================
-
 import os
 import json
 import urllib.request
-import urllib.parse
 
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 
-def obter_configuracao():
-    """
-    Obtém as credenciais do Telegram
-    através das variáveis de ambiente.
-    """
+print("=" * 50)
+print("DESCOBRINDO CHAT ID - IPM RADAR")
+print("=" * 50)
 
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+if not TOKEN:
+    print("ERRO: TELEGRAM_BOT_TOKEN não configurado")
+    raise SystemExit
 
-    if not token:
-        raise RuntimeError(
-            "TELEGRAM_BOT_TOKEN não configurado."
-        )
+# Testa o bot
+url = f"https://api.telegram.org/bot{TOKEN}/getMe"
 
-    if not chat_id:
-        raise RuntimeError(
-            "TELEGRAM_CHAT_ID não configurado."
-        )
+try:
+    resposta = urllib.request.urlopen(url).read().decode()
+    dados = json.loads(resposta)
 
-    return token, chat_id
+    print("BOT:")
+    print(dados)
 
+except Exception as erro:
+    print("ERRO AO VALIDAR BOT:")
+    print(type(erro).__name__)
+    print(erro)
+    raise SystemExit
 
-def enviar_mensagem(mensagem):
-    """
-    Envia uma mensagem para o Telegram.
-    """
+# Busca atualizações recebidas pelo bot
+url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
 
-    token, chat_id = obter_configuracao()
+try:
+    resposta = urllib.request.urlopen(url).read().decode()
+    dados = json.loads(resposta)
 
-    url = (
-        "https://api.telegram.org/"
-        f"bot{token}/sendMessage"
-    )
+    print("\nATUALIZAÇÕES:")
 
-    dados = urllib.parse.urlencode({
-        "chat_id": chat_id,
-        "text": mensagem
-    }).encode("utf-8")
+    for item in dados.get("result", []):
+        print("-" * 50)
 
-    requisicao = urllib.request.Request(
-        url,
-        data=dados,
-        method="POST",
-        headers={
-            "User-Agent": "IPM-Radar/3.0",
-            "Content-Type": (
-                "application/x-www-form-urlencoded"
-            )
-        }
-    )
+        if "channel_post" in item:
+            chat = item["channel_post"]["chat"]
 
-    with urllib.request.urlopen(
-        requisicao,
-        timeout=20
-    ) as resposta:
+            print("CANAL ENCONTRADO!")
+            print("ID:", chat.get("id"))
+            print("TÍTULO:", chat.get("title"))
+            print("USERNAME:", chat.get("username"))
 
-        retorno = json.loads(
-            resposta.read().decode(
-                "utf-8",
-                errors="ignore"
-            )
-        )
+        elif "message" in item:
+            chat = item["message"]["chat"]
 
-    if not retorno.get("ok"):
-        raise RuntimeError(
-            f"Telegram retornou erro: {retorno}"
-        )
+            print("CHAT ENCONTRADO!")
+            print("ID:", chat.get("id"))
+            print("NOME:", chat.get("title") or chat.get("first_name"))
+            print("USERNAME:", chat.get("username"))
 
-    return retorno
+    print("=" * 50)
+    print("FIM DO TESTE")
+    print("=" * 50)
+
+except Exception as erro:
+    print("ERRO AO BUSCAR ATUALIZAÇÕES:")
+    print(type(erro).__name__)
+    print(erro)
