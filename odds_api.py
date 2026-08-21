@@ -226,7 +226,7 @@ def extrair_mercados(odds_evento):
                         continue
 
                     resultado["gols"].append({
-                        "linha": odd.get("point"),
+                        "linha": odd.get("hdp"),
                         "over": odd.get("over"),
                         "under": odd.get("under")
                     })
@@ -242,15 +242,11 @@ def extrair_mercados(odds_evento):
                     if not isinstance(odd, dict):
                         continue
 
-                    resultado["gols"].append({
-    "linha": odd.get("point"),
-    "over": odd.get("over"),
-    "under": odd.get("under")
-})
                     resultado["handicap"].append({
-    "linha": odd.get("point"),
-    "home": odd.get("home"),
-    "away": odd.get("away")
-})
+                        "linha": odd.get("hdp"),
+                        "home": odd.get("home"),
+                        "away": odd.get("away")
+                    })
+
     return resultado
-        
+            
