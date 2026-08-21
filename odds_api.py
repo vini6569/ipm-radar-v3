@@ -219,7 +219,7 @@ def extrair_mercados(odds_evento):
             # TOTAL GOALS
             # =================================================
 
-            elif nome == "Totals":
+    elif nome == "Totals":
 
     for odd in outcomes:
 
