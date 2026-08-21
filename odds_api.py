@@ -86,7 +86,7 @@ def buscar_odds_multiplos(eventos):
     for evento in eventos:
         if not isinstance(evento, dict):
             continue
-        print("DEBUG: ENTROU NA BUSCA DE ODDS")
+
         evento_id = evento.get("id")
 
         if evento_id:
@@ -105,9 +105,9 @@ def buscar_odds_multiplos(eventos):
     })
 
     url = BASE_URL + "/odds/multi?" + parametros
-    print("DEBUG: VOU CONSULTAR ODDS")
+
     resposta = fazer_requisicao(url)
-    print("DEBUG ODDS:", json.dumps(resposta, ensure_ascii=False))
+
     # O endpoint /odds/multi retorna uma lista de eventos.
     if isinstance(resposta, list):
         return resposta
@@ -195,8 +195,7 @@ def extrair_mercados(odds_evento):
 
             nome = mercado.get("name")
             outcomes = mercado.get("odds", [])
-            print("DEBUG MERCADO:", nome)
-            print("DEBUG ODDS:", outcomes)
+
             if not isinstance(outcomes, list):
                 continue
 
@@ -219,18 +218,18 @@ def extrair_mercados(odds_evento):
             # TOTAL GOALS
             # =================================================
 
-    elif nome == "Totals":
+            elif nome == "Totals":
 
-    for odd in outcomes:
+                for odd in outcomes:
 
-        if not isinstance(odd, dict):
-            continue
+                    if not isinstance(odd, dict):
+                        continue
 
-        resultado["gols"].append({
-            "linha": odd.get("point"),
-            "over": odd.get("over"),
-            "under": odd.get("under")
-        })
+                    resultado["gols"].append({
+                        "linha": odd.get("hdp"),
+                        "over": odd.get("over"),
+                        "under": odd.get("under")
+                    })
 
             # =================================================
             # ASIAN HANDICAP
@@ -250,4 +249,4 @@ def extrair_mercados(odds_evento):
                     })
 
     return resultado
-    
+        
