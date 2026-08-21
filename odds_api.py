@@ -108,8 +108,6 @@ def buscar_odds_multiplos(eventos):
     print("DEBUG: VOU CONSULTAR ODDS")
     resposta = fazer_requisicao(url)
     print("DEBUG ODDS:", json.dumps(resposta, ensure_ascii=False))
-    resposta = fazer_requisicao(url)
-    print("DEBUG ODDS:", json.dumps(resposta, ensure_ascii=False)[:5000])
     # O endpoint /odds/multi retorna uma lista de eventos.
     if isinstance(resposta, list):
         return resposta
