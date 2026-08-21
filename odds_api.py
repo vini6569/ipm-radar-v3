@@ -86,7 +86,7 @@ def buscar_odds_multiplos(eventos):
     for evento in eventos:
         if not isinstance(evento, dict):
             continue
-        
+        print("DEBUG: ENTROU NA BUSCA DE ODDS")
         evento_id = evento.get("id")
 
         if evento_id:
