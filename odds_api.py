@@ -31,19 +31,31 @@ def fazer_requisicao(url):
 
 
 def buscar_jogos_ao_vivo():
-    """Busca eventos LIVE diretamente na Odds-API.io."""
+    """Busca eventos LIVE diretamente na Odds-API."""
+
     parametros = urllib.parse.urlencode({
         "apiKey": obter_api_key(),
         "sport": "football",
     })
 
-    resposta = fazer_requisicao(BASE_URL + "/events/live?" + parametros)
+    url = BASE_URL + "/events/live?" + parametros
+    resposta = fazer_requisicao(url)
+
+    print("[DIAGNOSTICO] /events/live")
+    print("[DIAGNOSTICO] Tipo:", type(resposta))
 
     if isinstance(resposta, list):
+        print("[DIAGNOSTICO] Quantidade de eventos:", len(resposta))
+
+        if resposta:
+            print("[DIAGNOSTICO] Primeiro evento:", resposta[0])
+        else:
+            print("[DIAGNOSTICO] Nenhum evento LIVE encontrado.")
+
         return resposta
 
-    print("[DIAGNOSTICO] /events/live não retornou lista.")
-    print("[DIAGNOSTICO] Tipo:", type(resposta).__name__)
+    print("[DIAGNOSTICO] Resposta inesperada:", resposta)
+
     return []
 
 
