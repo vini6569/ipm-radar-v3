@@ -4,7 +4,6 @@
 #
 # Consulta:
 # - Jogos ao vivo
-# - Odds dos jogos
 # - Total Goals (Over / Under)
 # - Asian Handicap
 #
@@ -18,6 +17,7 @@ import urllib.parse
 
 
 BASE_URL = "https://api.odds-api.io/v3"
+
 BOOKMAKER = "Bet365"
 
 
@@ -43,18 +43,13 @@ def fazer_requisicao(url):
         url,
         headers={
             "User-Agent": "IPM-Radar/3.0",
-            "Accept": "application/json",
-        },
+            "Accept": "application/json"
+        }
     )
 
-    try:
-        with urllib.request.urlopen(requisicao, timeout=20) as resposta:
-            conteudo = resposta.read().decode("utf-8")
-            return json.loads(conteudo)
-
-    except Exception as erro:
-        print("ERRO NA REQUISICAO:", erro)
-        return []
+    with urllib.request.urlopen(requisicao, timeout=20) as resposta:
+        conteudo = resposta.read().decode("utf-8")
+        return json.loads(conteudo)
 
 
 # ============================================================
@@ -66,15 +61,14 @@ def buscar_jogos_ao_vivo():
 
     parametros = urllib.parse.urlencode({
         "apiKey": api_key,
-        "sport": "football",
+        "sport": "football"
     })
 
-    url = f"{BASE_URL}/events/live?{parametros}"
+    url = BASE_URL + "/events/live?" + parametros
 
     resposta = fazer_requisicao(url)
 
     if not isinstance(resposta, list):
-        print("RESPOSTA DE JOGOS AO VIVO NÃO É LISTA:", type(resposta))
         return []
 
     return resposta
@@ -95,32 +89,34 @@ def buscar_odds_multiplos(eventos):
 
         evento_id = evento.get("id")
 
-        if evento_id is not None:
+        if evento_id:
             ids.append(str(evento_id))
 
     if not ids:
         return []
 
-    # A API permite consultar até 10 eventos por vez.
+    # A API permite consultar até 10 eventos por chamada.
     ids = ids[:10]
 
     parametros = urllib.parse.urlencode({
         "apiKey": api_key,
         "eventIds": ",".join(ids),
-        "bookmakers": BOOKMAKER,
+        "bookmakers": BOOKMAKER
     })
 
-    url = f"{BASE_URL}/odds/multi?{parametros}"
-
-    print("CONSULTANDO ODDS PARA:", ",".join(ids))
+    url = BASE_URL + "/odds/multi?" + parametros
 
     resposta = fazer_requisicao(url)
 
-    if not isinstance(resposta, list):
-        print("RESPOSTA DE ODDS NÃO É LISTA:", type(resposta))
-        return []
+    # O endpoint /odds/multi retorna uma lista de eventos.
+    if isinstance(resposta, list):
+        return resposta
 
-    return resposta
+    # Proteção caso a API retorne um único objeto.
+    if isinstance(resposta, dict):
+        return [resposta]
+
+    return []
 
 
 # ============================================================
@@ -128,33 +124,72 @@ def buscar_odds_multiplos(eventos):
 # ============================================================
 
 def extrair_mercados(odds_evento):
+
     resultado = {
         "resultado": [],
         "gols": [],
-        "handicap": [],
+        "handicap": []
     }
 
     if not isinstance(odds_evento, dict):
         return resultado
 
-    # Algumas respostas podem trazer bookmakers diretamente.
-    bookmakers = odds_evento.get("bookmakers", [])
+    bookmakers = odds_evento.get("bookmakers", {})
 
-    if not isinstance(bookmakers, list):
+    # ========================================================
+    # IMPORTANTE:
+    # A API Odds-API.io v3 normalmente retorna:
+    #
+    # "bookmakers": {
+    #     "Bet365": [
+    #         {"name": "ML", ...},
+    #         {"name": "Totals", ...},
+    #         {"name": "Spread", ...}
+    #     ]
+    # }
+    #
+    # Portanto BOOKMAKERS é um DICT, e não uma LISTA.
+    # ========================================================
+
+    if isinstance(bookmakers, dict):
+
+        lista_bookmakers = []
+
+        for nome_bookmaker, mercados in bookmakers.items():
+            lista_bookmakers.append({
+                "name": nome_bookmaker,
+                "markets": mercados
+            })
+
+    elif isinstance(bookmakers, list):
+
+        # Mantém compatibilidade com outro formato de resposta.
+        lista_bookmakers = bookmakers
+
+    else:
         return resultado
 
-    for bookmaker in bookmakers:
+    # ========================================================
+    # CADA BOOKMAKER
+    # ========================================================
+
+    for bookmaker in lista_bookmakers:
+
         if not isinstance(bookmaker, dict):
             continue
 
-        bookmaker_nome = bookmaker.get("name", "")
+        bookmaker_nome = bookmaker.get("name")
 
+        # Formato normalizado acima.
         mercados = bookmaker.get("markets", [])
 
+        # Alguns retornos podem trazer os mercados diretamente
+        # como valor de uma chave de bookmaker.
         if not isinstance(mercados, list):
             continue
 
         for mercado in mercados:
+
             if not isinstance(mercado, dict):
                 continue
 
@@ -164,66 +199,54 @@ def extrair_mercados(odds_evento):
             if not isinstance(outcomes, list):
                 continue
 
-            # ------------------------------------------------
+            # =================================================
             # RESULTADO 1X2
-            # ------------------------------------------------
-            if nome == "ML":
-                resultado["resultado"].extend(outcomes)
+            # =================================================
 
-            # ------------------------------------------------
-            # TOTAL GOALS
-            # ------------------------------------------------
-            elif nome == "Totals":
+            if nome == "ML":
+
                 for odd in outcomes:
+
+                    if isinstance(odd, dict):
+                        resultado["resultado"].append({
+                            "home": odd.get("home"),
+                            "draw": odd.get("draw"),
+                            "away": odd.get("away")
+                        })
+
+            # =================================================
+            # TOTAL GOALS
+            # =================================================
+
+            elif nome == "Totals":
+
+                for odd in outcomes:
+
                     if not isinstance(odd, dict):
                         continue
 
                     resultado["gols"].append({
                         "linha": odd.get("hdp"),
                         "over": odd.get("over"),
-                        "under": odd.get("under"),
-                        "bookmaker": bookmaker_nome,
+                        "under": odd.get("under")
                     })
 
-            # ------------------------------------------------
+            # =================================================
             # ASIAN HANDICAP
-            # ------------------------------------------------
+            # =================================================
+
             elif nome == "Spread":
+
                 for odd in outcomes:
+
                     if not isinstance(odd, dict):
                         continue
 
                     resultado["handicap"].append({
                         "linha": odd.get("hdp"),
                         "home": odd.get("home"),
-                        "away": odd.get("away"),
-                        "bookmaker": bookmaker_nome,
+                        "away": odd.get("away")
                     })
 
     return resultado
-
-
-# ============================================================
-# FUNÇÃO DE CONVENIÊNCIA
-# ============================================================
-
-def buscar_odds_e_extrair(eventos):
-    """
-    Recebe os eventos ao vivo, consulta as odds e devolve
-    os mercados já separados por evento.
-    """
-
-    odds = buscar_odds_multiplos(eventos)
-
-    resultados = []
-
-    for odds_evento in odds:
-        mercados = extrair_mercados(odds_evento)
-
-        resultados.append({
-            "evento_id": odds_evento.get("id"),
-            "mercados": mercados,
-        })
-
-    return resultados
     
