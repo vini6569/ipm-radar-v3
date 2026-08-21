@@ -2,8 +2,17 @@ import time
 import os
 import threading
 
-from config import NOME_BOT, VERSAO
-from odds_api import buscar_jogos_ao_vivo
+from config import (
+    NOME_BOT,
+    VERSAO,
+    COLETA_SEGUNDOS,
+    MAX_JOGOS_RADAR,
+)
+from odds_api import (
+    buscar_jogos_ao_vivo,
+    buscar_odds_multiplos,
+    extrair_mercados,
+)
 from historico import quantidade_jogos
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
@@ -81,6 +90,84 @@ def mostrar_odds(jogo):
         print("  Sem odds de Asian Handicap.")
 
 
+def obter_id(evento):
+    """Retorna o ID do evento como string para comparação segura."""
+    if not isinstance(evento, dict):
+        return None
+
+    evento_id = evento.get("id")
+
+    if evento_id is None:
+        return None
+
+    return str(evento_id)
+
+
+def anexar_odds(jogos):
+    """
+    Busca as odds dos eventos encontrados e anexa os mercados
+    diretamente em cada jogo.
+
+    Antes, o main.py apenas buscava os jogos ao vivo e tentava
+    ler jogo['gols'] e jogo['handicap'], mas esses campos nunca
+    eram preenchidos.
+    """
+
+    if not jogos:
+        return jogos
+
+    try:
+        respostas_odds = buscar_odds_multiplos(jogos)
+
+    except Exception as erro:
+        print("ERRO AO BUSCAR ODDS:")
+        print(type(erro).__name__)
+        print(erro)
+        return jogos
+
+    odds_por_id = {}
+
+    for resposta in respostas_odds:
+
+        if not isinstance(resposta, dict):
+            continue
+
+        evento_id = obter_id(resposta)
+
+        if evento_id is None:
+            continue
+
+        odds_por_id[evento_id] = resposta
+
+    for jogo in jogos:
+
+        evento_id = obter_id(jogo)
+
+        # Garante que os campos existam mesmo sem odds.
+        jogo["resultado"] = []
+        jogo["gols"] = []
+        jogo["handicap"] = []
+
+        if evento_id is None:
+            continue
+
+        resposta_odds = odds_por_id.get(evento_id)
+
+        if not resposta_odds:
+            continue
+
+        mercados = extrair_mercados(resposta_odds)
+
+        if not isinstance(mercados, dict):
+            continue
+
+        jogo["resultado"] = mercados.get("resultado", [])
+        jogo["gols"] = mercados.get("gols", [])
+        jogo["handicap"] = mercados.get("handicap", [])
+
+    return jogos
+
+
 def iniciar():
 
     print("=" * 60)
@@ -96,10 +183,18 @@ def iniciar():
 
         try:
 
+            # 1. Busca os jogos ao vivo.
             jogos = buscar_jogos_ao_vivo()
+
+            # Limita a quantidade processada pelo Radar.
+            jogos = jogos[:MAX_JOGOS_RADAR]
 
             print("Jogos ao vivo encontrados:", len(jogos))
 
+            # 2. Busca as odds dos mesmos jogos.
+            jogos = anexar_odds(jogos)
+
+            # 3. Exibe os jogos já com os mercados anexados.
             for jogo in jogos:
 
                 print("-" * 60)
@@ -113,13 +208,14 @@ def iniciar():
                 print("ID:", jogo.get("id"))
                 print("PLACAR:", jogo.get("scores"))
 
-                # Mostra as odds para análise do IPM
                 mostrar_odds(jogo)
 
             print()
-            print("Nova consulta em 60 segundos...")
+            print(
+                f"Nova consulta em {COLETA_SEGUNDOS} segundos..."
+            )
 
-            time.sleep(60)
+            time.sleep(COLETA_SEGUNDOS)
 
         except Exception as erro:
 
