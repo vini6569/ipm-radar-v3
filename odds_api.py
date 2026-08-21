@@ -412,7 +412,12 @@ def extrair_mercados(odds_evento):
                 nomes_recebidos.append(nome)
 
     print("[DIAGNOSTICO] Mercados Bet365:", nomes_recebidos)
+    print("[DIAGNOSTICO] Mercados Bet365:", nomes_recebidos)
 
+    print("[DIAGNOSTICO] ESTRUTURA COMPLETA DOS MERCADOS:")
+    print(mercados)
+
+for mercado in mercados:
     for mercado in mercados:
         if not isinstance(mercado, dict):
             continue
