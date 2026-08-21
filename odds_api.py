@@ -2,13 +2,12 @@
 # ODDS API
 # IPM-RADAR-V3
 #
-# Responsável por consultar:
-# - jogos ao vivo
-# - informações dos eventos
-# - odds dos eventos
+# Consulta:
+# - Jogos ao vivo
+# - Total Goals (Over / Under)
+# - Asian Handicap
 #
-# A chave da API NÃO fica neste arquivo.
-# Ela será obtida pela variável ODDS_API_KEY.
+# A chave fica na variável ODDS_API_KEY
 # ============================================================
 
 import os
@@ -19,12 +18,14 @@ import urllib.parse
 
 BASE_URL = "https://api.odds-api.io/v3"
 
+BOOKMAKER = "Bet365"
+
+
+# ============================================================
+# API KEY
+# ============================================================
 
 def obter_api_key():
-    """
-    Obtém a chave da Odds-API.io
-    através da variável de ambiente.
-    """
 
     api_key = os.getenv("ODDS_API_KEY")
 
@@ -36,10 +37,11 @@ def obter_api_key():
     return api_key
 
 
+# ============================================================
+# REQUISIÇÃO
+# ============================================================
+
 def fazer_requisicao(url):
-    """
-    Executa uma requisição HTTP e retorna JSON.
-    """
 
     requisicao = urllib.request.Request(
         url,
@@ -53,9 +55,18 @@ def fazer_requisicao(url):
         requisicao,
         timeout=20
     ) as resposta:
+
         conteudo = resposta.read().decode("utf-8")
+
         return json.loads(conteudo)
+
+
+# ============================================================
+# JOGOS AO VIVO
+# ============================================================
+
 def buscar_jogos_ao_vivo():
+
     api_key = obter_api_key()
 
     parametros = urllib.parse.urlencode({
@@ -63,7 +74,11 @@ def buscar_jogos_ao_vivo():
         "sport": "football"
     })
 
-    url = BASE_URL + "/events/live?" + parametros
+    url = (
+        BASE_URL
+        + "/events/live?"
+        + parametros
+    )
 
     resposta = fazer_requisicao(url)
 
@@ -71,3 +86,126 @@ def buscar_jogos_ao_vivo():
         return []
 
     return resposta
+
+
+# ============================================================
+# ODDS DOS JOGOS
+# ============================================================
+
+def buscar_odds_multiplos(eventos):
+
+    api_key = obter_api_key()
+
+    ids = []
+
+    for evento in eventos:
+
+        evento_id = evento.get("id")
+
+        if evento_id:
+            ids.append(str(evento_id))
+
+    if not ids:
+        return []
+
+    # A API permite consultar até 10 eventos
+    ids = ids[:10]
+
+    parametros = urllib.parse.urlencode({
+        "apiKey": api_key,
+        "eventIds": ",".join(ids),
+        "bookmakers": BOOKMAKER
+    })
+
+    url = (
+        BASE_URL
+        + "/odds/multi?"
+        + parametros
+    )
+
+    resposta = fazer_requisicao(url)
+
+    if not isinstance(resposta, list):
+        return []
+
+    return resposta
+
+
+# ============================================================
+# EXTRAÇÃO DOS MERCADOS
+# ============================================================
+
+def extrair_mercados(odds_evento):
+
+    resultado = {
+        "resultado": [],
+        "gols": [],
+        "handicap": []
+    }
+
+    if not isinstance(odds_evento, dict):
+        return resultado
+
+    bookmakers = odds_evento.get("bookmakers", [])
+
+    if not isinstance(bookmakers, list):
+        return resultado
+
+    for bookmaker in bookmakers:
+
+        mercados = bookmaker.get("markets", [])
+
+        if not isinstance(mercados, list):
+            continue
+
+        for mercado in mercados:
+
+            nome = mercado.get("name")
+
+            outcomes = mercado.get("odds", [])
+
+            if not isinstance(outcomes, list):
+                continue
+
+
+            # =================================================
+            # RESULTADO 1X2
+            # =================================================
+
+            if nome == "ML":
+
+                resultado["resultado"].extend(
+                    outcomes
+                )
+
+
+            # =================================================
+            # TOTAL GOALS
+            # =================================================
+
+            elif nome == "Totals":
+
+                for odd in outcomes:
+
+                    resultado["gols"].append({
+                        "linha": odd.get("hdp"),
+                        "over": odd.get("over"),
+                        "under": odd.get("under")
+                    })
+
+
+            # =================================================
+            # ASIAN HANDICAP
+            # =================================================
+
+            elif nome == "Spread":
+
+                for odd in outcomes:
+
+                    resultado["handicap"].append({
+                        "linha": odd.get("hdp"),
+                        "home": odd.get("home"),
+                        "away": odd.get("away")
+                    })
+
+    return resultado
