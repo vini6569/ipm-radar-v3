@@ -2,7 +2,13 @@
 # ODDS API
 # IPM-RADAR-V3
 #
-# DIAGNÓSTICO DOS MERCADOS
+# Consulta:
+# - Jogos ao vivo
+# - Resultado 1X2
+# - Total Goals (Over / Under)
+# - Asian Handicap
+#
+# A chave fica na variável ODDS_API_KEY
 # ============================================================
 
 import os
@@ -78,8 +84,7 @@ def buscar_jogos_ao_vivo():
     resposta = fazer_requisicao(url)
 
     if not isinstance(resposta, list):
-        print("ERRO: resposta de jogos ao vivo não é lista.")
-        print(resposta)
+        print("RESPOSTA DE JOGOS AO VIVO NÃO É LISTA")
         return []
 
     print("JOGOS AO VIVO ENCONTRADOS:", len(resposta))
@@ -99,21 +104,20 @@ def buscar_odds_multiplos(eventos):
 
     for evento in eventos:
 
+        if not isinstance(evento, dict):
+            continue
+
         evento_id = evento.get("id")
 
         if evento_id:
             ids.append(str(evento_id))
 
     if not ids:
-
-        print("Nenhum ID de evento encontrado.")
-
+        print("NENHUM ID DE EVENTO ENCONTRADO")
         return []
 
-    # A API permite até 10 eventos por consulta
+    # A API permite consultar até 10 eventos
     ids = ids[:10]
-
-    print("IDS CONSULTADOS:", ids)
 
     parametros = urllib.parse.urlencode({
         "apiKey": api_key,
@@ -127,19 +131,14 @@ def buscar_odds_multiplos(eventos):
         + parametros
     )
 
-    print("CONSULTANDO ODDS...")
-    print("BOOKMAKER:", BOOKMAKER)
-
     resposta = fazer_requisicao(url)
 
     if not isinstance(resposta, list):
-
-        print("ERRO: resposta de odds não é lista.")
-        print(resposta)
-
+        print("RESPOSTA DE ODDS NÃO É LISTA")
+        print("TIPO:", type(resposta))
         return []
 
-    print("EVENTOS COM ODDS RECEBIDOS:", len(resposta))
+    print("ODDS RECEBIDAS:", len(resposta))
 
     return resposta
 
@@ -158,27 +157,9 @@ def extrair_mercados(odds_evento):
 
     if not isinstance(odds_evento, dict):
 
-        print("ODDS EVENTO NÃO É DICT")
+        print("ODDS_EVENTO NÃO É DICT")
 
         return resultado
-
-
-    # ========================================================
-    # IDENTIFICAÇÃO DO JOGO
-    # ========================================================
-
-    evento_id = odds_evento.get("id")
-
-    home = odds_evento.get("home")
-    away = odds_evento.get("away")
-
-    print("")
-    print("==============================================")
-    print("DIAGNÓSTICO DO EVENTO")
-    print("==============================================")
-    print("ID:", evento_id)
-    print("HOME:", home)
-    print("AWAY:", away)
 
 
     # ========================================================
@@ -187,114 +168,65 @@ def extrair_mercados(odds_evento):
 
     bookmakers = odds_evento.get(
         "bookmakers",
-        []
+        {}
     )
 
-    if not isinstance(bookmakers, list):
-
-        print("BOOKMAKERS NÃO É LISTA")
-
-        return resultado
-
-
-    print("BOOKMAKERS ENCONTRADOS:", len(bookmakers))
-
 
     # ========================================================
-    # CADA BOOKMAKER
+    # FORMATO ATUAL DA API
+    #
+    # "bookmakers": {
+    #     "Bet365": [
+    #         {...},
+    #         {...}
+    #     ]
+    # }
     # ========================================================
 
-    for bookmaker in bookmakers:
+    if isinstance(bookmakers, dict):
 
-        if not isinstance(bookmaker, dict):
-            continue
-
-        bookmaker_nome = bookmaker.get(
-            "name"
+        mercados = bookmakers.get(
+            BOOKMAKER,
+            []
         )
 
-        print("")
-        print("----------------------------------------------")
-        print("BOOKMAKER:", bookmaker_nome)
-        print("----------------------------------------------")
+        print(
+            "BOOKMAKER:",
+            BOOKMAKER
+        )
 
-
-        mercados = bookmaker.get(
-            "markets",
-            []
+        print(
+            "MERCADOS ENCONTRADOS:",
+            len(mercados)
+            if isinstance(mercados, list)
+            else 0
         )
 
         if not isinstance(mercados, list):
 
-            print("MERCADOS NÃO É LISTA")
+            return resultado
 
-            continue
-
-
-        print(
-            "QUANTIDADE DE MERCADOS:",
-            len(mercados)
-        )
-
-
-        # ====================================================
-        # CADA MERCADO
-        # ====================================================
 
         for mercado in mercados:
 
             if not isinstance(mercado, dict):
                 continue
 
-            nome = mercado.get(
-                "name"
-            )
+            nome = mercado.get("name")
 
             outcomes = mercado.get(
                 "odds",
                 []
             )
 
-
-            print("")
-            print("MERCADO ENCONTRADO:", nome)
-            print(
-                "QUANTIDADE DE ODDS:",
-                len(outcomes)
-                if isinstance(outcomes, list)
-                else "NÃO É LISTA"
-            )
-
-
-            # =================================================
-            # MOSTRA O CONTEÚDO REAL DO MERCADO
-            # =================================================
-
-            print(
-                "DADOS DO MERCADO:"
-            )
-
-            try:
-
-                print(
-                    json.dumps(
-                        mercado,
-                        ensure_ascii=False,
-                        indent=2
-                    )
-                )
-
-            except Exception:
-
-                print(mercado)
-
-
-            if not isinstance(
-                outcomes,
-                list
-            ):
-
+            if not isinstance(outcomes, list):
                 continue
+
+
+            print(
+                "MERCADO:",
+                nome
+            )
 
 
             # =================================================
@@ -303,9 +235,7 @@ def extrair_mercados(odds_evento):
 
             if nome == "ML":
 
-                resultado[
-                    "resultado"
-                ].extend(
+                resultado["resultado"].extend(
                     outcomes
                 )
 
@@ -318,19 +248,13 @@ def extrair_mercados(odds_evento):
 
                 for odd in outcomes:
 
-                    resultado[
-                        "gols"
-                    ].append({
+                    if not isinstance(odd, dict):
+                        continue
 
-                        "linha":
-                            odd.get("hdp"),
-
-                        "over":
-                            odd.get("over"),
-
-                        "under":
-                            odd.get("under")
-
+                    resultado["gols"].append({
+                        "linha": odd.get("hdp"),
+                        "over": odd.get("over"),
+                        "under": odd.get("under")
                     })
 
 
@@ -342,48 +266,159 @@ def extrair_mercados(odds_evento):
 
                 for odd in outcomes:
 
-                    resultado[
-                        "handicap"
-                    ].append({
+                    if not isinstance(odd, dict):
+                        continue
 
-                        "linha":
-                            odd.get("hdp"),
-
-                        "home":
-                            odd.get("home"),
-
-                        "away":
-                            odd.get("away")
-
+                    resultado["handicap"].append({
+                        "linha": odd.get("hdp"),
+                        "home": odd.get("home"),
+                        "away": odd.get("away")
                     })
 
 
+        return resultado
+
+
     # ========================================================
-    # RESUMO FINAL
+    # COMPATIBILIDADE COM FORMATO ANTIGO
     # ========================================================
 
-    print("")
-    print("==============================================")
-    print("RESUMO DOS MERCADOS")
-    print("==============================================")
+    if isinstance(bookmakers, list):
+
+        print(
+            "BOOKMAKERS EM FORMATO LISTA"
+        )
+
+        for bookmaker in bookmakers:
+
+            if not isinstance(bookmaker, dict):
+                continue
+
+            bookmaker_nome = bookmaker.get(
+                "name"
+            )
+
+            mercados = bookmaker.get(
+                "markets",
+                []
+            )
+
+            if not isinstance(
+                mercados,
+                list
+            ):
+                continue
+
+            for mercado in mercados:
+
+                if not isinstance(
+                    mercado,
+                    dict
+                ):
+                    continue
+
+                nome = mercado.get(
+                    "name"
+                )
+
+                outcomes = mercado.get(
+                    "odds",
+                    []
+                )
+
+                if not isinstance(
+                    outcomes,
+                    list
+                ):
+                    continue
+
+
+                # =============================================
+                # RESULTADO
+                # =============================================
+
+                if nome == "ML":
+
+                    resultado[
+                        "resultado"
+                    ].extend(
+                        outcomes
+                    )
+
+
+                # =============================================
+                # TOTAL GOALS
+                # =============================================
+
+                elif nome == "Totals":
+
+                    for odd in outcomes:
+
+                        if not isinstance(
+                            odd,
+                            dict
+                        ):
+                            continue
+
+                        resultado[
+                            "gols"
+                        ].append({
+
+                            "linha":
+                                odd.get("hdp"),
+
+                            "over":
+                                odd.get("over"),
+
+                            "under":
+                                odd.get("under")
+
+                        })
+
+
+                # =============================================
+                # ASIAN HANDICAP
+                # =============================================
+
+                elif nome == "Spread":
+
+                    for odd in outcomes:
+
+                        if not isinstance(
+                            odd,
+                            dict
+                        ):
+                            continue
+
+                        resultado[
+                            "handicap"
+                        ].append({
+
+                            "linha":
+                                odd.get("hdp"),
+
+                            "home":
+                                odd.get("home"),
+
+                            "away":
+                                odd.get("away")
+
+                        })
+
+
+        return resultado
+
+
+    # ========================================================
+    # FORMATO DESCONHECIDO
+    # ========================================================
 
     print(
-        "RESULTADO 1X2:",
-        len(resultado["resultado"])
+        "FORMATO DE BOOKMAKERS DESCONHECIDO:"
     )
 
     print(
-        "TOTAL GOALS:",
-        len(resultado["gols"])
+        type(bookmakers)
     )
-
-    print(
-        "ASIAN HANDICAP:",
-        len(resultado["handicap"])
-    )
-
-    print("==============================================")
-    print("")
-
 
     return resultado
