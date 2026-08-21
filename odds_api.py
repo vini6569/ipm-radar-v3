@@ -363,7 +363,7 @@ def extrair_mercados(odds_evento):
         len(resultado["handicap"])
     )
 
-    return resultado
+    
 
     bookmakers = odds_evento.get("bookmakers")
 
@@ -516,6 +516,5 @@ for mercado in mercados:
     print("[DIAGNOSTICO] Resultado 1X2:", len(resultado["resultado"]))
     print("[DIAGNOSTICO] Total de Gols:", len(resultado["gols"]))
     print("[DIAGNOSTICO] Asian Handicap:", len(resultado["handicap"]))
-
     return resultado
         
