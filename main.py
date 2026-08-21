@@ -32,6 +32,55 @@ def iniciar_servidor():
     servidor.serve_forever()
 
 
+def mostrar_odds(jogo):
+
+    # ==============================
+    # TOTAL GOALS
+    # ==============================
+
+    print()
+    print("TOTAL GOALS")
+
+    gols = jogo.get("gols", [])
+
+    if gols:
+        for odd in gols:
+            linha = odd.get("linha")
+            over = odd.get("over")
+            under = odd.get("under")
+
+            print(
+                f"  Linha {linha} | "
+                f"Over: {over} | "
+                f"Under: {under}"
+            )
+    else:
+        print("  Sem odds de Total Goals.")
+
+    # ==============================
+    # ASIAN HANDICAP
+    # ==============================
+
+    print()
+    print("ASIAN HANDICAP")
+
+    handicap = jogo.get("handicap", [])
+
+    if handicap:
+        for odd in handicap:
+            linha = odd.get("linha")
+            home = odd.get("home")
+            away = odd.get("away")
+
+            print(
+                f"  Linha {linha} | "
+                f"Casa: {home} | "
+                f"Fora: {away}"
+            )
+    else:
+        print("  Sem odds de Asian Handicap.")
+
+
 def iniciar():
 
     print("=" * 60)
@@ -64,60 +113,10 @@ def iniciar():
                 print("ID:", jogo.get("id"))
                 print("PLACAR:", jogo.get("scores"))
 
-                # ==========================================
-                # TOTAL GOALS
-                # ==========================================
+                # Mostra as odds para análise do IPM
+                mostrar_odds(jogo)
 
-                gols = jogo.get("gols", [])
-
-                print()
-                print("TOTAL GOALS")
-
-                if gols:
-
-                    for odd in gols:
-
-                        print(
-                            "Linha:",
-                            odd.get("linha"),
-                            "| Over:",
-                            odd.get("over"),
-                            "| Under:",
-                            odd.get("under")
-                        )
-
-                else:
-
-                    print("Sem odds de Total Goals.")
-
-                # ==========================================
-                # ASIAN HANDICAP
-                # ==========================================
-
-                handicap = jogo.get("handicap", [])
-
-                print()
-                print("ASIAN HANDICAP")
-
-                if handicap:
-
-                    for odd in handicap:
-
-                        print(
-                            "Linha:",
-                            odd.get("linha"),
-                            "| Home:",
-                            odd.get("home"),
-                            "| Away:",
-                            odd.get("away")
-                        )
-
-                else:
-
-                    print("Sem odds de Asian Handicap.")
-
-                print()
-
+            print()
             print("Nova consulta em 60 segundos...")
 
             time.sleep(60)
@@ -139,3 +138,4 @@ if __name__ == "__main__":
     ).start()
 
     iniciar()
+    
