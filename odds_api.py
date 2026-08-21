@@ -101,4 +101,4 @@ def extrair_mercados(odds_event):
     )
 
     return resultado
-```0
+    
