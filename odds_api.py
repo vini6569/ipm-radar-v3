@@ -50,13 +50,17 @@ def buscar_jogos_ao_vivo():
 
 
 def buscar_odds_multiplos(eventos):
+    """
+    Busca odds para até 10 eventos.
+    """
+
     if not isinstance(eventos, list):
         return []
 
     ids = [
         str(evento.get("id"))
         for evento in eventos
-        if isinstance(evento, dict) and evento.get("id") is not None
+        if isinstance(evento, dict) and evento.get("id")
     ]
 
     if not ids:
@@ -74,30 +78,58 @@ def buscar_odds_multiplos(eventos):
     )
 
     url = BASE_URL + "/odds/multi?" + parametros
+
     resposta = fazer_requisicao(url)
 
+    print("[DIAGNOSTICO] ===== RETORNO DAS ODDS =====")
+    print(json.dumps(resposta, indent=2, ensure_ascii=False)[:12000])
+    print("[DIAGNOSTICO] ===== FIM DO RETORNO =====")
+
     if isinstance(resposta, list):
-        print("[DIAGNOSTICO] Resposta /odds/multi:", len(resposta), "eventos.")
+        print(
+            "[DIAGNOSTICO] Resposta /odds/multi: lista com",
+            len(resposta),
+            "itens."
+        )
         return resposta
 
     if isinstance(resposta, dict):
+
         if "bookmakers" in resposta:
+            print(
+                "[DIAGNOSTICO] Resposta /odds/multi: dicionário com bookmakers."
+            )
             return [resposta]
 
         eventos_dict = []
 
         for valor in resposta.values():
+
             if isinstance(valor, dict) and "bookmakers" in valor:
                 eventos_dict.append(valor)
+
             elif isinstance(valor, list):
+
                 for item in valor:
-                    if isinstance(item, dict) and "bookmakers" in item:
+
+                    if (
+                        isinstance(item, dict)
+                        and "bookmakers" in item
+                    ):
                         eventos_dict.append(item)
+
+        print(
+            "[DIAGNOSTICO] Eventos com bookmakers encontrados:",
+            len(eventos_dict)
+        )
 
         return eventos_dict
 
-    print("[DIAGNOSTICO] Tipo inesperado em /odds/multi:",
-          type(resposta).__name__)
+    print(
+        "[DIAGNOSTICO] Tipo inesperado recebido:",
+        type(resposta).__name__
+    )
+
     return []
 
 
