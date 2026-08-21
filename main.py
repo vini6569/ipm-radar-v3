@@ -2,55 +2,27 @@ import time
 import os
 import threading
 
-from config import (
-    NOME_BOT,
-    VERSAO,
-    COLETA_SEGUNDOS
-)
-
+from config import NOME_BOT, VERSAO
 from odds_api import buscar_jogos_ao_vivo
 from historico import quantidade_jogos
-
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-
-# ============================================================
-# SERVIDOR DE SAÚDE DO RENDER
-# ============================================================
 
 class HealthHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
-
         self.send_response(200)
-
-        self.send_header(
-            "Content-type",
-            "text/plain"
-        )
-
+        self.send_header("Content-type", "text/plain")
         self.end_headers()
-
-        self.wfile.write(
-            b"IPM RADAR V3 ONLINE"
-        )
+        self.wfile.write(b"IPM RADAR V3 ONLINE")
 
     def log_message(self, format, *args):
         return
 
 
-# ============================================================
-# INICIAR SERVIDOR
-# ============================================================
-
 def iniciar_servidor():
 
-    porta = int(
-        os.environ.get(
-            "PORT",
-            10000
-        )
-    )
+    porta = int(os.environ.get("PORT", 10000))
 
     servidor = HTTPServer(
         ("0.0.0.0", porta),
@@ -60,26 +32,18 @@ def iniciar_servidor():
     servidor.serve_forever()
 
 
-# ============================================================
-# MOSTRAR ODDS
-# ============================================================
-
 def mostrar_odds(jogo):
 
-    # ========================================================
+    # ==============================
     # TOTAL GOALS
-    # ========================================================
+    # ==============================
 
     print()
     print("TOTAL GOALS")
 
-    gols = jogo.get(
-        "gols",
-        []
-    )
+    gols = jogo.get("gols", [])
 
     if gols:
-
         for odd in gols:
 
             linha = odd.get("linha")
@@ -93,25 +57,18 @@ def mostrar_odds(jogo):
             )
 
     else:
+        print("  Sem odds de Total Goals.")
 
-        print(
-            "  Sem odds de Total Goals."
-        )
-
-    # ========================================================
+    # ==============================
     # ASIAN HANDICAP
-    # ========================================================
+    # ==============================
 
     print()
     print("ASIAN HANDICAP")
 
-    handicap = jogo.get(
-        "handicap",
-        []
-    )
+    handicap = jogo.get("handicap", [])
 
     if handicap:
-
         for odd in handicap:
 
             linha = odd.get("linha")
@@ -125,46 +82,18 @@ def mostrar_odds(jogo):
             )
 
     else:
+        print("  Sem odds de Asian Handicap.")
 
-        print(
-            "  Sem odds de Asian Handicap."
-        )
-
-
-# ============================================================
-# RADAR PRINCIPAL
-# ============================================================
 
 def iniciar():
 
     print("=" * 60)
-
-    print(
-        NOME_BOT
-    )
-
-    print(
-        "VERSÃO:",
-        VERSAO
-    )
-
+    print(NOME_BOT)
+    print("VERSÃO:", VERSAO)
     print("=" * 60)
 
-    print(
-        "IPM-RADAR-V3 iniciado."
-    )
-
-    print(
-        "Histórico registrado:",
-        quantidade_jogos()
-    )
-
-    print(
-        "Intervalo de coleta:",
-        COLETA_SEGUNDOS,
-        "segundos"
-    )
-
+    print("IPM-RADAR-V3 iniciado.")
+    print("Histórico registrado:", quantidade_jogos())
     print()
 
     while True:
@@ -180,9 +109,7 @@ def iniciar():
 
             for jogo in jogos:
 
-                print(
-                    "-" * 60
-                )
+                print("-" * 60)
 
                 print(
                     jogo.get("home"),
@@ -200,39 +127,22 @@ def iniciar():
                     jogo.get("scores")
                 )
 
+                # Mostra as odds para análise do IPM
                 mostrar_odds(jogo)
 
             print()
+            print("Nova consulta em 60 segundos...")
 
-            print(
-                f"Nova consulta em "
-                f"{COLETA_SEGUNDOS} segundos..."
-            )
-
-            time.sleep(
-                COLETA_SEGUNDOS
-            )
+            time.sleep(60)
 
         except Exception as erro:
 
-            print(
-                "ERRO NO RADAR:"
-            )
-
-            print(
-                type(erro).__name__
-            )
-
-            print(
-                erro
-            )
+            print("ERRO NO RADAR:")
+            print(type(erro).__name__)
+            print(erro)
 
             time.sleep(30)
 
-
-# ============================================================
-# INICIALIZAÇÃO
-# ============================================================
 
 if __name__ == "__main__":
 
