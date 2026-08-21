@@ -118,6 +118,221 @@ def extrair_mercados(odds_evento):
     if not isinstance(odds_evento, dict):
         return resultado
 
+    bookmakers = odds_evento.get("bookmakers", {})
+
+    # =========================================================
+    # LOCALIZA OS MERCADOS DA BET365
+    # =========================================================
+
+    mercados = None
+
+    if isinstance(bookmakers, dict):
+
+        # Formato:
+        # "bookmakers": {
+        #     "Bet365": [...]
+        # }
+
+        mercados = bookmakers.get(BOOKMAKER)
+
+        if mercados is None:
+            for nome, valor in bookmakers.items():
+
+                if str(nome).strip().lower() == BOOKMAKER.lower():
+                    mercados = valor
+                    break
+
+    elif isinstance(bookmakers, list):
+
+        # Formato alternativo:
+        # "bookmakers": [
+        #     {
+        #         "name": "Bet365",
+        #         "markets": [...]
+        #     }
+        # ]
+
+        for bookmaker in bookmakers:
+
+            if not isinstance(bookmaker, dict):
+                continue
+
+            nome = str(
+                bookmaker.get("name", "")
+            ).strip().lower()
+
+            if nome == BOOKMAKER.lower():
+
+                mercados = bookmaker.get(
+                    "markets",
+                    bookmaker.get(
+                        "odds",
+                        []
+                    )
+                )
+
+                break
+
+    # =========================================================
+    # SEGURANÇA
+    # =========================================================
+
+    if not isinstance(mercados, list):
+
+        print(
+            "[DIAGNOSTICO] Nenhum mercado encontrado para",
+            BOOKMAKER
+        )
+
+        return resultado
+
+    # =========================================================
+    # PERCORRE OS MERCADOS
+    # =========================================================
+
+    for mercado in mercados:
+
+        if not isinstance(mercado, dict):
+            continue
+
+        nome = str(
+            mercado.get("name", "")
+        ).strip().lower()
+
+        odds = mercado.get("odds", [])
+
+        if not isinstance(odds, list):
+            continue
+
+        # =====================================================
+        # RESULTADO 1X2
+        # =====================================================
+
+        if nome in (
+            "ml",
+            "moneyline",
+            "match result",
+            "matchresult",
+            "1x2",
+        ):
+
+            for odd in odds:
+
+                if not isinstance(odd, dict):
+                    continue
+
+                home = odd.get("home")
+                draw = odd.get("draw")
+                away = odd.get("away")
+
+                if (
+                    home is not None
+                    or draw is not None
+                    or away is not None
+                ):
+
+                    resultado["resultado"].append(
+                        {
+                            "home": home,
+                            "draw": draw,
+                            "away": away,
+                        }
+                    )
+
+        # =====================================================
+        # TOTAL DE GOLS
+        # =====================================================
+
+        elif nome in (
+            "totals",
+            "total goals",
+            "total",
+            "over/under",
+            "over under",
+            "overunder",
+        ):
+
+            for odd in odds:
+
+                if not isinstance(odd, dict):
+                    continue
+
+                linha = odd.get("hdp")
+
+                over = odd.get("over")
+                under = odd.get("under")
+
+                if (
+                    linha is not None
+                    or over is not None
+                    or under is not None
+                ):
+
+                    resultado["gols"].append(
+                        {
+                            "linha": linha,
+                            "over": over,
+                            "under": under,
+                        }
+                    )
+
+        # =====================================================
+        # HANDICAP / SPREAD
+        # =====================================================
+
+        elif nome in (
+            "spread",
+            "asian handicap",
+            "asian handicap - 3 way",
+            "handicap",
+            "asianhandicap",
+        ):
+
+            for odd in odds:
+
+                if not isinstance(odd, dict):
+                    continue
+
+                linha = odd.get("hdp")
+
+                home = odd.get("home")
+                away = odd.get("away")
+
+                if (
+                    linha is not None
+                    or home is not None
+                    or away is not None
+                ):
+
+                    resultado["handicap"].append(
+                        {
+                            "linha": linha,
+                            "home": home,
+                            "away": away,
+                        }
+                    )
+
+    # =========================================================
+    # DIAGNÓSTICO
+    # =========================================================
+
+    print(
+        "[DIAGNOSTICO] Resultado 1X2:",
+        len(resultado["resultado"])
+    )
+
+    print(
+        "[DIAGNOSTICO] Total Goals:",
+        len(resultado["gols"])
+    )
+
+    print(
+        "[DIAGNOSTICO] Asian Handicap:",
+        len(resultado["handicap"])
+    )
+
+    return resultado
+
     bookmakers = odds_evento.get("bookmakers")
 
     if bookmakers is None:
