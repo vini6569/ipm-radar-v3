@@ -230,7 +230,7 @@ def extrair_mercados(odds_evento):
                         "linha": odd.get("hdp"),
                         "over": odd.get("over"),
                         "under": odd.get("under")
-                    })
+                        })
 
             # =================================================
             # ASIAN HANDICAP
