@@ -195,7 +195,8 @@ def extrair_mercados(odds_evento):
 
             nome = mercado.get("name")
             outcomes = mercado.get("odds", [])
-
+            print("DEBUG MERCADO:", nome)
+            print("DEBUG ODDS:", outcomes)
             if not isinstance(outcomes, list):
                 continue
 
