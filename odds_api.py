@@ -221,16 +221,16 @@ def extrair_mercados(odds_evento):
 
             elif nome == "Totals":
 
-                for odd in outcomes:
+    for odd in outcomes:
 
-                    if not isinstance(odd, dict):
-                        continue
+        if not isinstance(odd, dict):
+            continue
 
-                        "linha": odd.get("point"),
-                        "linha": odd.get("hdp"),
-                        "over": odd.get("over"),
-                        "under": odd.get("under")
-                        })
+        resultado["gols"].append({
+            "linha": odd.get("point"),
+            "over": odd.get("over"),
+            "under": odd.get("under")
+        })
 
             # =================================================
             # ASIAN HANDICAP
