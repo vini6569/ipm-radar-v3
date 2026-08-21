@@ -30,10 +30,6 @@ def fazer_requisicao(url):
 
 
 def buscar_jogos_ao_vivo():
-    """
-    Busca eventos de futebol ao vivo na Odds-API.io.
-    """
-
     parametros = urllib.parse.urlencode(
         {
             "apiKey": obter_api_key(),
@@ -42,7 +38,6 @@ def buscar_jogos_ao_vivo():
     )
 
     url = BASE_URL + "/events/live?" + parametros
-
     resposta = fazer_requisicao(url)
 
     if isinstance(resposta, list):
@@ -51,22 +46,17 @@ def buscar_jogos_ao_vivo():
 
     print("[DIAGNOSTICO] /events/live não retornou uma lista.")
     print("[DIAGNOSTICO] Tipo recebido:", type(resposta).__name__)
-
     return []
 
 
 def buscar_odds_multiplos(eventos):
-    """
-    Busca odds para até 10 eventos.
-    """
-
     if not isinstance(eventos, list):
         return []
 
     ids = [
         str(evento.get("id"))
         for evento in eventos
-        if isinstance(evento, dict) and evento.get("id")
+        if isinstance(evento, dict) and evento.get("id") is not None
     ]
 
     if not ids:
@@ -84,10 +74,10 @@ def buscar_odds_multiplos(eventos):
     )
 
     url = BASE_URL + "/odds/multi?" + parametros
-
     resposta = fazer_requisicao(url)
 
     if isinstance(resposta, list):
+        print("[DIAGNOSTICO] Resposta /odds/multi:", len(resposta), "eventos.")
         return resposta
 
     if isinstance(resposta, dict):
@@ -99,7 +89,6 @@ def buscar_odds_multiplos(eventos):
         for valor in resposta.values():
             if isinstance(valor, dict) and "bookmakers" in valor:
                 eventos_dict.append(valor)
-
             elif isinstance(valor, list):
                 for item in valor:
                     if isinstance(item, dict) and "bookmakers" in item:
@@ -107,12 +96,17 @@ def buscar_odds_multiplos(eventos):
 
         return eventos_dict
 
+    print("[DIAGNOSTICO] Tipo inesperado em /odds/multi:",
+          type(resposta).__name__)
     return []
 
 
 def extrair_mercados(odds_evento):
     """
-    Extrai Resultado, Total de Gols e Handicap.
+    Extrai:
+    - Resultado 1X2
+    - Total de Gols
+    - Asian Handicap / Spread
     """
 
     resultado = {
@@ -124,12 +118,17 @@ def extrair_mercados(odds_evento):
     if not isinstance(odds_evento, dict):
         return resultado
 
-    bookmakers = odds_evento.get("bookmakers", {})
+    bookmakers = odds_evento.get("bookmakers")
 
+    if bookmakers is None:
+        print("[DIAGNOSTICO] Evento sem campo 'bookmakers'.")
+        return resultado
+
+    # A estrutura oficial do Odds-API.io é:
+    # "bookmakers": {"Bet365": [...]}
     mercados = None
 
     if isinstance(bookmakers, dict):
-
         mercados = bookmakers.get(BOOKMAKER)
 
         if mercados is None:
@@ -139,9 +138,7 @@ def extrair_mercados(odds_evento):
                     break
 
     elif isinstance(bookmakers, list):
-
         for bookmaker in bookmakers:
-
             if not isinstance(bookmaker, dict):
                 continue
 
@@ -155,17 +152,25 @@ def extrair_mercados(odds_evento):
                 break
 
     if not isinstance(mercados, list):
+        print("[DIAGNOSTICO] Bet365 não possui lista de mercados.")
+        print("[DIAGNOSTICO] Tipo recebido:", type(mercados).__name__)
         return resultado
 
-    for mercado in mercados:
+    nomes_recebidos = []
 
+    for mercado in mercados:
+        if isinstance(mercado, dict):
+            nome = str(mercado.get("name", "")).strip()
+            if nome:
+                nomes_recebidos.append(nome)
+
+    print("[DIAGNOSTICO] Mercados Bet365:", nomes_recebidos)
+
+    for mercado in mercados:
         if not isinstance(mercado, dict):
             continue
 
-        nome = str(
-            mercado.get("name", "")
-        ).strip().lower()
-
+        nome = str(mercado.get("name", "")).strip().lower()
         odds = mercado.get("odds", [])
 
         if not isinstance(odds, list):
@@ -177,23 +182,23 @@ def extrair_mercados(odds_evento):
             "moneyline",
             "match result",
             "matchresult",
+            "match winner",
+            "1x2",
         ):
-
             for odd in odds:
-
                 if not isinstance(odd, dict):
                     continue
 
-                if (
-                    odd.get("home") is not None
-                    or odd.get("draw") is not None
-                    or odd.get("away") is not None
-                ):
+                home = odd.get("home")
+                draw = odd.get("draw")
+                away = odd.get("away")
+
+                if home is not None or draw is not None or away is not None:
                     resultado["resultado"].append(
                         {
-                            "home": odd.get("home"),
-                            "draw": odd.get("draw"),
-                            "away": odd.get("away"),
+                            "home": home,
+                            "draw": draw,
+                            "away": away,
                         }
                     )
 
@@ -204,40 +209,61 @@ def extrair_mercados(odds_evento):
             "total",
             "over/under",
             "over under",
+            "over/under goals",
+            "goals over/under",
+            "alternative total goals",
         ):
-
             for odd in odds:
-
                 if not isinstance(odd, dict):
                     continue
 
-                resultado["gols"].append(
-                    {
-                        "linha": odd.get("hdp"),
-                        "over": odd.get("over"),
-                        "under": odd.get("under"),
-                    }
-                )
+                linha = odd.get("hdp")
+                if linha is None:
+                    linha = odd.get("line")
 
-        # HANDICAP
+                over = odd.get("over")
+                under = odd.get("under")
+
+                if linha is not None or over is not None or under is not None:
+                    resultado["gols"].append(
+                        {
+                            "linha": linha,
+                            "over": over,
+                            "under": under,
+                        }
+                    )
+
+        # HANDICAP / SPREAD
         elif nome in (
             "spread",
             "asian handicap",
             "asian handicap - 3 way",
+            "alternative asian handicap",
             "handicap",
         ):
-
             for odd in odds:
-
                 if not isinstance(odd, dict):
                     continue
 
-                resultado["handicap"].append(
-                    {
-                        "linha": odd.get("hdp"),
-                        "home": odd.get("home"),
-                        "away": odd.get("away"),
-                    }
-                )
+                linha = odd.get("hdp")
+                if linha is None:
+                    linha = odd.get("line")
+
+                home = odd.get("home")
+                away = odd.get("away")
+
+                if linha is not None or home is not None or away is not None:
+                    resultado["handicap"].append(
+                        {
+                            "linha": linha,
+                            "home": home,
+                            "away": away,
+                        }
+                    )
+
+    print("[DIAGNOSTICO] Resultado 1X2:", len(resultado["resultado"]))
+    print("[DIAGNOSTICO] Total de Gols:", len(resultado["gols"]))
+    print("[DIAGNOSTICO] Asian Handicap:", len(resultado["handicap"]))
 
     return resultado
+        
