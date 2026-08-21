@@ -53,7 +53,7 @@ def iniciar():
 
             for jogo in jogos:
 
-                print("-" * 50)
+                print("-" * 60)
 
                 print(
                     jogo.get("home"),
@@ -64,7 +64,60 @@ def iniciar():
                 print("ID:", jogo.get("id"))
                 print("PLACAR:", jogo.get("scores"))
 
-            print()
+                # ==========================================
+                # TOTAL GOALS
+                # ==========================================
+
+                gols = jogo.get("gols", [])
+
+                print()
+                print("TOTAL GOALS")
+
+                if gols:
+
+                    for odd in gols:
+
+                        print(
+                            "Linha:",
+                            odd.get("linha"),
+                            "| Over:",
+                            odd.get("over"),
+                            "| Under:",
+                            odd.get("under")
+                        )
+
+                else:
+
+                    print("Sem odds de Total Goals.")
+
+                # ==========================================
+                # ASIAN HANDICAP
+                # ==========================================
+
+                handicap = jogo.get("handicap", [])
+
+                print()
+                print("ASIAN HANDICAP")
+
+                if handicap:
+
+                    for odd in handicap:
+
+                        print(
+                            "Linha:",
+                            odd.get("linha"),
+                            "| Home:",
+                            odd.get("home"),
+                            "| Away:",
+                            odd.get("away")
+                        )
+
+                else:
+
+                    print("Sem odds de Asian Handicap.")
+
+                print()
+
             print("Nova consulta em 60 segundos...")
 
             time.sleep(60)
