@@ -1,142 +1,131 @@
 import os
 import json
 import urllib.request
-import urllib.parse
 import urllib.error
 
 
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 
-# ============================================================
-# ENVIAR MENSAGEM
-# ============================================================
-
-def enviar_mensagem(texto):
+def descobrir_chats():
 
     if not TOKEN:
         print("ERRO: TELEGRAM_BOT_TOKEN não configurado.")
-        return False
+        return
 
-    if not CHAT_ID:
-        print("ERRO: TELEGRAM_CHAT_ID não configurado.")
-        return False
-
-    url = (
-        f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    )
-
-    dados = urllib.parse.urlencode({
-        "chat_id": CHAT_ID,
-        "text": texto
-    }).encode("utf-8")
-
-    requisicao = urllib.request.Request(
-        url,
-        data=dados,
-        method="POST",
-        headers={
-            "Content-Type":
-                "application/x-www-form-urlencoded",
-            "User-Agent":
-                "IPM-Radar-V3"
-        }
-    )
+    url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
 
     try:
 
         with urllib.request.urlopen(
-            requisicao,
+            url,
             timeout=20
         ) as resposta:
 
-            conteudo = (
-                resposta
-                .read()
-                .decode("utf-8")
-            )
+            dados = resposta.read().decode("utf-8")
 
-        resultado = json.loads(conteudo)
+        resultado = json.loads(dados)
 
-        if resultado.get("ok"):
+        print("=" * 60)
+        print("DIAGNÓSTICO TELEGRAM — IPM RADAR V3")
+        print("=" * 60)
 
+        if not resultado.get("ok"):
+            print("ERRO TELEGRAM:")
+            print(resultado)
+            return
+
+        updates = resultado.get("result", [])
+
+        print("UPDATES ENCONTRADOS:", len(updates))
+        print()
+
+        chats = {}
+
+        for update in updates:
+
+            mensagem = update.get("message")
+
+            if not mensagem:
+                continue
+
+            chat = mensagem.get("chat")
+
+            if not chat:
+                continue
+
+            chat_id = chat.get("id")
+            chat_type = chat.get("type")
+            chat_title = chat.get("title")
+            chat_username = chat.get("username")
+
+            chats[str(chat_id)] = {
+                "id": chat_id,
+                "tipo": chat_type,
+                "nome": chat_title,
+                "username": chat_username
+            }
+
+        if not chats:
+
+            print("NENHUM CHAT ENCONTRADO.")
+            print()
             print(
-                "Telegram: mensagem enviada com sucesso."
+                "Envie uma mensagem no grupo "
+                "IPM RADAR — ENTRADA e execute novamente."
             )
 
-            return True
+        else:
 
-        print(
-            "Telegram recusou a mensagem:"
-        )
+            print("CHATS ENCONTRADOS:")
+            print()
 
-        print(resultado)
+            for chat in chats.values():
 
-        return False
+                print(
+                    "ID:",
+                    chat["id"]
+                )
+
+                print(
+                    "TIPO:",
+                    chat["tipo"]
+                )
+
+                print(
+                    "NOME:",
+                    chat["nome"]
+                )
+
+                print(
+                    "USERNAME:",
+                    chat["username"]
+                )
+
+                print("-" * 40)
 
     except urllib.error.HTTPError as erro:
 
         print(
-            "ERRO HTTP TELEGRAM:",
+            "ERRO HTTP:",
             erro.code
         )
 
         try:
-            detalhe = (
-                erro
-                .read()
-                .decode("utf-8")
+            print(
+                erro.read().decode("utf-8")
             )
-
-            print(detalhe)
-
         except Exception:
             pass
-
-        return False
 
     except Exception as erro:
 
         print(
-            "ERRO AO ENVIAR TELEGRAM:"
-        )
-
-        print(
+            "ERRO:",
             type(erro).__name__,
             erro
         )
 
-        return False
-
-
-# ============================================================
-# TESTE MANUAL
-# ============================================================
 
 if __name__ == "__main__":
-
-    print("=" * 60)
-    print("TESTE TELEGRAM — IPM RADAR V3")
-    print("=" * 60)
-
-    if not TOKEN:
-        print("❌ TELEGRAM_BOT_TOKEN não configurado.")
-        raise SystemExit
-
-    if not CHAT_ID:
-        print("❌ TELEGRAM_CHAT_ID não configurado.")
-        raise SystemExit
-
-    print("TOKEN: OK")
-    print("CHAT_ID:", CHAT_ID)
-    print()
-
-    mensagem = (
-        "🧪 IPM RADAR V3\n\n"
-        "LABORATÓRIO — TESTE\n"
-        "Telegram conectado com sucesso!\n\n"
-        "Nenhuma aposta será realizada."
-    )
-
-    enviar_mensagem(mensagem)
+    descobrir_chats()
