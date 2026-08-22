@@ -1,77 +1,62 @@
 import os
 import json
+import time
 import urllib.request
+import urllib.parse
 
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+CHAT_ID = "-1004457093213"
 
 print("=" * 60)
-print("🔎 DESCOBRINDO CHAT ID DO TELEGRAM")
+print("🤖 IPM EMPATE E GOL - TESTE TELEGRAM")
 print("=" * 60)
 
 if not TOKEN:
     print("❌ TELEGRAM_BOT_TOKEN não encontrado!")
-    raise SystemExit
+    while True:
+        time.sleep(60)
 
-url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
+def enviar_telegram(texto):
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
-try:
-    with urllib.request.urlopen(url, timeout=20) as resposta:
-        dados = resposta.read().decode("utf-8")
+    dados = urllib.parse.urlencode({
+        "chat_id": CHAT_ID,
+        "text": texto
+    }).encode("utf-8")
 
-    resultado = json.loads(dados)
+    requisicao = urllib.request.Request(
+        url,
+        data=dados,
+        method="POST"
+    )
 
-    print("Resposta do Telegram:")
-    print(json.dumps(resultado, indent=2, ensure_ascii=False))
+    try:
+        with urllib.request.urlopen(requisicao, timeout=20) as resposta:
+            resultado = resposta.read().decode("utf-8")
 
-    if not resultado.get("ok"):
-        print("❌ Erro ao consultar Telegram.")
-        raise SystemExit
+        print("✅ RESPOSTA DO TELEGRAM:")
+        print(resultado)
 
-    updates = resultado.get("result", [])
+        return True
 
-    print()
-    print("=" * 60)
-    print(f"📨 UPDATES ENCONTRADOS: {len(updates)}")
-    print("=" * 60)
+    except Exception as erro:
+        print("❌ ERRO AO ENVIAR TELEGRAM:")
+        print(erro)
+        return False
 
-    encontrados = set()
 
-    for update in updates:
-        mensagem = update.get("message")
+print(f"📌 CHAT ID: {CHAT_ID}")
+print()
 
-        if not mensagem:
-            continue
+enviar_telegram(
+    "🟢 TESTE DO ROBÔ IPM\n\n"
+    "Telegram conectado com sucesso!\n"
+    "Chat ID confirmado."
+)
 
-        chat = mensagem.get("chat", {})
-        chat_id = chat.get("id")
-        nome = chat.get("first_name", "")
-        sobrenome = chat.get("last_name", "")
-        username = chat.get("username", "")
-        texto = mensagem.get("text", "")
+print()
+print("🟢 BOT PERMANECERÁ RODANDO...")
+print("=" * 60)
 
-        if chat_id:
-            encontrados.add(chat_id)
-
-            print()
-            print("✅ CHAT ENCONTRADO")
-            print(f"CHAT ID: {chat_id}")
-            print(f"NOME: {nome} {sobrenome}")
-            print(f"USERNAME: @{username}")
-            print(f"MENSAGEM: {texto}")
-
-    print()
-    print("=" * 60)
-
-    if encontrados:
-        print("🎯 CHAT IDs:")
-        for chat_id in encontrados:
-            print(chat_id)
-    else:
-        print("⚠️ NENHUM CHAT ENCONTRADO.")
-        print("Envie /start novamente para o bot.")
-
-    print("=" * 60)
-
-except Exception as erro:
-    print("❌ ERRO:")
-    print(erro)
+while True:
+    time.sleep(60)
