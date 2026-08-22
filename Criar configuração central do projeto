@@ -1,557 +1,340 @@
 # ============================================================
+# ODDS API
 # IPM-RADAR-V3
-# CONFIGURAÇÃO CENTRAL
-# ============================================================
 #
-# VERSÃO DE LABORATÓRIO
+# VERSÃO CORRIGIDA + DIAGNÓSTICO
 #
-# HORÁRIO DE FUNCIONAMENTO:
-# 06:00 até 00:00
-#
-# FORA DESSE HORÁRIO:
-# Robô permanece em espera.
-#
-# INTERVALO:
-# 5 minutos
-#
-# IMPORTANTE:
-# Nenhuma chave de API fica neste arquivo.
-# As credenciais ficam nas Environment Variables do Render.
+# - Jogos ao vivo
+# - Odds em lote
+# - Máximo de 10 eventos por consulta
+# - Bet365
+# - Total Goals
+# - Asian Handicap / Spread
+# - Resultado 1X2 / ML
+# - Diagnóstico dos mercados
+# - Diagnóstico da resposta bruta
+# - Controle de erro 429
+# - Sem requisições desnecessárias
 # ============================================================
 
 import os
+import json
+import urllib.request
+import urllib.parse
+import urllib.error
 
 
 # ============================================================
-# IDENTIFICAÇÃO DO PROJETO
+# CONFIGURAÇÃO
 # ============================================================
 
-NOME_BOT = "IPM-RADAR-V3"
+BASE_URL = "https://api.odds-api.io/v3"
 
-VERSAO = "3.1.0"
+BOOKMAKER = "Bet365"
 
+MAX_EVENTOS_POR_CONSULTA = 10
 
-MODO_PRODUCAO = (
-    os.getenv(
-        "MODO_PRODUCAO",
-        "false"
-    ).lower()
-    == "true"
-)
+TIMEOUT_REQUISICAO = 20
 
 
 # ============================================================
-# FUSO HORÁRIO
+# API KEY
 # ============================================================
 
-FUSO_HORARIO = os.getenv(
-    "FUSO_HORARIO",
-    "America/Sao_Paulo"
-)
+def obter_api_key():
+
+    api_key = os.getenv("ODDS_API_KEY")
+
+    if not api_key:
+
+        raise RuntimeError(
+            "ODDS_API_KEY não configurada no ambiente."
+        )
+
+    return api_key
 
 
 # ============================================================
-# HORÁRIO DE FUNCIONAMENTO
+# REQUISIÇÃO
 # ============================================================
 
-HORA_INICIO = int(
-    os.getenv(
-        "HORA_INICIO",
-        "6"
+def fazer_requisicao(url):
+
+    requisicao = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "IPM-Radar/3.0",
+            "Accept": "application/json"
+        }
     )
-)
 
+    try:
 
-HORA_FIM = int(
-    os.getenv(
-        "HORA_FIM",
-        "0"
-    )
-)
+        print()
+        print("REQUISIÇÃO:")
+        print(url)
 
+        with urllib.request.urlopen(
+            requisicao,
+            timeout=TIMEOUT_REQUISICAO
+        ) as resposta:
 
-# ============================================================
-# INTERVALO DAS CONSULTAS
-# ============================================================
-#
-# 300 segundos = 5 minutos
-#
+            codigo = resposta.getcode()
 
-INTERVALO_COLETA = int(
-    os.getenv(
-        "INTERVALO_COLETA",
-        "300"
-    )
-)
-
-
-INTERVALO_RADAR = int(
-    os.getenv(
-        "INTERVALO_RADAR",
-        "300"
-    )
-)
-
-
-# ============================================================
-# LIMITE DE JOGOS
-# ============================================================
-
-MAX_JOGOS_RADAR = int(
-    os.getenv(
-        "MAX_JOGOS_RADAR",
-        "10"
-    )
-)
-
-
-# ============================================================
-# TELEGRAM
-# ============================================================
-
-TELEGRAM_BOT_TOKEN = os.getenv(
-    "TELEGRAM_BOT_TOKEN",
-    ""
-).strip()
-
-
-TELEGRAM_CHAT_ID = os.getenv(
-    "TELEGRAM_CHAT_ID",
-    ""
-).strip()
-
-
-# ============================================================
-# API-FOOTBALL
-# ============================================================
-
-API_FOOTBALL_KEY = os.getenv(
-    "API_FOOTBALL_KEY",
-    ""
-).strip()
-
-
-API_FOOTBALL_KEY_2 = os.getenv(
-    "API_FOOTBALL_KEY_2",
-    ""
-).strip()
-
-
-API_FOOTBALL_URL = (
-    "https://v3.football.api-sports.io"
-)
-
-
-# ============================================================
-# SPORTS GAME ODDS
-# ============================================================
-
-SPORTSGAMEODDS_API_KEY = os.getenv(
-    "SPORTSGAMEODDS_API_KEY",
-    ""
-).strip()
-
-
-SPORTSGAMEODDS_URL = (
-    "https://api.sportsgameodds.com/v2"
-)
-
-
-# ============================================================
-# THE ODDS API
-# ============================================================
-
-THE_ODDS_API_KEY = os.getenv(
-    "ODDS_API_KEY",
-    ""
-).strip()
-
-
-THE_ODDS_API_URL = (
-    "https://api.the-odds-api.com/v4"
-)
-
-
-# ============================================================
-# ODDS-API.IO
-# ============================================================
-
-ODDS_API_IO_KEY = os.getenv(
-    "ODDS_API_IO_KEY",
-    ""
-).strip()
-
-
-ODDS_API_IO_URL = (
-    "https://api.odds-api.io/v3"
-)
-
-
-# ============================================================
-# AISCORE
-# ============================================================
-
-AISCORE_URL = (
-    "https://www.aiscore.com/br/live"
-)
-
-
-# ============================================================
-# FONTES HABILITADAS
-# ============================================================
-
-USAR_API_FOOTBALL = (
-    os.getenv(
-        "USAR_API_FOOTBALL",
-        "true"
-    ).lower()
-    == "true"
-)
-
-
-USAR_THE_ODDS_API = (
-    os.getenv(
-        "USAR_THE_ODDS_API",
-        "true"
-    ).lower()
-    == "true"
-)
-
-
-USAR_ODDS_API_IO = (
-    os.getenv(
-        "USAR_ODDS_API_IO",
-        "true"
-    ).lower()
-    == "true"
-)
-
-
-USAR_SPORTSGAMEODDS = (
-    os.getenv(
-        "USAR_SPORTSGAMEODDS",
-        "true"
-    ).lower()
-    == "true"
-)
-
-
-USAR_AISCORE = (
-    os.getenv(
-        "USAR_AISCORE",
-        "true"
-    ).lower()
-    == "true"
-)
-
-
-# ============================================================
-# HISTÓRICO
-# ============================================================
-
-DATABASE_FILE = os.getenv(
-    "DATABASE_FILE",
-    "radar_ipm.db"
-)
-
-
-HISTORICO_MAXIMO = int(
-    os.getenv(
-        "HISTORICO_MAXIMO",
-        "1000"
-    )
-)
-
-
-ARQUIVO_HISTORICO = os.getenv(
-    "ARQUIVO_HISTORICO",
-    "historico.json"
-)
-
-
-# ============================================================
-# IPM
-# ============================================================
-
-IPM_MINIMO_OBSERVACAO = float(
-    os.getenv(
-        "IPM_MINIMO_OBSERVACAO",
-        "50"
-    )
-)
-
-
-IPM_MINIMO_FORTE = float(
-    os.getenv(
-        "IPM_MINIMO_FORTE",
-        "65"
-    )
-)
-
-
-IPM_MINIMO_MUITO_FORTE = float(
-    os.getenv(
-        "IPM_MINIMO_MUITO_FORTE",
-        "80"
-    )
-)
-
-
-# ============================================================
-# MOVIMENTAÇÃO DE ODDS
-# ============================================================
-
-VARIACAO_MINIMA_ODD = float(
-    os.getenv(
-        "VARIACAO_MINIMA_ODD",
-        "0.5"
-    )
-)
-
-
-# ============================================================
-# LABORATÓRIO
-# ============================================================
-#
-# Estes parâmetros serão utilizados posteriormente
-# para registrar e avaliar os ciclos dos jogos.
-#
-
-ANALISAR_RESULTADO_2X1 = True
-
-ANALISAR_EMPATES = True
-
-ANALISAR_MAIS_DE_4_GOLS = True
-
-
-# ============================================================
-# SEGURANÇA
-# ============================================================
-#
-# O Robô 2 NÃO realiza apostas.
-#
-
-PERMITIR_APOSTAS = False
-
-PERMITIR_LOGIN_CASA = False
-
-PERMITIR_OPERACAO_AUTOMATICA = False
-
-
-# ============================================================
-# LOG
-# ============================================================
-
-NIVEL_LOG = os.getenv(
-    "NIVEL_LOG",
-    "INFO"
-)
-
-
-# ============================================================
-# FUNÇÃO:
-# VERIFICAR HORÁRIO DE FUNCIONAMENTO
-# ============================================================
-
-def horario_operacao(agora=None):
-
-    if agora is None:
-
-        from datetime import datetime
-        from zoneinfo import ZoneInfo
-
-        agora = datetime.now(
-            ZoneInfo(
-                FUSO_HORARIO
+            conteudo = resposta.read().decode(
+                "utf-8"
             )
+
+        print(
+            "HTTP:",
+            codigo
         )
 
-    hora = agora.hour
+        print(
+            "TAMANHO DA RESPOSTA:",
+            len(conteudo)
+        )
 
-    # ========================================================
-    # 06:00 ATÉ 23:59
-    # ========================================================
+        if not conteudo:
 
-    if HORA_INICIO <= hora < 24:
+            print(
+                "⚠️ RESPOSTA VAZIA DA ODDS API."
+            )
 
-        return True
+            return []
 
-    # ========================================================
-    # 00:00 ATÉ 05:59
-    # ========================================================
+        try:
 
-    return False
+            dados = json.loads(
+                conteudo
+            )
+
+        except json.JSONDecodeError:
+
+            print()
+            print("=" * 60)
+            print("ERRO JSON ODDS API")
+            print("=" * 60)
+
+            print(
+                "Resposta recebida:"
+            )
+
+            print(
+                conteudo[:3000]
+            )
+
+            print("=" * 60)
+
+            return []
+
+        return dados
+
+    except urllib.error.HTTPError as erro:
+
+        detalhe = ""
+
+        try:
+
+            detalhe = erro.read().decode(
+                "utf-8"
+            )
+
+        except Exception:
+
+            pass
+
+        print()
+        print("=" * 60)
+        print("ERRO HTTP ODDS API")
+        print("=" * 60)
+
+        print(
+            "Código:",
+            erro.code
+        )
+
+        print(
+            "Mensagem:",
+            erro.reason
+        )
+
+        print(
+            "Detalhes:",
+            detalhe
+        )
+
+        if erro.code == 401:
+
+            print()
+            print(
+                "⚠️ ERRO 401:"
+            )
+
+            print(
+                "A API KEY pode estar inválida."
+            )
+
+        elif erro.code == 403:
+
+            print()
+            print(
+                "⚠️ ERRO 403:"
+            )
+
+            print(
+                "Acesso não autorizado."
+            )
+
+        elif erro.code == 429:
+
+            print()
+            print(
+                "⚠️ LIMITE 429 DA ODDS API."
+            )
+
+            print(
+                "A consulta atual será encerrada."
+            )
+
+        print("=" * 60)
+
+        return []
+
+    except urllib.error.URLError as erro:
+
+        print()
+        print("=" * 60)
+        print("ERRO DE CONEXÃO ODDS API")
+        print("=" * 60)
+
+        print(
+            type(erro).__name__
+        )
+
+        print(
+            erro
+        )
+
+        print("=" * 60)
+
+        return []
+
+    except Exception as erro:
+
+        print()
+        print("=" * 60)
+        print("ERRO NA REQUISIÇÃO ODDS API")
+        print("=" * 60)
+
+        print(
+            type(erro).__name__
+        )
+
+        print(
+            erro
+        )
+
+        print("=" * 60)
+
+        return []
 
 
 # ============================================================
-# FUNÇÃO:
-# FONTE DISPONÍVEL
+# JOGOS AO VIVO
 # ============================================================
 
-def fonte_disponivel(nome):
+def buscar_jogos_ao_vivo():
 
-    fontes = {
+    api_key = obter_api_key()
 
-        "api_football": bool(
-            API_FOOTBALL_KEY
-            or API_FOOTBALL_KEY_2
-        ),
+    parametros = urllib.parse.urlencode({
 
-        "the_odds_api": bool(
-            THE_ODDS_API_KEY
-        ),
+        "apiKey": api_key,
 
-        "odds_api_io": bool(
-            ODDS_API_IO_KEY
-        ),
+        "sport": "football"
 
-        "sports_game_odds": bool(
-            SPORTSGAMEODDS_API_KEY
-        ),
+    })
 
-        "aiscore": USAR_AISCORE
-    }
-
-    return fontes.get(
-        nome,
-        False
+    url = (
+        BASE_URL
+        + "/events/live?"
+        + parametros
     )
-
-
-# ============================================================
-# CONFIGURAÇÃO SEGURA
-# ============================================================
-
-def mostrar_configuracao():
 
     print()
     print("=" * 60)
-    print(NOME_BOT)
-    print("VERSÃO:", VERSAO)
+    print("CONSULTANDO JOGOS AO VIVO")
     print("=" * 60)
 
-    print()
-
-    print(
-        "Fuso horário:",
-        FUSO_HORARIO
+    resposta = fazer_requisicao(
+        url
     )
 
-    print(
-        "Horário início:",
-        f"{HORA_INICIO:02d}:00"
-    )
-
-    print(
-        "Horário fim:",
-        "00:00"
-    )
+    # ========================================================
+    # DIAGNÓSTICO DA RESPOSTA BRUTA
+    # ========================================================
 
     print()
+    print("=" * 60)
+    print("RESPOSTA BRUTA - JOGOS AO VIVO")
+    print("=" * 60)
 
     print(
-        "Intervalo coleta:",
-        INTERVALO_COLETA,
-        "segundos"
+        "TIPO:",
+        type(resposta).__name__
     )
 
-    print(
-        "Intervalo radar:",
-        INTERVALO_RADAR,
-        "segundos"
-    )
+    try:
 
-    print(
-        "Máximo de jogos:",
-        MAX_JOGOS_RADAR
-    )
-
-    print()
-
-    print(
-        "API-Football:",
-        fonte_disponivel(
-            "api_football"
+        print(
+            json.dumps(
+                resposta,
+                ensure_ascii=False,
+                indent=2
+            )[:5000]
         )
-    )
 
-    print(
-        "The Odds API:",
-        fonte_disponivel(
-            "the_odds_api"
+    except Exception:
+
+        print(
+            repr(resposta)[:5000]
         )
-    )
-
-    print(
-        "Odds-API.io:",
-        fonte_disponivel(
-            "odds_api_io"
-        )
-    )
-
-    print(
-        "Sports Game Odds:",
-        fonte_disponivel(
-            "sports_game_odds"
-        )
-    )
-
-    print(
-        "AiScore:",
-        fonte_disponivel(
-            "aiscore"
-        )
-    )
-
-    print()
-
-    print(
-        "IPM observação:",
-        IPM_MINIMO_OBSERVACAO
-    )
-
-    print(
-        "IPM forte:",
-        IPM_MINIMO_FORTE
-    )
-
-    print(
-        "IPM muito forte:",
-        IPM_MINIMO_MUITO_FORTE
-    )
-
-    print()
-
-    print(
-        "LABORATÓRIO 2x1:",
-        ANALISAR_RESULTADO_2X1
-    )
-
-    print(
-        "LABORATÓRIO EMPATES:",
-        ANALISAR_EMPATES
-    )
-
-    print(
-        "LABORATÓRIO +4 GOLS:",
-        ANALISAR_MAIS_DE_4_GOLS
-    )
-
-    print()
-
-    print(
-        "APOSTAS AUTOMÁTICAS:",
-        "DESATIVADAS"
-    )
 
     print("=" * 60)
+
+    # ========================================================
+    # VALIDAR RESPOSTA
+    # ========================================================
+
+    if not isinstance(
+        resposta,
+        list
+    ):
+
+        print()
+        print(
+            "⚠️ A resposta de jogos ao vivo"
+        )
+
+        print(
+            "não é uma lista."
+        )
+
+        return []
+
     print()
+    print(
+        "JOGOS AO VIVO ENCONTRADOS:",
+        len(resposta)
+    )
 
+    # ========================================================
+    # MOSTRAR JOGOS ENCONTRADOS
+    # ========================================================
 
-# ============================================================
-# EXECUÇÃO DIRETA
-# ============================================================
+    if resposta:
 
-if __name__ == "__main__":
-
-    mostrar_configuracao()
+        print()
+        print(
+            "LIST
