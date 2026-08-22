@@ -1,104 +1,101 @@
+# ============================================================
+# IPM-RADAR-V3
+# CONFIGURAÇÃO CENTRAL
+# ============================================================
+#
+# VERSÃO DE LABORATÓRIO
+#
+# HORÁRIO DE FUNCIONAMENTO:
+# 06:00 até 00:00
+#
+# FORA DESSE HORÁRIO:
+# Robô permanece em espera.
+#
+# INTERVALO:
+# 5 minutos
+#
+# IMPORTANTE:
+# Nenhuma chave de API fica neste arquivo.
+# As credenciais ficam nas Environment Variables do Render.
+# ============================================================
+
 import os
 
 
 # ============================================================
-# IPM-RADAR-V3
-# CONFIGURAÇÃO CENTRAL
-#
-# IMPORTANTE:
-# Nenhuma chave de API deve ser colocada neste arquivo.
-# As chaves serão fornecidas pelas variáveis de ambiente.
+# IDENTIFICAÇÃO DO PROJETO
 # ============================================================
 
-
-# ------------------------------------------------------------
-# IDENTIFICAÇÃO DO PROJETO
-# ------------------------------------------------------------
-
 NOME_BOT = "IPM-RADAR-V3"
-VERSAO = "3.0.0"
+
+VERSAO = "3.1.0"
 
 
-# ------------------------------------------------------------
-# FUSO HORÁRIO
-# ------------------------------------------------------------
-
-FUSO_HORARIO = "America/Sao_Paulo"
-
-
-# ------------------------------------------------------------
-# BANCO DE DADOS
-# ------------------------------------------------------------
-
-DATABASE_FILE = os.getenv(
-    "DATABASE_FILE",
-    "radar_ipm.db"
-)
-
-
-# ------------------------------------------------------------
-# TELEGRAM
-# ------------------------------------------------------------
-
-TELEGRAM_BOT_TOKEN = os.getenv(
-    "TELEGRAM_BOT_TOKEN",
-    ""
-)
-
-TELEGRAM_CHAT_ID = os.getenv(
-    "TELEGRAM_CHAT_ID",
-    ""
-)
-
-
-# ------------------------------------------------------------
-# FONTES DE DADOS
-#
-# As fontes são independentes.
-# O BOT não deve depender de uma única API.
-# ------------------------------------------------------------
-
-ODDS_API_KEY = os.getenv(
-    "ODDS_API_KEY",
-    ""
-)
-
-ODDS_API_IO_KEY = os.getenv(
-    "ODDS_API_IO_KEY",
-    ""
-)
-
-API_FOOTBALL_KEY = os.getenv(
-    "API_FOOTBALL_KEY",
-    ""
-)
-
-API_FOOTBALL_KEY_2 = os.getenv(
-    "API_FOOTBALL_KEY_2",
-    ""
-)
-
-SPORTSGAMEODDS_API_KEY = os.getenv(
-    "SPORTSGAMEODDS_API_KEY",
-    ""
-)
-
-
-# ------------------------------------------------------------
-# INTERVALOS DE COLETA
-# ------------------------------------------------------------
-
-COLETA_SEGUNDOS = int(
+MODO_PRODUCAO = (
     os.getenv(
-        "COLETA_SEGUNDOS",
-        "60"
+        "MODO_PRODUCAO",
+        "false"
+    ).lower()
+    == "true"
+)
+
+
+# ============================================================
+# FUSO HORÁRIO
+# ============================================================
+
+FUSO_HORARIO = os.getenv(
+    "FUSO_HORARIO",
+    "America/Sao_Paulo"
+)
+
+
+# ============================================================
+# HORÁRIO DE FUNCIONAMENTO
+# ============================================================
+
+HORA_INICIO = int(
+    os.getenv(
+        "HORA_INICIO",
+        "6"
     )
 )
 
 
-# ------------------------------------------------------------
-# RADAR
-# ------------------------------------------------------------
+HORA_FIM = int(
+    os.getenv(
+        "HORA_FIM",
+        "0"
+    )
+)
+
+
+# ============================================================
+# INTERVALO DAS CONSULTAS
+# ============================================================
+#
+# 300 segundos = 5 minutos
+#
+
+INTERVALO_COLETA = int(
+    os.getenv(
+        "INTERVALO_COLETA",
+        "300"
+    )
+)
+
+
+INTERVALO_RADAR = int(
+    os.getenv(
+        "INTERVALO_RADAR",
+        "300"
+    )
+)
+
+
+# ============================================================
+# LIMITE DE JOGOS
+# ============================================================
 
 MAX_JOGOS_RADAR = int(
     os.getenv(
@@ -108,62 +105,453 @@ MAX_JOGOS_RADAR = int(
 )
 
 
-# ------------------------------------------------------------
-# HISTÓRICO
-# ------------------------------------------------------------
+# ============================================================
+# TELEGRAM
+# ============================================================
 
-RADAR_HISTORICO = int(
+TELEGRAM_BOT_TOKEN = os.getenv(
+    "TELEGRAM_BOT_TOKEN",
+    ""
+).strip()
+
+
+TELEGRAM_CHAT_ID = os.getenv(
+    "TELEGRAM_CHAT_ID",
+    ""
+).strip()
+
+
+# ============================================================
+# API-FOOTBALL
+# ============================================================
+
+API_FOOTBALL_KEY = os.getenv(
+    "API_FOOTBALL_KEY",
+    ""
+).strip()
+
+
+API_FOOTBALL_KEY_2 = os.getenv(
+    "API_FOOTBALL_KEY_2",
+    ""
+).strip()
+
+
+API_FOOTBALL_URL = (
+    "https://v3.football.api-sports.io"
+)
+
+
+# ============================================================
+# SPORTS GAME ODDS
+# ============================================================
+
+SPORTSGAMEODDS_API_KEY = os.getenv(
+    "SPORTSGAMEODDS_API_KEY",
+    ""
+).strip()
+
+
+SPORTSGAMEODDS_URL = (
+    "https://api.sportsgameodds.com/v2"
+)
+
+
+# ============================================================
+# THE ODDS API
+# ============================================================
+
+THE_ODDS_API_KEY = os.getenv(
+    "ODDS_API_KEY",
+    ""
+).strip()
+
+
+THE_ODDS_API_URL = (
+    "https://api.the-odds-api.com/v4"
+)
+
+
+# ============================================================
+# ODDS-API.IO
+# ============================================================
+
+ODDS_API_IO_KEY = os.getenv(
+    "ODDS_API_IO_KEY",
+    ""
+).strip()
+
+
+ODDS_API_IO_URL = (
+    "https://api.odds-api.io/v3"
+)
+
+
+# ============================================================
+# AISCORE
+# ============================================================
+
+AISCORE_URL = (
+    "https://www.aiscore.com/br/live"
+)
+
+
+# ============================================================
+# FONTES HABILITADAS
+# ============================================================
+
+USAR_API_FOOTBALL = (
     os.getenv(
-        "RADAR_HISTORICO",
-        "100"
+        "USAR_API_FOOTBALL",
+        "true"
+    ).lower()
+    == "true"
+)
+
+
+USAR_THE_ODDS_API = (
+    os.getenv(
+        "USAR_THE_ODDS_API",
+        "true"
+    ).lower()
+    == "true"
+)
+
+
+USAR_ODDS_API_IO = (
+    os.getenv(
+        "USAR_ODDS_API_IO",
+        "true"
+    ).lower()
+    == "true"
+)
+
+
+USAR_SPORTSGAMEODDS = (
+    os.getenv(
+        "USAR_SPORTSGAMEODDS",
+        "true"
+    ).lower()
+    == "true"
+)
+
+
+USAR_AISCORE = (
+    os.getenv(
+        "USAR_AISCORE",
+        "true"
+    ).lower()
+    == "true"
+)
+
+
+# ============================================================
+# HISTÓRICO
+# ============================================================
+
+DATABASE_FILE = os.getenv(
+    "DATABASE_FILE",
+    "radar_ipm.db"
+)
+
+
+HISTORICO_MAXIMO = int(
+    os.getenv(
+        "HISTORICO_MAXIMO",
+        "1000"
     )
 )
 
 
-# ------------------------------------------------------------
-# CONFIGURAÇÃO DE LOG
-# ------------------------------------------------------------
-
-DEBUG = os.getenv(
-    "DEBUG",
-    "true"
-).lower() == "true"
+ARQUIVO_HISTORICO = os.getenv(
+    "ARQUIVO_HISTORICO",
+    "historico.json"
+)
 
 
-# ------------------------------------------------------------
-# FUNÇÃO DE DIAGNÓSTICO
-# ------------------------------------------------------------
+# ============================================================
+# IPM
+# ============================================================
 
-def status_configuracao():
+IPM_MINIMO_OBSERVACAO = float(
+    os.getenv(
+        "IPM_MINIMO_OBSERVACAO",
+        "50"
+    )
+)
 
-    return {
-        "bot": NOME_BOT,
-        "versao": VERSAO,
 
-        "telegram": bool(
-            TELEGRAM_BOT_TOKEN
-            and TELEGRAM_CHAT_ID
+IPM_MINIMO_FORTE = float(
+    os.getenv(
+        "IPM_MINIMO_FORTE",
+        "65"
+    )
+)
+
+
+IPM_MINIMO_MUITO_FORTE = float(
+    os.getenv(
+        "IPM_MINIMO_MUITO_FORTE",
+        "80"
+    )
+)
+
+
+# ============================================================
+# MOVIMENTAÇÃO DE ODDS
+# ============================================================
+
+VARIACAO_MINIMA_ODD = float(
+    os.getenv(
+        "VARIACAO_MINIMA_ODD",
+        "0.5"
+    )
+)
+
+
+# ============================================================
+# LABORATÓRIO
+# ============================================================
+#
+# Estes parâmetros serão utilizados posteriormente
+# para registrar e avaliar os ciclos dos jogos.
+#
+
+ANALISAR_RESULTADO_2X1 = True
+
+ANALISAR_EMPATES = True
+
+ANALISAR_MAIS_DE_4_GOLS = True
+
+
+# ============================================================
+# SEGURANÇA
+# ============================================================
+#
+# O Robô 2 NÃO realiza apostas.
+#
+
+PERMITIR_APOSTAS = False
+
+PERMITIR_LOGIN_CASA = False
+
+PERMITIR_OPERACAO_AUTOMATICA = False
+
+
+# ============================================================
+# LOG
+# ============================================================
+
+NIVEL_LOG = os.getenv(
+    "NIVEL_LOG",
+    "INFO"
+)
+
+
+# ============================================================
+# FUNÇÃO:
+# VERIFICAR HORÁRIO DE FUNCIONAMENTO
+# ============================================================
+
+def horario_operacao(agora=None):
+
+    if agora is None:
+
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        agora = datetime.now(
+            ZoneInfo(
+                FUSO_HORARIO
+            )
+        )
+
+    hora = agora.hour
+
+    # ========================================================
+    # 06:00 ATÉ 23:59
+    # ========================================================
+
+    if HORA_INICIO <= hora < 24:
+
+        return True
+
+    # ========================================================
+    # 00:00 ATÉ 05:59
+    # ========================================================
+
+    return False
+
+
+# ============================================================
+# FUNÇÃO:
+# FONTE DISPONÍVEL
+# ============================================================
+
+def fonte_disponivel(nome):
+
+    fontes = {
+
+        "api_football": bool(
+            API_FOOTBALL_KEY
+            or API_FOOTBALL_KEY_2
         ),
 
-        "odds_api": bool(
-            ODDS_API_KEY
+        "the_odds_api": bool(
+            THE_ODDS_API_KEY
         ),
 
         "odds_api_io": bool(
             ODDS_API_IO_KEY
         ),
 
-        "api_football": bool(
-            API_FOOTBALL_KEY
-        ),
-
-        "api_football_2": bool(
-            API_FOOTBALL_KEY_2
-        ),
-
         "sports_game_odds": bool(
             SPORTSGAMEODDS_API_KEY
         ),
 
-        "database": DATABASE_FILE
+        "aiscore": USAR_AISCORE
     }
+
+    return fontes.get(
+        nome,
+        False
+    )
+
+
+# ============================================================
+# CONFIGURAÇÃO SEGURA
+# ============================================================
+
+def mostrar_configuracao():
+
+    print()
+    print("=" * 60)
+    print(NOME_BOT)
+    print("VERSÃO:", VERSAO)
+    print("=" * 60)
+
+    print()
+
+    print(
+        "Fuso horário:",
+        FUSO_HORARIO
+    )
+
+    print(
+        "Horário início:",
+        f"{HORA_INICIO:02d}:00"
+    )
+
+    print(
+        "Horário fim:",
+        "00:00"
+    )
+
+    print()
+
+    print(
+        "Intervalo coleta:",
+        INTERVALO_COLETA,
+        "segundos"
+    )
+
+    print(
+        "Intervalo radar:",
+        INTERVALO_RADAR,
+        "segundos"
+    )
+
+    print(
+        "Máximo de jogos:",
+        MAX_JOGOS_RADAR
+    )
+
+    print()
+
+    print(
+        "API-Football:",
+        fonte_disponivel(
+            "api_football"
+        )
+    )
+
+    print(
+        "The Odds API:",
+        fonte_disponivel(
+            "the_odds_api"
+        )
+    )
+
+    print(
+        "Odds-API.io:",
+        fonte_disponivel(
+            "odds_api_io"
+        )
+    )
+
+    print(
+        "Sports Game Odds:",
+        fonte_disponivel(
+            "sports_game_odds"
+        )
+    )
+
+    print(
+        "AiScore:",
+        fonte_disponivel(
+            "aiscore"
+        )
+    )
+
+    print()
+
+    print(
+        "IPM observação:",
+        IPM_MINIMO_OBSERVACAO
+    )
+
+    print(
+        "IPM forte:",
+        IPM_MINIMO_FORTE
+    )
+
+    print(
+        "IPM muito forte:",
+        IPM_MINIMO_MUITO_FORTE
+    )
+
+    print()
+
+    print(
+        "LABORATÓRIO 2x1:",
+        ANALISAR_RESULTADO_2X1
+    )
+
+    print(
+        "LABORATÓRIO EMPATES:",
+        ANALISAR_EMPATES
+    )
+
+    print(
+        "LABORATÓRIO +4 GOLS:",
+        ANALISAR_MAIS_DE_4_GOLS
+    )
+
+    print()
+
+    print(
+        "APOSTAS AUTOMÁTICAS:",
+        "DESATIVADAS"
+    )
+
+    print("=" * 60)
+    print()
+
+
+# ============================================================
+# EXECUÇÃO DIRETA
+# ============================================================
+
+if __name__ == "__main__":
+
+    mostrar_configuracao()
