@@ -1,8 +1,43 @@
-import time
-import os
-import threading
+# ============================================================
+# IPM-RADAR-V3
+# MAIN.PY
+# ROBÔ 2 - RADAR DE MOVIMENTAÇÃO / IPM
+# ============================================================
+#
+# NOVO PADRÃO
+#   ATIVO: 06:00 até 00:00
+#   PAUSA: 00:00 até 06:00
+#   CONSULTA: a cada 300 segundos (5 minutos)
+#
+# O robô:
+#   - consulta jogos ao vivo;
+#   - consulta odds;
+#   - acompanha movimentação das odds;
+#   - calcula IPM;
+#   - registra sinais no histórico;
+#   - envia sinais ao Telegram;
+#   - NÃO realiza apostas.
+#
+# ============================================================
 
-from config import NOME_BOT, VERSAO
+import os
+import time
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+from config import (
+    NOME_BOT,
+    VERSAO,
+    INTERVALO_COLETA,
+    INTERVALO_RADAR,
+    MAX_JOGOS_RADAR,
+    IPM_MINIMO_OBSERVACAO,
+    IPM_MINIMO_FORTE,
+    IPM_MINIMO_MUITO_FORTE,
+    VARIACAO_MINIMA_ODD,
+    horario_ativo,
+    horario_atual
+)
 
 from odds_api import (
     buscar_jogos_ao_vivo,
@@ -10,48 +45,51 @@ from odds_api import (
     extrair_mercados
 )
 
-from historico import quantidade_jogos
+from historico import (
+    quantidade_jogos,
+    registrar_jogo
+)
 
 from motor_ipm import (
     calcular_variacao_odd,
+    calcular_ipm,
     classificar_forca
 )
 
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from telegram import enviar_mensagem
 
 
 # ============================================================
 # MEMÓRIA DAS ODDS
-# ============================================================
-#
-# Guarda a última odd conhecida de cada mercado.
-#
-# Estrutura:
-#
-# memoria_odds[
-#     evento_id,
-#     mercado,
-#     linha
-# ]
-#
-# = odd anterior
 # ============================================================
 
 memoria_odds = {}
 
 
 # ============================================================
-# SERVIDOR DE SAÚDE
+# MEMÓRIA DOS SINAIS ENVIADOS
+# ============================================================
+#
+# Evita mandar a mesma entrada repetidamente em cada ciclo.
+#
+# ============================================================
+
+sinais_enviados = {}
+
+
+# ============================================================
+# SERVIDOR DE SAÚDE DO RENDER
 # ============================================================
 
 class HealthHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
+
         self.send_response(200)
 
         self.send_header(
             "Content-type",
-            "text/plain"
+            "text/plain; charset=utf-8"
         )
 
         self.end_headers()
@@ -60,7 +98,11 @@ class HealthHandler(BaseHTTPRequestHandler):
             b"IPM RADAR V3 ONLINE"
         )
 
-    def log_message(self, format, *args):
+    def log_message(
+        self,
+        format,
+        *args
+    ):
         return
 
 
@@ -74,7 +116,10 @@ def iniciar_servidor():
     )
 
     servidor = HTTPServer(
-        ("0.0.0.0", porta),
+        (
+            "0.0.0.0",
+            porta
+        ),
         HealthHandler
     )
 
@@ -86,17 +131,150 @@ def iniciar_servidor():
 
 
 # ============================================================
-# MEMÓRIA DE UMA ODD
+# CLASSIFICAR SINAL
+# ============================================================
+
+def classificar_sinal(ipm):
+
+    if ipm >= IPM_MINIMO_MUITO_FORTE:
+
+        return "SINAL MUITO FORTE"
+
+    if ipm >= IPM_MINIMO_FORTE:
+
+        return "SINAL FORTE"
+
+    if ipm >= IPM_MINIMO_OBSERVACAO:
+
+        return "OBSERVAR"
+
+    return "SEM SINAL"
+
+
+# ============================================================
+# ENVIAR ENTRADA PARA TELEGRAM
+# ============================================================
+
+def enviar_entrada_telegram(
+    jogo,
+    mercado,
+    linha,
+    odd_anterior,
+    odd_atual,
+    variacao,
+    ipm,
+    forca,
+    sinal
+):
+
+    evento_id = jogo.get(
+        "id"
+    )
+
+    chave = (
+        str(evento_id),
+        str(mercado),
+        str(linha)
+    )
+
+    # Só envia sinais considerados relevantes.
+    if ipm < IPM_MINIMO_OBSERVACAO:
+
+        return False
+
+    # Não repetir exatamente o mesmo sinal.
+    assinatura = (
+        round(float(odd_atual), 3),
+        round(float(variacao), 2),
+        round(float(ipm), 2),
+        sinal
+    )
+
+    if sinais_enviados.get(
+        chave
+    ) == assinatura:
+
+        return False
+
+    sinais_enviados[
+        chave
+    ] = assinatura
+
+    casa = jogo.get(
+        "home",
+        "Casa"
+    )
+
+    fora = jogo.get(
+        "away",
+        "Fora"
+    )
+
+    placar = jogo.get(
+        "scores",
+        "?"
+    )
+
+    campeonato = jogo.get(
+        "league",
+        ""
+    )
+
+    minuto = jogo.get(
+        "minute",
+        jogo.get(
+            "elapsed",
+            ""
+        )
+    )
+
+    mensagem = (
+        "🤖 IPM-RADAR V3\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🚨 ENTRADA / SINAL\n\n"
+        f"⚽ {casa} x {fora}\n"
+        f"🏆 {campeonato}\n"
+        f"⏱️ Minuto: {minuto}\n"
+        f"📊 Placar: {placar}\n\n"
+        f"📌 Mercado: {mercado}\n"
+        f"📏 Linha: {linha}\n"
+        f"📉 Odd anterior: {odd_anterior:.2f}\n"
+        f"📉 Odd atual: {odd_atual:.2f}\n"
+        f"📈 Variação: {variacao:+.2f}%\n"
+        f"💪 Força: {forca}\n"
+        f"🔥 IPM: {ipm:.0f}/100\n"
+        f"🎯 {sinal}\n\n"
+        "⚠️ Sinal estatístico do radar. "
+        "Não realiza aposta automática.\n"
+        "━━━━━━━━━━━━━━━━━━"
+    )
+
+    sucesso = enviar_mensagem(
+        mensagem
+    )
+
+    if sucesso:
+
+        print(
+            "✅ ENTRADA ENVIADA PARA TELEGRAM"
+        )
+
+    return sucesso
+
+
+# ============================================================
+# PROCESSAR MOVIMENTAÇÃO DE UMA ODD
 # ============================================================
 
 def processar_movimentacao(
-    evento_id,
+    jogo,
     mercado,
     linha,
     odd_atual
 ):
 
     try:
+
         odd_atual = float(
             odd_atual
         )
@@ -105,9 +283,19 @@ def processar_movimentacao(
         TypeError,
         ValueError
     ):
+
         return None
 
     if odd_atual <= 0:
+
+        return None
+
+    evento_id = jogo.get(
+        "id"
+    )
+
+    if not evento_id:
+
         return None
 
     chave = (
@@ -116,42 +304,28 @@ def processar_movimentacao(
         str(linha)
     )
 
-    # ========================================================
-    # PRIMEIRA VEZ QUE VEMOS ESTA ODD
-    # ========================================================
-
+    # Primeira observação.
     if chave not in memoria_odds:
 
-        memoria_odds[chave] = odd_atual
+        memoria_odds[
+            chave
+        ] = odd_atual
 
         print(
-            f"  NOVA ODD | "
-            f"{mercado} | "
+            f"  NOVA ODD | {mercado} | "
             f"Linha: {linha} | "
             f"Odd: {odd_atual:.2f}"
         )
 
         return None
 
-    # ========================================================
-    # ODD ANTERIOR
-    # ========================================================
-
     odd_anterior = memoria_odds[
         chave
     ]
 
-    # ========================================================
-    # ATUALIZAR MEMÓRIA
-    # ========================================================
-
     memoria_odds[
         chave
     ] = odd_atual
-
-    # ========================================================
-    # CALCULAR VARIAÇÃO
-    # ========================================================
 
     variacao = calcular_variacao_odd(
         odd_anterior,
@@ -162,19 +336,93 @@ def processar_movimentacao(
         variacao
     )
 
-    # ========================================================
-    # MOSTRAR MOVIMENTAÇÃO
-    # ========================================================
+    # Para o IPM atual ainda não temos estatísticas
+    # adicionais de escanteios/finalizações.
+    # Portanto, a movimentação da odd é a confirmação
+    # disponível nesta etapa.
+    ipm = calcular_ipm(
+        variacao_odd=variacao,
+        minuto=0,
+        gols=0,
+        escanteios=0,
+        finalizacoes=0,
+        ataques_perigosos=0
+    )
+
+    sinal = classificar_sinal(
+        ipm
+    )
 
     print(
-        f"  MOVIMENTO | "
-        f"{mercado} | "
+        f"  MOVIMENTO | {mercado} | "
         f"Linha: {linha} | "
-        f"{odd_anterior:.2f} "
-        f"→ "
-        f"{odd_atual:.2f} | "
+        f"{odd_anterior:.2f} -> {odd_atual:.2f} | "
         f"{variacao:+.2f}% | "
+        f"IPM {ipm:.2f} | "
         f"{forca}"
+    )
+
+    # A variação mínima continua sendo um filtro.
+    if abs(variacao) >= VARIACAO_MINIMA_ODD:
+
+        registrar_jogo(
+            evento_id=evento_id,
+            campeonato=jogo.get(
+                "league",
+                ""
+            ),
+            casa=jogo.get(
+                "home",
+                ""
+            ),
+            fora=jogo.get(
+                "away",
+                ""
+            ),
+            placar=jogo.get(
+                "scores",
+                ""
+            ),
+            minuto=jogo.get(
+                "minute",
+                jogo.get(
+                    "elapsed",
+                    ""
+                )
+            ),
+            ipm=ipm,
+            mercado=mercado,
+            odd=odd_atual,
+            sinal=sinal,
+            linha=linha,
+            odd_anterior=odd_anterior,
+            variacao_pct=round(
+                variacao,
+                2
+            ),
+            direcao=(
+                "QUEDA"
+                if variacao < -0.05
+                else "ALTA"
+                if variacao > 0.05
+                else "ESTAVEL"
+            ),
+            forca=forca,
+            status=sinal
+        )
+
+    # Envia para Telegram somente a partir do nível
+    # de observação definido no config.py.
+    enviar_entrada_telegram(
+        jogo=jogo,
+        mercado=mercado,
+        linha=linha,
+        odd_anterior=odd_anterior,
+        odd_atual=odd_atual,
+        variacao=variacao,
+        ipm=ipm,
+        forca=forca,
+        sinal=sinal
     )
 
     return {
@@ -186,136 +434,26 @@ def processar_movimentacao(
             variacao,
             2
         ),
-        "forca": forca
+        "forca": forca,
+        "ipm": ipm,
+        "sinal": sinal
     }
 
 
 # ============================================================
-# MOSTRAR ODDS
+# ANALISAR MERCADOS DO JOGO
 # ============================================================
 
-def mostrar_odds(jogo):
-
-    # ========================================================
-    # TOTAL GOALS
-    # ========================================================
-
-    print()
-    print("TOTAL GOALS")
-
-    gols = jogo.get(
-        "gols",
-        []
-    )
-
-    if gols:
-
-        for odd in gols:
-
-            linha = odd.get(
-                "linha"
-            )
-
-            over = odd.get(
-                "over"
-            )
-
-            under = odd.get(
-                "under"
-            )
-
-            print(
-                f"  Linha {linha} | "
-                f"Over: {over} | "
-                f"Under: {under}"
-            )
-
-    else:
-
-        print(
-            "  Sem odds de Total Goals."
-        )
-
-    # ========================================================
-    # ASIAN HANDICAP
-    # ========================================================
-
-    print()
-    print("ASIAN HANDICAP")
-
-    handicap = jogo.get(
-        "handicap",
-        []
-    )
-
-    if handicap:
-
-        for odd in handicap:
-
-            linha = odd.get(
-                "linha"
-            )
-
-            home = odd.get(
-                "home"
-            )
-
-            away = odd.get(
-                "away"
-            )
-
-            print(
-                f"  Linha {linha} | "
-                f"Casa: {home} | "
-                f"Fora: {away}"
-            )
-
-    else:
-
-        print(
-            "  Sem odds de Asian Handicap."
-        )
-
-    # ========================================================
-    # RESULTADO 1X2
-    # ========================================================
-
-    print()
-    print("RESULTADO 1X2")
-
-    resultado = jogo.get(
-        "resultado",
-        []
-    )
-
-    if resultado:
-
-        for odd in resultado:
-
-            print(
-                f"  Casa: {odd.get('home')} | "
-                f"Empate: {odd.get('draw')} | "
-                f"Fora: {odd.get('away')}"
-            )
-
-    else:
-
-        print(
-            "  Sem odds de Resultado."
-        )
-
-
-# ============================================================
-# ANALISAR MOVIMENTAÇÃO DO JOGO
-# ============================================================
-
-def analisar_movimentacao(jogo):
+def analisar_movimentacao(
+    jogo
+):
 
     evento_id = jogo.get(
         "id"
     )
 
     if not evento_id:
+
         return
 
     print()
@@ -323,10 +461,7 @@ def analisar_movimentacao(jogo):
         "MOVIMENTAÇÃO DE ODDS"
     )
 
-    # ========================================================
     # TOTAL GOALS
-    # ========================================================
-
     for odd in jogo.get(
         "gols",
         []
@@ -336,32 +471,25 @@ def analisar_movimentacao(jogo):
             "linha"
         )
 
-        over = odd.get(
-            "over"
-        )
-
-        under = odd.get(
-            "under"
-        )
-
         processar_movimentacao(
-            evento_id,
+            jogo,
             "OVER",
             linha,
-            over
+            odd.get(
+                "over"
+            )
         )
 
         processar_movimentacao(
-            evento_id,
+            jogo,
             "UNDER",
             linha,
-            under
+            odd.get(
+                "under"
+            )
         )
 
-    # ========================================================
     # ASIAN HANDICAP
-    # ========================================================
-
     for odd in jogo.get(
         "handicap",
         []
@@ -371,56 +499,55 @@ def analisar_movimentacao(jogo):
             "linha"
         )
 
-        home = odd.get(
-            "home"
-        )
-
-        away = odd.get(
-            "away"
-        )
-
         processar_movimentacao(
-            evento_id,
+            jogo,
             "HANDICAP_HOME",
             linha,
-            home
+            odd.get(
+                "home"
+            )
         )
 
         processar_movimentacao(
-            evento_id,
+            jogo,
             "HANDICAP_AWAY",
             linha,
-            away
+            odd.get(
+                "away"
+            )
         )
 
-    # ========================================================
     # RESULTADO 1X2
-    # ========================================================
-
     for odd in jogo.get(
         "resultado",
         []
     ):
 
         processar_movimentacao(
-            evento_id,
+            jogo,
             "HOME",
             "1X2",
-            odd.get("home")
+            odd.get(
+                "home"
+            )
         )
 
         processar_movimentacao(
-            evento_id,
+            jogo,
             "DRAW",
             "1X2",
-            odd.get("draw")
+            odd.get(
+                "draw"
+            )
         )
 
         processar_movimentacao(
-            evento_id,
+            jogo,
             "AWAY",
             "1X2",
-            odd.get("away")
+            odd.get(
+                "away"
+            )
         )
 
 
@@ -436,7 +563,7 @@ def iniciar():
     print("=" * 60)
 
     print(
-        "IPM-RADAR-V3 iniciado."
+        "🤖 IPM-RADAR-V3 iniciado."
     )
 
     print(
@@ -444,18 +571,58 @@ def iniciar():
         quantidade_jogos()
     )
 
-    print()
+    print(
+        "Funcionamento: 06:00 até 00:00"
+    )
 
-    # ========================================================
-    # LOOP PRINCIPAL
-    # ========================================================
+    print(
+        "Consulta: a cada",
+        INTERVALO_COLETA,
+        "segundos"
+    )
+
+    print()
 
     while True:
 
         try:
 
             # =================================================
-            # 1. BUSCAR JOGOS AO VIVO
+            # HORÁRIO
+            # =================================================
+
+            if not horario_ativo():
+
+                print(
+                    f"🌙 RADAR PAUSADO | "
+                    f"{horario_atual().strftime('%H:%M:%S')} | "
+                    f"Retorna às 06:00"
+                )
+
+                time.sleep(
+                    60
+                )
+
+                continue
+
+            print()
+            print(
+                "=" * 60
+            )
+
+            print(
+                "📡 RADAR ATIVO |",
+                horario_atual().strftime(
+                    "%d/%m/%Y %H:%M:%S"
+                )
+            )
+
+            print(
+                "=" * 60
+            )
+
+            # =================================================
+            # 1. JOGOS AO VIVO
             # =================================================
 
             jogos = buscar_jogos_ao_vivo()
@@ -465,8 +632,20 @@ def iniciar():
                 len(jogos)
             )
 
+            # Respeita limite configurado.
+            if len(jogos) > MAX_JOGOS_RADAR:
+
+                jogos = jogos[
+                    :MAX_JOGOS_RADAR
+                ]
+
+                print(
+                    "Jogos processados:",
+                    len(jogos)
+                )
+
             # =================================================
-            # 2. BUSCAR ODDS DOS JOGOS
+            # 2. ODDS EM LOTE
             # =================================================
 
             odds_eventos = []
@@ -485,7 +664,7 @@ def iniciar():
             )
 
             # =================================================
-            # 3. ORGANIZAR ODDS POR ID
+            # 3. INDEXAR ODDS POR ID
             # =================================================
 
             odds_por_id = {}
@@ -496,6 +675,7 @@ def iniciar():
                     odds_evento,
                     dict
                 ):
+
                     continue
 
                 evento_id = odds_evento.get(
@@ -509,7 +689,7 @@ def iniciar():
                     ] = odds_evento
 
             # =================================================
-            # 4. PROCESSAR CADA JOGO
+            # 4. PROCESSAR JOGOS
             # =================================================
 
             for jogo in jogos:
@@ -518,13 +698,12 @@ def iniciar():
                     jogo,
                     dict
                 ):
+
                     continue
 
-                print("-" * 60)
-
-                # =============================================
-                # INFORMAÇÕES DO JOGO
-                # =============================================
+                print(
+                    "-" * 60
+                )
 
                 print(
                     jogo.get("home"),
@@ -541,10 +720,6 @@ def iniciar():
                     "PLACAR:",
                     jogo.get("scores")
                 )
-
-                # =============================================
-                # PROCURAR ODDS DESTE JOGO
-                # =============================================
 
                 jogo_id = jogo.get(
                     "id"
@@ -588,24 +763,12 @@ def iniciar():
                         "encontrada para este ID."
                     )
 
-                # =============================================
-                # MOSTRAR ODDS
-                # =============================================
-
-                mostrar_odds(
-                    jogo
-                )
-
-                # =============================================
-                # ANALISAR MOVIMENTAÇÃO
-                # =============================================
-
                 analisar_movimentacao(
                     jogo
                 )
 
             # =================================================
-            # DIAGNÓSTICO DA MEMÓRIA
+            # DIAGNÓSTICO
             # =================================================
 
             print()
@@ -614,22 +777,31 @@ def iniciar():
                 len(memoria_odds)
             )
 
-            # =================================================
-            # AGUARDAR PRÓXIMA CONSULTA
-            # =================================================
+            print(
+                "SINAIS NA MEMÓRIA:",
+                len(sinais_enviados)
+            )
+
+            print(
+                "HISTÓRICO REGISTRADO:",
+                quantidade_jogos()
+            )
 
             print()
             print(
-                "Nova consulta em 60 segundos..."
+                f"⏳ Nova consulta em "
+                f"{INTERVALO_COLETA} segundos..."
             )
 
-            time.sleep(60)
+            time.sleep(
+                INTERVALO_RADAR
+            )
 
         except Exception as erro:
 
             print()
             print(
-                "ERRO NO RADAR:"
+                "❌ ERRO NO RADAR:"
             )
 
             print(
@@ -640,9 +812,13 @@ def iniciar():
                 erro
             )
 
-            print()
+            print(
+                "Tentando novamente em 60 segundos..."
+            )
 
-            time.sleep(30)
+            time.sleep(
+                60
+            )
 
 
 # ============================================================
@@ -657,4 +833,4 @@ if __name__ == "__main__":
     ).start()
 
     iniciar()
-        
+    
