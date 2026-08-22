@@ -8,7 +8,7 @@
 # - Asian Handicap
 # - Resultado 1X2
 #
-# Versão com diagnóstico detalhado
+# Bet365
 # ============================================================
 
 import os
@@ -72,13 +72,10 @@ def fazer_requisicao(url):
         detalhe = ""
 
         try:
-
             detalhe = erro.read().decode(
                 "utf-8"
             )
-
         except Exception:
-
             pass
 
         print()
@@ -110,15 +107,25 @@ def buscar_jogos_ao_vivo():
 
         "apiKey": api_key,
 
-        "sport": "football"
+        "sport": "football",
+
+        "status": "live",
+
+        "bookmaker": BOOKMAKER
 
     })
 
     url = (
         BASE_URL
-        + "/events/live?"
+        + "/events?"
         + parametros
     )
+
+    print()
+    print("======================================")
+    print("CONSULTANDO JOGOS AO VIVO")
+    print("BOOKMAKER:", BOOKMAKER)
+    print("======================================")
 
     resposta = fazer_requisicao(url)
 
@@ -127,7 +134,17 @@ def buscar_jogos_ao_vivo():
         list
     ):
 
+        print(
+            "Resposta de eventos inválida:",
+            type(resposta).__name__
+        )
+
         return []
+
+    print(
+        "JOGOS AO VIVO ENCONTRADOS:",
+        len(resposta)
+    )
 
     return resposta
 
@@ -162,13 +179,22 @@ def buscar_odds_multiplos(eventos):
 
     if not ids:
 
+        print()
+        print(
+            "NENHUM ID DE EVENTO PARA CONSULTAR ODDS."
+        )
+
         return []
 
     # ========================================================
-    # Limite inicial para teste
+    # NÃO LIMITAR A 10
     # ========================================================
 
-    ids = ids[:10]
+    print()
+    print(
+        "TOTAL DE IDS PARA CONSULTA:",
+        len(ids)
+    )
 
     print()
     print(
@@ -201,10 +227,7 @@ def buscar_odds_multiplos(eventos):
 
     print()
     print(
-        "TIPO DA RESPOSTA ODDS:"
-    )
-
-    print(
+        "TIPO DA RESPOSTA ODDS:",
         type(resposta).__name__
     )
 
@@ -260,7 +283,7 @@ def buscar_odds_multiplos(eventos):
         eventos_odds = []
 
     # ========================================================
-    # MOSTRAR BOOKMAKERS E MERCADOS
+    # DIAGNÓSTICO DE BOOKMAKERS E MERCADOS
     # ========================================================
 
     print()
@@ -287,77 +310,86 @@ def buscar_odds_multiplos(eventos):
         )
 
         bookmakers = evento.get(
-            "bookmakers"
+            "bookmakers",
+            {}
         )
 
         if not bookmakers:
 
             print(
-                "  Nenhum bookmaker retornado."
+                "  NENHUM BOOKMAKER RETORNADO."
             )
 
             continue
 
-        if isinstance(
+        if not isinstance(
             bookmakers,
             dict
         ):
 
             print(
-                "  BOOKMAKERS:",
-                list(
-                    bookmakers.keys()
-                )
-            )
-
-            for nome, mercados in bookmakers.items():
-
-                print()
-                print(
-                    "  BOOKMAKER:",
-                    nome
-                )
-
-                if isinstance(
-                    mercados,
-                    list
-                ):
-
-                    for mercado in mercados:
-
-                        if not isinstance(
-                            mercado,
-                            dict
-                        ):
-                            continue
-
-                        nome_mercado = mercado.get(
-                            "name"
-                        )
-
-                        # =================================================
-                        # DIAGNÓSTICO IMPORTANTE
-                        # Mostra exatamente como a API chama o mercado.
-                        # =================================================
-
-                        print(
-                            "    MERCADO:",
-                            repr(nome_mercado)
-                        )
-
-                else:
-
-                    print(
-                        "    Formato de mercados:",
-                        type(mercados).__name__
-                    )
-
-        else:
-
-            print(
                 "  Formato bookmakers:",
                 type(bookmakers).__name__
             )
+
+            continue
+
+        print(
+            "  BOOKMAKERS:",
+            list(bookmakers.keys())
+        )
+
+        for nome, mercados in bookmakers.items():
+
+            print()
+            print(
+                "  BOOKMAKER:",
+                nome
+            )
+
+            if not isinstance(
+                mercados,
+                list
+            ):
+
+                print(
+                    "    Formato de mercados:",
+                    type(mercados).__name__
+                )
+
+                continue
+
+            for mercado in mercados:
+
+                if not isinstance(
+                    mercado,
+                    dict
+                ):
+                    continue
+
+                nome_mercado = mercado.get(
+                    "name"
+                )
+
+                print(
+                    "    MERCADO:",
+                    repr(nome_mercado)
+                )
+
+                odds = mercado.get(
+                    "odds",
+                    []
+                )
+
+                if isinstance(
+                    odds,
+                    list
+                ):
+
+                    print(
+                        "      ODDS:",
+                        len(odds)
+                    )
 
     print()
     print(
@@ -408,27 +440,23 @@ def extrair_mercados(
     # LOCALIZAR BET365
     # ========================================================
 
-    mercados = bookmakers.get(
-        BOOKMAKER
-    )
+    mercados = None
 
-    # ========================================================
-    # Caso a capitalização seja diferente
-    # ========================================================
+    for nome, valor in bookmakers.items():
 
-    if mercados is None:
+        if str(nome).strip().lower() == str(
+            BOOKMAKER
+        ).strip().lower():
 
-        for nome, valor in bookmakers.items():
+            mercados = valor
 
-            if str(nome).strip().lower() == str(
-                BOOKMAKER
-            ).lower():
-
-                mercados = valor
-
-                break
+            break
 
     if mercados is None:
+
+        print(
+            "BET365 NÃO ENCONTRADA NO EVENTO."
+        )
 
         return resultado
 
@@ -460,10 +488,6 @@ def extrair_mercados(
 
         nome_normalizado = nome.lower()
 
-        # ====================================================
-        # DIAGNÓSTICO
-        # ====================================================
-
         print(
             "PROCESSANDO MERCADO:",
             repr(nome)
@@ -483,6 +507,7 @@ def extrair_mercados(
 
         # ====================================================
         # RESULTADO 1X2
+        # API: ML
         # ====================================================
 
         if nome_normalizado in {
@@ -529,6 +554,7 @@ def extrair_mercados(
 
         # ====================================================
         # TOTAL GOALS
+        # API: Totals
         # ====================================================
 
         elif nome_normalizado in {
@@ -569,6 +595,7 @@ def extrair_mercados(
 
         # ====================================================
         # ASIAN HANDICAP
+        # API: Spread
         # ====================================================
 
         elif nome_normalizado in {
@@ -728,4 +755,4 @@ def mostrar_resumo_odds(
     print()
     print(
         "============================"
-        )
+                )
