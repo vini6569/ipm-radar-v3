@@ -1,132 +1,142 @@
 import os
 import json
 import urllib.request
+import urllib.parse
 import urllib.error
 
+
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-print("=" * 50)
-print("TESTE COMPLETO TELEGRAM - IPM RADAR V3")
-print("=" * 50)
 
-if not TOKEN:
-    print("ERRO: TELEGRAM_BOT_TOKEN não configurado")
-    raise SystemExit
+# ============================================================
+# ENVIAR MENSAGEM
+# ============================================================
 
-print("TOKEN EXISTE: True")
-print("TAMANHO DO TOKEN:", len(TOKEN))
+def enviar_mensagem(texto):
 
-# ==================================================
-# 1. TESTA O TOKEN COM getMe
-# ==================================================
+    if not TOKEN:
+        print("ERRO: TELEGRAM_BOT_TOKEN não configurado.")
+        return False
 
-print("\n1 - VALIDANDO BOT...")
-print("-" * 50)
+    if not CHAT_ID:
+        print("ERRO: TELEGRAM_CHAT_ID não configurado.")
+        return False
 
-url = f"https://api.telegram.org/bot{TOKEN}/getMe"
+    url = (
+        f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    )
 
-try:
-    resposta = urllib.request.urlopen(url).read().decode("utf-8")
-    dados = json.loads(resposta)
+    dados = urllib.parse.urlencode({
+        "chat_id": CHAT_ID,
+        "text": texto
+    }).encode("utf-8")
 
-    print("RESPOSTA:")
-    print(dados)
-
-    if dados.get("ok"):
-        bot = dados.get("result", {})
-
-        print("\nBOT VALIDADO COM SUCESSO!")
-        print("ID:", bot.get("id"))
-        print("NOME:", bot.get("first_name"))
-        print("USERNAME:", bot.get("username"))
-
-    else:
-        print("\nTELEGRAM RECUSOU O BOT.")
-
-except urllib.error.HTTPError as erro:
-    print("ERRO HTTP:", erro.code)
-    print("RESPOSTA DO TELEGRAM:")
+    requisicao = urllib.request.Request(
+        url,
+        data=dados,
+        method="POST",
+        headers={
+            "Content-Type":
+                "application/x-www-form-urlencoded",
+            "User-Agent":
+                "IPM-Radar-V3"
+        }
+    )
 
     try:
-        detalhe = erro.read().decode("utf-8")
-        print(detalhe)
-    except Exception:
-        print("Não foi possível ler a resposta.")
 
-    raise SystemExit
+        with urllib.request.urlopen(
+            requisicao,
+            timeout=20
+        ) as resposta:
 
-except Exception as erro:
-    print("ERRO:", type(erro).__name__)
-    print(erro)
-    raise SystemExit
+            conteudo = (
+                resposta
+                .read()
+                .decode("utf-8")
+            )
+
+        resultado = json.loads(conteudo)
+
+        if resultado.get("ok"):
+
+            print(
+                "Telegram: mensagem enviada com sucesso."
+            )
+
+            return True
+
+        print(
+            "Telegram recusou a mensagem:"
+        )
+
+        print(resultado)
+
+        return False
+
+    except urllib.error.HTTPError as erro:
+
+        print(
+            "ERRO HTTP TELEGRAM:",
+            erro.code
+        )
+
+        try:
+            detalhe = (
+                erro
+                .read()
+                .decode("utf-8")
+            )
+
+            print(detalhe)
+
+        except Exception:
+            pass
+
+        return False
+
+    except Exception as erro:
+
+        print(
+            "ERRO AO ENVIAR TELEGRAM:"
+        )
+
+        print(
+            type(erro).__name__,
+            erro
+        )
+
+        return False
 
 
-# ==================================================
-# 2. BUSCA ATUALIZAÇÕES
-# ==================================================
+# ============================================================
+# TESTE MANUAL
+# ============================================================
 
-print("\n2 - BUSCANDO ATUALIZAÇÕES...")
-print("-" * 50)
+if __name__ == "__main__":
 
-url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
+    print("=" * 60)
+    print("TESTE TELEGRAM — IPM RADAR V3")
+    print("=" * 60)
 
-try:
-    resposta = urllib.request.urlopen(url).read().decode("utf-8")
-    dados = json.loads(resposta)
+    if not TOKEN:
+        print("❌ TELEGRAM_BOT_TOKEN não configurado.")
+        raise SystemExit
 
-    print("RESPOSTA:")
-    print(dados)
+    if not CHAT_ID:
+        print("❌ TELEGRAM_CHAT_ID não configurado.")
+        raise SystemExit
 
-    atualizacoes = dados.get("result", [])
+    print("TOKEN: OK")
+    print("CHAT_ID:", CHAT_ID)
+    print()
 
-    print("\nTOTAL DE ATUALIZAÇÕES:", len(atualizacoes))
+    mensagem = (
+        "🧪 IPM RADAR V3\n\n"
+        "LABORATÓRIO — TESTE\n"
+        "Telegram conectado com sucesso!\n\n"
+        "Nenhuma aposta será realizada."
+    )
 
-    for item in atualizacoes:
-
-        print("\n" + "-" * 50)
-
-        if "channel_post" in item:
-
-            chat = item["channel_post"]["chat"]
-
-            print("CANAL ENCONTRADO!")
-            print("ID:", chat.get("id"))
-            print("TÍTULO:", chat.get("title"))
-            print("USERNAME:", chat.get("username"))
-
-        elif "message" in item:
-
-            chat = item["message"]["chat"]
-
-            print("CHAT ENCONTRADO!")
-            print("ID:", chat.get("id"))
-            print("NOME:", chat.get("title") or chat.get("first_name"))
-            print("USERNAME:", chat.get("username"))
-
-        elif "my_chat_member" in item:
-
-            chat = item["my_chat_member"]["chat"]
-
-            print("CHAT/CANAL ENCONTRADO!")
-            print("ID:", chat.get("id"))
-            print("NOME:", chat.get("title") or chat.get("first_name"))
-            print("USERNAME:", chat.get("username"))
-
-    print("\n" + "=" * 50)
-    print("FIM DO TESTE")
-    print("=" * 50)
-
-except urllib.error.HTTPError as erro:
-    print("ERRO HTTP:", erro.code)
-    print("RESPOSTA DO TELEGRAM:")
-
-    try:
-        detalhe = erro.read().decode("utf-8")
-        print(detalhe)
-    except Exception:
-        print("Não foi possível ler a resposta.")
-
-except Exception as erro:
-    print("ERRO AO BUSCAR ATUALIZAÇÕES:")
-    print(type(erro).__name__)
-    print(erro)
+    enviar_mensagem(mensagem)
