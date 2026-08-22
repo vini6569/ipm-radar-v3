@@ -2,13 +2,13 @@
 # ODDS API
 # IPM-RADAR-V3
 #
-# Consulta:
-# - Jogos ao vivo
-# - Total Goals
-# - Asian Handicap
-# - Resultado 1X2
+# Versão econômica
 #
-# Bet365
+# - Jogos ao vivo
+# - Odds em lotes de até 10 eventos
+# - Diagnóstico dos mercados
+# - Controle de erro 429
+# - Não faz requisições desnecessárias
 # ============================================================
 
 import os
@@ -20,7 +20,18 @@ import urllib.error
 
 BASE_URL = "https://api.odds-api.io/v3"
 
+# ============================================================
+# BOOKMAKER
+# ============================================================
+
 BOOKMAKER = "Bet365"
+
+# ============================================================
+# LIMITE DE EVENTOS POR CONSULTA
+# A API permite até 10 eventos no /odds/multi
+# ============================================================
+
+MAX_EVENTOS_POR_CONSULTA = 10
 
 
 # ============================================================
@@ -65,32 +76,71 @@ def fazer_requisicao(url):
                 "utf-8"
             )
 
-            return json.loads(conteudo)
+            return json.loads(
+                conteudo
+            )
 
     except urllib.error.HTTPError as erro:
 
         detalhe = ""
 
         try:
+
             detalhe = erro.read().decode(
                 "utf-8"
             )
+
         except Exception:
+
             pass
 
         print()
-        print("ERRO HTTP ODDS API")
-        print("Código:", erro.code)
-        print("Detalhes:", detalhe)
+        print(
+            "ERRO HTTP ODDS API"
+        )
+
+        print(
+            "Código:",
+            erro.code
+        )
+
+        print(
+            "Detalhes:",
+            detalhe
+        )
+
+        # ====================================================
+        # LIMITE DA API
+        # ====================================================
+
+        if erro.code == 429:
+
+            print()
+            print(
+                "⚠️ LIMITE DA API ATINGIDO."
+            )
+
+            print(
+                "Nenhuma nova consulta será feita "
+                "até a próxima tentativa."
+            )
 
         return []
 
     except Exception as erro:
 
         print()
-        print("ERRO NA REQUISIÇÃO ODDS API")
-        print(type(erro).__name__)
-        print(erro)
+        print(
+            "ERRO NA REQUISIÇÃO ODDS API"
+        )
+
+        print(
+            type(erro).__name__
+        )
+
+        print(
+            erro
+        )
 
         return []
 
@@ -107,42 +157,34 @@ def buscar_jogos_ao_vivo():
 
         "apiKey": api_key,
 
-        "sport": "football",
-
-        "status": "live",
-
-        "bookmaker": BOOKMAKER
+        "sport": "football"
 
     })
 
     url = (
         BASE_URL
-        + "/events?"
+        + "/events/live?"
         + parametros
     )
 
     print()
-    print("======================================")
-    print("CONSULTANDO JOGOS AO VIVO")
-    print("BOOKMAKER:", BOOKMAKER)
-    print("======================================")
+    print(
+        "Consultando jogos ao vivo..."
+    )
 
-    resposta = fazer_requisicao(url)
+    resposta = fazer_requisicao(
+        url
+    )
 
     if not isinstance(
         resposta,
         list
     ):
 
-        print(
-            "Resposta de eventos inválida:",
-            type(resposta).__name__
-        )
-
         return []
 
     print(
-        "JOGOS AO VIVO ENCONTRADOS:",
+        "Jogos ao vivo encontrados:",
         len(resposta)
     )
 
@@ -179,29 +221,50 @@ def buscar_odds_multiplos(eventos):
 
     if not ids:
 
-        print()
         print(
-            "NENHUM ID DE EVENTO PARA CONSULTAR ODDS."
+            "Nenhum ID de evento disponível."
         )
 
         return []
 
     # ========================================================
-    # NÃO LIMITAR A 10
+    # IMPORTANTE
+    #
+    # A API permite até 10 eventos em /odds/multi.
+    # Portanto não enviamos mais que 10 por requisição.
     # ========================================================
+
+    ids = ids[
+        :MAX_EVENTOS_POR_CONSULTA
+    ]
 
     print()
     print(
-        "TOTAL DE IDS PARA CONSULTA:",
+        "======================================"
+    )
+
+    print(
+        "CONSULTA DE ODDS"
+    )
+
+    print(
+        "Eventos enviados:",
         len(ids)
     )
 
-    print()
     print(
-        "IDs ENVIADOS PARA ODDS API:"
+        "IDs:",
+        ids
     )
 
-    print(ids)
+    print(
+        "Bookmaker:",
+        BOOKMAKER
+    )
+
+    print(
+        "======================================"
+    )
 
     parametros = urllib.parse.urlencode({
 
@@ -219,7 +282,9 @@ def buscar_odds_multiplos(eventos):
         + parametros
     )
 
-    resposta = fazer_requisicao(url)
+    resposta = fazer_requisicao(
+        url
+    )
 
     # ========================================================
     # DIAGNÓSTICO
@@ -227,7 +292,10 @@ def buscar_odds_multiplos(eventos):
 
     print()
     print(
-        "TIPO DA RESPOSTA ODDS:",
+        "TIPO DA RESPOSTA ODDS:"
+    )
+
+    print(
         type(resposta).__name__
     )
 
@@ -237,7 +305,7 @@ def buscar_odds_multiplos(eventos):
     ):
 
         print(
-            "EVENTOS RECEBIDOS:",
+            "EVENTOS COM ODDS:",
             len(resposta)
         )
 
@@ -283,7 +351,7 @@ def buscar_odds_multiplos(eventos):
         eventos_odds = []
 
     # ========================================================
-    # DIAGNÓSTICO DE BOOKMAKERS E MERCADOS
+    # DIAGNÓSTICO DOS BOOKMAKERS
     # ========================================================
 
     print()
@@ -309,15 +377,21 @@ def buscar_odds_multiplos(eventos):
             evento_id
         )
 
+        print(
+            "JOGO:",
+            evento.get("home"),
+            "x",
+            evento.get("away")
+        )
+
         bookmakers = evento.get(
-            "bookmakers",
-            {}
+            "bookmakers"
         )
 
         if not bookmakers:
 
             print(
-                "  NENHUM BOOKMAKER RETORNADO."
+                "  Nenhum bookmaker retornado."
             )
 
             continue
@@ -336,7 +410,9 @@ def buscar_odds_multiplos(eventos):
 
         print(
             "  BOOKMAKERS:",
-            list(bookmakers.keys())
+            list(
+                bookmakers.keys()
+            )
         )
 
         for nome, mercados in bookmakers.items():
@@ -353,7 +429,7 @@ def buscar_odds_multiplos(eventos):
             ):
 
                 print(
-                    "    Formato de mercados:",
+                    "    Formato:",
                     type(mercados).__name__
                 )
 
@@ -375,21 +451,6 @@ def buscar_odds_multiplos(eventos):
                     "    MERCADO:",
                     repr(nome_mercado)
                 )
-
-                odds = mercado.get(
-                    "odds",
-                    []
-                )
-
-                if isinstance(
-                    odds,
-                    list
-                ):
-
-                    print(
-                        "      ODDS:",
-                        len(odds)
-                    )
 
     print()
     print(
@@ -429,330 +490,4 @@ def extrair_mercados(
         {}
     )
 
-    if not isinstance(
-        bookmakers,
-        dict
-    ):
-
-        return resultado
-
-    # ========================================================
-    # LOCALIZAR BET365
-    # ========================================================
-
-    mercados = None
-
-    for nome, valor in bookmakers.items():
-
-        if str(nome).strip().lower() == str(
-            BOOKMAKER
-        ).strip().lower():
-
-            mercados = valor
-
-            break
-
-    if mercados is None:
-
-        print(
-            "BET365 NÃO ENCONTRADA NO EVENTO."
-        )
-
-        return resultado
-
-    if not isinstance(
-        mercados,
-        list
-    ):
-
-        return resultado
-
-    # ========================================================
-    # PROCESSAR MERCADOS
-    # ========================================================
-
-    for mercado in mercados:
-
-        if not isinstance(
-            mercado,
-            dict
-        ):
-            continue
-
-        nome = str(
-            mercado.get(
-                "name",
-                ""
-            )
-        ).strip()
-
-        nome_normalizado = nome.lower()
-
-        print(
-            "PROCESSANDO MERCADO:",
-            repr(nome)
-        )
-
-        outcomes = mercado.get(
-            "odds",
-            []
-        )
-
-        if not isinstance(
-            outcomes,
-            list
-        ):
-
-            continue
-
-        # ====================================================
-        # RESULTADO 1X2
-        # API: ML
-        # ====================================================
-
-        if nome_normalizado in {
-
-            "ml",
-
-            "moneyline",
-
-            "1x2",
-
-            "match winner",
-
-            "match_winner",
-
-            "winner"
-
-        }:
-
-            for odd in outcomes:
-
-                if not isinstance(
-                    odd,
-                    dict
-                ):
-                    continue
-
-                resultado[
-                    "resultado"
-                ].append({
-
-                    "home": odd.get(
-                        "home"
-                    ),
-
-                    "draw": odd.get(
-                        "draw"
-                    ),
-
-                    "away": odd.get(
-                        "away"
-                    )
-
-                })
-
-        # ====================================================
-        # TOTAL GOALS
-        # API: Totals
-        # ====================================================
-
-        elif nome_normalizado in {
-
-            "totals",
-
-            "total goals",
-
-            "total_goals"
-
-        }:
-
-            for odd in outcomes:
-
-                if not isinstance(
-                    odd,
-                    dict
-                ):
-                    continue
-
-                resultado[
-                    "gols"
-                ].append({
-
-                    "linha": odd.get(
-                        "hdp"
-                    ),
-
-                    "over": odd.get(
-                        "over"
-                    ),
-
-                    "under": odd.get(
-                        "under"
-                    )
-
-                })
-
-        # ====================================================
-        # ASIAN HANDICAP
-        # API: Spread
-        # ====================================================
-
-        elif nome_normalizado in {
-
-            "spread",
-
-            "asian handicap",
-
-            "asian_handicap",
-
-            "handicap"
-
-        }:
-
-            for odd in outcomes:
-
-                if not isinstance(
-                    odd,
-                    dict
-                ):
-                    continue
-
-                resultado[
-                    "handicap"
-                ].append({
-
-                    "linha": odd.get(
-                        "hdp"
-                    ),
-
-                    "home": odd.get(
-                        "home"
-                    ),
-
-                    "away": odd.get(
-                        "away"
-                    )
-
-                })
-
-    return resultado
-
-
-# ============================================================
-# FUNÇÃO DE TESTE
-# ============================================================
-
-def mostrar_resumo_odds(
-    odds_evento
-):
-
-    mercados = extrair_mercados(
-        odds_evento
-    )
-
-    print()
-    print(
-        "========== RESUMO =========="
-    )
-
-    # ========================================================
-    # RESULTADO 1X2
-    # ========================================================
-
-    print()
-    print(
-        "RESULTADO 1X2"
-    )
-
-    if mercados[
-        "resultado"
-    ]:
-
-        for odd in mercados[
-            "resultado"
-        ]:
-
-            print(
-                "  Casa:",
-                odd.get("home"),
-                "| Empate:",
-                odd.get("draw"),
-                "| Fora:",
-                odd.get("away")
-            )
-
-    else:
-
-        print(
-            "  Sem odds de Resultado."
-        )
-
-    # ========================================================
-    # TOTAL GOALS
-    # ========================================================
-
-    print()
-    print(
-        "TOTAL GOALS"
-    )
-
-    if mercados[
-        "gols"
-    ]:
-
-        for odd in mercados[
-            "gols"
-        ]:
-
-            print(
-                "  Linha:",
-                odd.get("linha"),
-                "| Over:",
-                odd.get("over"),
-                "| Under:",
-                odd.get("under")
-            )
-
-    else:
-
-        print(
-            "  Sem odds de Total Goals."
-        )
-
-    # ========================================================
-    # ASIAN HANDICAP
-    # ========================================================
-
-    print()
-    print(
-        "ASIAN HANDICAP"
-    )
-
-    if mercados[
-        "handicap"
-    ]:
-
-        for odd in mercados[
-            "handicap"
-        ]:
-
-            print(
-                "  Linha:",
-                odd.get("linha"),
-                "| Casa:",
-                odd.get("home"),
-                "| Fora:",
-                odd.get("away")
-            )
-
-    else:
-
-        print(
-            "  Sem odds de Asian Handicap."
-        )
-
-    print()
-    print(
-        "============================"
-                )
+    if
