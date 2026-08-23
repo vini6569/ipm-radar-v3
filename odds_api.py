@@ -402,9 +402,19 @@ def buscar_jogos_ao_vivo():
 def buscar_odds_multiplos(eventos):
 
     print()
-    print("=" * 60)
-    print("📊 CONSULTANDO ODDS")
-    print("=" * 60)
+print("=" * 60)
+print("🔎 RESPOSTA BRUTA DA ODDS API")
+print("=" * 60)
+
+print(
+    json.dumps(
+        resposta,
+        indent=2,
+        ensure_ascii=False
+    )[:12000]
+)
+
+print("=" * 60)
 
     if not eventos:
 
