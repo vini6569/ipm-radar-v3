@@ -1,337 +1,222 @@
 # ============================================================
-# IPM-RADAR-V3
-# MAIN
-#
-# Robô 2 - Radar de Movimentação / IPM
-#
+# MAIN - IPM RADAR V3
 # ============================================================
 
 import time
 import threading
-from datetime import datetime
+from datetime import datetime, time as horario
+from zoneinfo import ZoneInfo
 
-import odds_api
-import telegram
-import historico
-import motor_ipm
+from flask import Flask
 
+from odds_api import (
+    buscar_jogos_ao_vivo,
+    buscar_odds_multiplos
+)
+
+from motor_ipm import (
+    processar_evento
+)
 
 # ============================================================
 # CONFIGURAÇÃO
 # ============================================================
 
-INTERVALO_CONSULTA = 300  # 5 minutos
+INTERVALO_CONSULTA = 300
+PORTA_SAUDE = 10000
 
-HORARIO_INICIO = 6
-HORARIO_FIM = 24
+# Horário oficial do radar
+HORA_INICIO = horario(6, 0)
+HORA_FIM = horario(0, 0)
 
+# Fuso horário do Brasil
+FUSO_BRASIL = ZoneInfo("America/Sao_Paulo")
 
-# ============================================================
-# SERVIDOR DE SAÚDE PARA O RENDER
-# ============================================================
-
-def servidor_saude():
-
-    try:
-
-        from http.server import (
-            BaseHTTPRequestHandler,
-            HTTPServer
-        )
-
-        class Handler(BaseHTTPRequestHandler):
-
-            def do_GET(self):
-
-                self.send_response(200)
-
-                self.send_header(
-                    "Content-type",
-                    "text/plain; charset=utf-8"
-                )
-
-                self.end_headers()
-
-                self.wfile.write(
-                    b"IPM-RADAR-V3 ONLINE"
-                )
-
-            def log_message(
-                self,
-                formato,
-                *args
-            ):
-
-                return
-
-        servidor = HTTPServer(
-            ("0.0.0.0", 10000),
-            Handler
-        )
-
-        print(
-            "Servidor de saúde iniciado na porta 10000"
-        )
-
-        servidor.serve_forever()
-
-    except Exception as erro:
-
-        print(
-            "ERRO NO SERVIDOR DE SAUDE:",
-            type(erro).__name__,
-            erro
-        )
+app = Flask(__name__)
 
 
 # ============================================================
-# VERIFICAR HORÁRIO
+# HORÁRIO ATUAL DO BRASIL
+# ============================================================
+
+def horario_brasil():
+    return datetime.now(FUSO_BRASIL)
+
+
+# ============================================================
+# VERIFICA SE O RADAR ESTÁ ATIVO
 # ============================================================
 
 def radar_ativo():
+    agora = horario_brasil().time()
 
-    hora = datetime.now().hour
-
-    if HORARIO_INICIO <= hora < HORARIO_FIM:
-
+    # 06:00 até 23:59
+    if agora >= HORA_INICIO:
         return True
+
+    # 00:00 até 05:59 = pausa
+    if agora < horario(0, 0):
+        return False
 
     return False
 
 
 # ============================================================
-# EXECUTAR UMA CONSULTA
+# ROTA DE SAÚDE
+# ============================================================
+
+@app.route("/")
+def health():
+    agora = horario_brasil()
+
+    return (
+        "IPM RADAR V3 ONLINE | "
+        f"Horário Brasil: {agora.strftime('%d/%m/%Y %H:%M:%S')}"
+    ), 200
+
+
+# ============================================================
+# SERVIDOR DE SAÚDE
+# ============================================================
+
+def iniciar_servidor_saude():
+
+    print("Servidor de saúde iniciado na porta", PORTA_SAUDE)
+
+    app.run(
+        host="0.0.0.0",
+        port=PORTA_SAUDE
+    )
+
+
+# ============================================================
+# CONSULTA DOS JOGOS
 # ============================================================
 
 def executar_consulta():
 
-    print()
-    print("=" * 60)
-    print(
-        "RADAR IPM - NOVA CONSULTA"
-    )
-    print("=" * 60)
-
-    # ========================================================
-    # JOGOS AO VIVO
-    # ========================================================
+    agora = horario_brasil()
 
     print()
+    print("============================================================")
+    print("📡 RADAR ATIVO |", agora.strftime("%d/%m/%Y %H:%M:%S"))
+    print("============================================================")
 
-    jogos = odds_api.buscar_jogos_ao_vivo()
+    print("Consultando jogos ao vivo...")
 
-    if not jogos:
+    try:
 
-        print(
-            "Nenhum jogo ao vivo encontrado."
-        )
+        jogos = buscar_jogos_ao_vivo()
 
-        print(
-            "Eventos com odds recebidos: 0"
-        )
+        if jogos is None:
+            jogos = []
 
-        return
+        print("Jogos ao vivo encontrados:", len(jogos))
 
-    print(
-        "Jogos ao vivo encontrados:",
-        len(jogos)
-    )
+        if not jogos:
+            print("Nenhum jogo ao vivo encontrado.")
+            return
 
-    # ========================================================
-    # ODDS
-    # ========================================================
-
-    eventos_odds = (
-        odds_api.buscar_odds_multiplos(
-            jogos
-        )
-    )
-
-    print(
-        "Eventos com odds recebidos:",
-        len(eventos_odds)
-    )
-
-    # ========================================================
-    # MEMÓRIA / HISTÓRICO
-    # ========================================================
-
-    print()
-
-    print(
-        "ODDS NA MEMÓRIA: 0"
-    )
-
-    print(
-        "SINAIS NA MEMÓRIA: 0"
-    )
-
-    print(
-        "HISTÓRICO REGISTRADO: 0"
-    )
-
-    # ========================================================
-    # PROCESSAR CADA EVENTO
-    # ========================================================
-
-    for evento in eventos_odds:
-
-        if not isinstance(
-            evento,
-            dict
-        ):
-
-            continue
+        print("Buscando odds...")
 
         try:
-
-            print()
-            print(
-                "-" * 60
-            )
-
-            print(
-                "PROCESSANDO EVENTO:",
-                evento.get("id")
-            )
-
-            print(
-                "JOGO:",
-                evento.get("home"),
-                "x",
-                evento.get("away")
-            )
-
-            # ------------------------------------------------
-            # DIAGNÓSTICO DAS ODDS
-            # ------------------------------------------------
-
-            odds_api.mostrar_resumo_odds(
-                evento
-            )
-
+            odds = buscar_odds_multiplos(jogos)
         except Exception as erro:
+            print("Erro ao buscar odds:", erro)
+            odds = []
 
-            print(
-                "ERRO PROCESSANDO EVENTO:"
-            )
+        if odds is None:
+            odds = []
 
-            print(
-                type(erro).__name__,
-                erro
-            )
+        print("Eventos com odds recebidos:", len(odds))
 
-    print()
-    print("=" * 60)
-    print(
-        "CONSULTA FINALIZADA"
-    )
-    print("=" * 60)
+        # ====================================================
+        # PROCESSAMENTO PELO MOTOR IPM
+        # ====================================================
+
+        total_processados = 0
+
+        for evento in jogos:
+
+            try:
+
+                resultado = processar_evento(evento, odds)
+
+                total_processados += 1
+
+                if resultado is not None:
+                    print("📊 IPM:", resultado)
+
+            except TypeError:
+
+                # Compatibilidade caso processar_evento
+                # aceite somente o evento.
+                try:
+
+                    resultado = processar_evento(evento)
+
+                    total_processados += 1
+
+                    if resultado is not None:
+                        print("📊 IPM:", resultado)
+
+                except Exception as erro:
+                    print("Erro ao processar evento:", erro)
+
+            except Exception as erro:
+                print("Erro ao processar evento:", erro)
+
+        print("Eventos processados:", total_processados)
+
+    except Exception as erro:
+
+        print("❌ Erro na consulta:", erro)
 
 
 # ============================================================
 # LOOP PRINCIPAL
 # ============================================================
 
-def iniciar_radar():
+def loop_consulta():
 
     print()
-    print("=" * 60)
-    print(
-        "📡 IPM-RADAR-V3"
-    )
-    print(
-        "RADAR DE MOVIMENTAÇÃO / IPM"
-    )
-    print("=" * 60)
-
-    print(
-        "Horário ativo:",
-        "06:00 até 00:00"
-    )
-
-    print(
-        "Intervalo:",
-        INTERVALO_CONSULTA,
-        "segundos"
-    )
-
-    print("=" * 60)
+    print("============================================================")
+    print("🚀 IPM RADAR V3 INICIADO")
+    print("============================================================")
+    print("Fuso horário:", "America/Sao_Paulo")
+    print("Horário ativo: 06:00 até 00:00")
+    print("Horário de pausa: 00:00 até 06:00")
+    print("Intervalo:", INTERVALO_CONSULTA, "segundos")
+    print("============================================================")
 
     while True:
 
-        try:
+        agora = horario_brasil()
 
-            agora = datetime.now()
+        print()
+        print("🕒 Horário Brasil:", agora.strftime("%d/%m/%Y %H:%M:%S"))
 
-            print()
-            print(
-                "📡 RADAR ATIVO |",
-                agora.strftime(
-                    "%d/%m/%Y %H:%M:%S"
-                )
-            )
+        # ====================================================
+        # VERIFICAÇÃO DO HORÁRIO
+        # ====================================================
 
-            # =================================================
-            # HORÁRIO DE FUNCIONAMENTO
-            # =================================================
+        if radar_ativo():
 
-            if radar_ativo():
+            executar_consulta()
 
-                executar_consulta()
+        else:
 
-            else:
+            print("⏸️ Radar em período de pausa.")
+            print("Horário ativo: 06:00 até 00:00")
 
-                print(
-                    "⏸️ Radar em período de pausa."
-                )
+        # ====================================================
+        # AGUARDA 5 MINUTOS
+        # ====================================================
 
-                print(
-                    "Horário ativo: 06:00 até 00:00"
-                )
+        print()
+        print("⏳ Nova consulta em 300 segundos...")
 
-            # =================================================
-            # AGUARDAR
-            # =================================================
-
-            print()
-
-            print(
-                "⏳ Nova consulta em",
-                INTERVALO_CONSULTA,
-                "segundos..."
-            )
-
-            time.sleep(
-                INTERVALO_CONSULTA
-            )
-
-        except KeyboardInterrupt:
-
-            print()
-            print(
-                "Radar encerrado."
-            )
-
-            break
-
-        except Exception as erro:
-
-            print()
-            print("=" * 60)
-            print(
-                "ERRO NO RADAR"
-            )
-            print("=" * 60)
-
-            print(
-                type(erro).__name__,
-                erro
-            )
-
-            print("=" * 60)
-
-            time.sleep(30)
+        time.sleep(INTERVALO_CONSULTA)
 
 
 # ============================================================
@@ -340,19 +225,13 @@ def iniciar_radar():
 
 if __name__ == "__main__":
 
-    # --------------------------------------------------------
-    # Servidor de saúde
-    # --------------------------------------------------------
-
+    # Servidor de saúde em segundo plano
     thread_saude = threading.Thread(
-        target=servidor_saude,
+        target=iniciar_servidor_saude,
         daemon=True
     )
 
     thread_saude.start()
 
-    # --------------------------------------------------------
-    # Radar
-    # --------------------------------------------------------
-
-    iniciar_radar()
+    # Inicia o radar
+    loop_consulta()
