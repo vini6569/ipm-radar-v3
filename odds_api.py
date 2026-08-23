@@ -1194,4 +1194,88 @@ def extrair_mercados(
 
     (
         escanteios,
-        finalizacoes
+        finalizacoes,
+        ataques_perigosos
+    ) = _extrair_estatisticas(
+        jogo
+    )
+
+    # ========================================================
+    # RESULTADO PADRONIZADO
+    # ========================================================
+
+    resultado = {
+
+        "odd_inicial": odd_inicial,
+
+        "odd_anterior": odd_anterior,
+
+        "odd_atual": odd_atual,
+
+        "variacao_desde_inicio":
+            variacao_desde_inicio,
+
+        "variacao_recente":
+            variacao_recente,
+
+        "minuto": minuto,
+
+        "gols": gols,
+
+        "escanteios": escanteios,
+
+        "finalizacoes": finalizacoes,
+
+        "ataques_perigosos":
+            ataques_perigosos
+    }
+
+    # ========================================================
+    # DIAGNÓSTICO
+    # ========================================================
+
+    print()
+
+    print(
+        f"📊 {jogo.get('home')} x "
+        f"{jogo.get('away')}"
+    )
+
+    print(
+        f"   Minuto: {minuto}"
+    )
+
+    print(
+        f"   Gols: {gols}"
+    )
+
+    print(
+        f"   Odd empate: "
+        f"{odd_inicial:.2f} -> "
+        f"{odd_atual:.2f}"
+    )
+
+    print(
+        f"   Variação desde início: "
+        f"{variacao_desde_inicio:+.2f}%"
+    )
+
+    print(
+        f"   Variação recente: "
+        f"{variacao_recente:+.2f}%"
+    )
+
+    print(
+        f"   Escanteios: {escanteios}"
+    )
+
+    print(
+        f"   Finalizações: {finalizacoes}"
+    )
+
+    print(
+        f"   Ataques perigosos: "
+        f"{ataques_perigosos}"
+    )
+
+    return resultado
