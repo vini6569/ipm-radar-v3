@@ -1191,4 +1191,32 @@ def extrair_mercados(
         jogo
     )
 
-    # =================================
+        # ========================================================
+    # DIAGNÓSTICO DAS ODDS
+    # ========================================================
+
+    print()
+    print("========== DIAGNÓSTICO ODDS ==========")
+    print("EVENTO:", event_id)
+    print("BOOKMAKER:", BOOKMAKER)
+    print("ODD INICIAL:", odd_inicial)
+    print("ODD ANTERIOR:", odd_anterior)
+    print("ODD ATUAL:", odd_atual)
+    print("VARIAÇÃO DESDE INÍCIO:", variacao_desde_inicio)
+    print("VARIAÇÃO RECENTE:", variacao_recente)
+    print("======================================")
+
+    return {
+        "odd_atual": odd_atual,
+        "odd_inicial": odd_inicial,
+        "odd_anterior": odd_anterior,
+        "variacao_desde_inicio": variacao_desde_inicio,
+        "variacao_recente": variacao_recente,
+        "minuto": minuto,
+        "casa": casa,
+        "fora": fora,
+        "gols": gols,
+        "escanteios": escanteios,
+        "finalizacoes": finalizacoes,
+        "ataques_perigosos": ataques_perigosos
+    }
