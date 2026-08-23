@@ -23,10 +23,14 @@ TIMEOUT_REQUISICAO = 20
 
 
 # ============================================================
-# MEMÓRIA DA PRIMEIRA ODD
+# MEMÓRIA DAS ODDS
 # ============================================================
 
+# Primeira odd observada no evento
 _ODD_INICIAL = {}
+
+# Última odd observada no evento
+_ODD_ANTERIOR = {}
 
 
 # ============================================================
@@ -440,12 +444,10 @@ def buscar_odds_multiplos(eventos):
                 str(event_id)
             )
 
-    # Remove IDs duplicados
     ids = list(
         dict.fromkeys(ids)
     )
 
-    # Limita quantidade
     ids = ids[
         :MAX_EVENTOS_POR_CONSULTA
     ]
@@ -496,13 +498,6 @@ def buscar_odds_multiplos(eventos):
     eventos_odds = _lista_eventos(
         resposta
     )
-
-    # Algumas respostas podem vir como:
-    #
-    # {
-    #     "123456": {...},
-    #     "123457": {...}
-    # }
 
     if (
         not eventos_odds
@@ -889,15 +884,17 @@ def _extrair_minuto(jogo):
             dict
         ):
 
-            valor = valor.get(
+            minuto = valor.get(
                 "minute"
             )
 
-            if valor is None:
+            if minuto is None:
 
-                valor = valor.get(
+                minuto = valor.get(
                     "elapsed"
                 )
+
+            valor = minuto
 
         if isinstance(
             valor,
@@ -986,7 +983,6 @@ def _extrair_estatisticas(jogo):
 
             )
 
-    # Não inventar estatísticas.
     return 0, 0, 0
 
 
@@ -1015,7 +1011,6 @@ def extrair_mercados(
         event_id
     )
 
-    # Caso o próprio evento já contenha bookmakers.
     if evento_odds is None:
 
         evento_odds = jogo
@@ -1048,6 +1043,7 @@ def extrair_mercados(
             mercado_ml
         )
 
+        # Odd do empate
         odd_atual = _numero(
             linha.get(
                 "draw"
@@ -1055,9 +1051,19 @@ def extrair_mercados(
         )
 
     # ========================================================
-    # PRIMEIRA ODD OBSERVADA
+    # MEMÓRIA DAS ODDS
     # ========================================================
 
+    odd_anterior = 0.0
+
+    if event_id is not None:
+
+        odd_anterior = _ODD_ANTERIOR.get(
+            event_id,
+            0.0
+        )
+
+    # Primeira odd válida
     if (
         event_id is not None
         and odd_atual > 0
@@ -1076,6 +1082,47 @@ def extrair_mercados(
         odd_atual
 
     )
+
+    # ========================================================
+    # VARIAÇÕES
+    # ========================================================
+
+    variacao_desde_inicio = 0.0
+
+    variacao_recente = 0.0
+
+    if odd_inicial > 0:
+
+        variacao_desde_inicio = (
+            (
+                odd_atual
+                - odd_inicial
+            )
+            / odd_inicial
+        ) * 100.0
+
+    if odd_anterior > 0:
+
+        variacao_recente = (
+            (
+                odd_atual
+                - odd_anterior
+            )
+            / odd_anterior
+        ) * 100.0
+
+    # ========================================================
+    # ATUALIZAR MEMÓRIA
+    # ========================================================
+
+    if (
+        event_id is not None
+        and odd_atual > 0
+    ):
+
+        _ODD_ANTERIOR[
+            event_id
+        ] = odd_atual
 
     # ========================================================
     # MINUTO
@@ -1108,59 +1155,4 @@ def extrair_mercados(
     )
 
     # ========================================================
-    # RESULTADO PADRONIZADO
-    # ========================================================
-
-    resultado = {
-
-        "odd_inicial": odd_inicial,
-
-        "odd_atual": odd_atual,
-
-        "minuto": minuto,
-
-        "gols": gols,
-
-        "escanteios": escanteios,
-
-        "finalizacoes": finalizacoes,
-
-        "ataques_perigosos": ataques_perigosos
-
-    }
-
-    print()
-
-    print(
-        f"📊 {jogo.get('home')} x "
-        f"{jogo.get('away')}"
-    )
-
-    print(
-        f"   Minuto: {minuto}"
-    )
-
-    print(
-        f"   Gols: {gols}"
-    )
-
-    print(
-        f"   Odd empate: "
-        f"{odd_inicial:.2f} -> "
-        f"{odd_atual:.2f}"
-    )
-
-    print(
-        f"   Escanteios: {escanteios}"
-    )
-
-    print(
-        f"   Finalizações: {finalizacoes}"
-    )
-
-    print(
-        f"   Ataques perigosos: "
-        f"{ataques_perigosos}"
-    )
-
-    return resultado
+    # RESULT
