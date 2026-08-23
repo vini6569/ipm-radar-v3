@@ -401,7 +401,7 @@ def buscar_jogos_ao_vivo():
 
 def buscar_odds_multiplos(eventos):
 
-    print()
+print()
 print("=" * 60)
 print("🔎 RESPOSTA BRUTA DA ODDS API")
 print("=" * 60)
