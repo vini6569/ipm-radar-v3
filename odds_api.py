@@ -824,6 +824,9 @@ def _extrair_placar(jogo):
 
 def _extrair_minuto(jogo):
 
+    if not isinstance(jogo, dict):
+        return 0
+
     candidatos = (
 
         jogo.get("minute"),
@@ -838,27 +841,16 @@ def _extrair_minuto(jogo):
 
     for valor in candidatos:
 
-        if isinstance(
-            valor,
-            dict
-        ):
+        if isinstance(valor, dict):
 
-            minuto = valor.get(
-                "minute"
-            )
+            minuto = valor.get("minute")
 
             if minuto is None:
-
-                minuto = valor.get(
-                    "elapsed"
-                )
+                minuto = valor.get("elapsed")
 
             valor = minuto
 
-        if isinstance(
-            valor,
-            str
-        ):
+        if isinstance(valor, str):
 
             valor = (
                 valor
@@ -873,7 +865,6 @@ def _extrair_minuto(jogo):
         )
 
         if minuto >= 0:
-
             return minuto
 
     return 0
