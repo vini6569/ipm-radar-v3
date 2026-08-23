@@ -779,81 +779,40 @@ def _evento_odds_por_id(
 
 def _extrair_placar(jogo):
 
-    candidatos = [
+    if not isinstance(jogo, dict):
+        return 0, 0
 
-        jogo.get("score"),
+    # Formato oficial Odds-API.io
+    scores = jogo.get("scores")
 
-        jogo.get("scores"),
+    if isinstance(scores, dict):
 
-        jogo.get("result")
-
-    ]
-
-    for valor in candidatos:
-
-        if isinstance(
-            valor,
-            dict
-        ):
-
-            casa = valor.get(
-                "home"
-            )
-
-            if casa is None:
-
-                casa = valor.get(
-                    "homeScore"
-                )
-
-            fora = valor.get(
-                "away"
-            )
-
-            if fora is None:
-
-                fora = valor.get(
-                    "awayScore"
-                )
-
-            if (
-                casa is not None
-                or fora is not None
-            ):
-
-                return (
-                    _inteiro(casa),
-                    _inteiro(fora)
-                )
-
-        if (
-            isinstance(
-                valor,
-                list
-            )
-            and len(valor) >= 2
-        ):
-
-            return (
-                _inteiro(valor[0]),
-                _inteiro(valor[1])
-            )
-
-    if (
-        "homeScore" in jogo
-        or "awayScore" in jogo
-    ):
+        casa = scores.get("home", 0)
+        fora = scores.get("away", 0)
 
         return (
+            _inteiro(casa),
+            _inteiro(fora)
+        )
 
-            _inteiro(
-                jogo.get("homeScore")
-            ),
+    # Compatibilidade com outros formatos
+    score = jogo.get("score")
 
-            _inteiro(
-                jogo.get("awayScore")
-            )
+    if isinstance(score, dict):
 
+        casa = score.get("home", 0)
+        fora = score.get("away", 0)
+
+        return (
+            _inteiro(casa),
+            _inteiro(fora)
+        )
+
+    if isinstance(score, list) and len(score) >= 2:
+
+        return (
+            _inteiro(score[0]),
+            _inteiro(score[1])
         )
 
     return 0, 0
