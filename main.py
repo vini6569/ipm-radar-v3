@@ -10,7 +10,8 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from odds_api import (
     buscar_jogos_ao_vivo,
-    buscar_odds_multiplos
+    buscar_odds_multiplos,
+    extrair_mercados
 )
 
 from motor_ipm import (
