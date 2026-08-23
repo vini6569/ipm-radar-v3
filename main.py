@@ -24,7 +24,7 @@ from motor_ipm import (
 # CONFIGURAÇÃO
 # ============================================================
 
-INTERVALO_CONSULTA = 300
+INTERVALO_CONSULTA = 30
 PORTA_SAUDE = 10000
 
 FUSO_BRASIL = ZoneInfo("America/Sao_Paulo")
