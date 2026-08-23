@@ -276,16 +276,25 @@ def buscar_jogos_ao_vivo():
 
         return []
 
-    url = BASE_URL + "/fixtures?live=all"
+        parametros = urllib.parse.urlencode({
+        "apiKey": api_key,
+        "sport": "football"
+    })
 
-print(
-    "Endpoint:",
-    url
-)
+    url = (
+        BASE_URL
+        + "/events/live?"
+        + parametros
+    )
 
-resposta = fazer_requisicao(
-    url
-)
+    print(
+        "Endpoint:",
+        BASE_URL + "/events/live"
+    )
+
+    resposta = fazer_requisicao(
+        url
+    )
 
     print(
         "TIPO DA RESPOSTA LIVE:",
@@ -310,16 +319,6 @@ resposta = fazer_requisicao(
         )
 
         return []
-
-    print()
-    print("=" * 60)
-    print("EVENTOS LIVE RECEBIDOS")
-    print("=" * 60)
-
-    for indice, evento in enumerate(
-        eventos,
-        start=1
-    ):
 
         if not isinstance(
             evento,
