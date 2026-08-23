@@ -1191,32 +1191,164 @@ def extrair_mercados(
         jogo
     )
 
-        # ========================================================
-    # DIAGNÓSTICO DAS ODDS
+       # ========================================================
+    # 🔎 DIAGNÓSTICO REAL DOS DADOS DA ODDS API
     # ========================================================
 
     print()
-    print("========== DIAGNÓSTICO ODDS ==========")
-    print("EVENTO:", event_id)
-    print("BOOKMAKER:", BOOKMAKER)
-    print("ODD INICIAL:", odd_inicial)
-    print("ODD ANTERIOR:", odd_anterior)
-    print("ODD ATUAL:", odd_atual)
-    print("VARIAÇÃO DESDE INÍCIO:", variacao_desde_inicio)
-    print("VARIAÇÃO RECENTE:", variacao_recente)
-    print("======================================")
+    print("=" * 70)
+    print("🔎 DIAGNÓSTICO ODDS API / BET365")
+    print("=" * 70)
 
-    return {
-        "odd_atual": odd_atual,
-        "odd_inicial": odd_inicial,
-        "odd_anterior": odd_anterior,
-        "variacao_desde_inicio": variacao_desde_inicio,
-        "variacao_recente": variacao_recente,
-        "minuto": minuto,
-        "casa": casa,
-        "fora": fora,
-        "gols": gols,
-        "escanteios": escanteios,
-        "finalizacoes": finalizacoes,
-        "ataques_perigosos": ataques_perigosos
-    }
+    print("EVENT ID:", event_id)
+
+    print("ODD ATUAL:", odd_atual)
+
+    print("ODD ANTERIOR:", odd_anterior)
+
+    print("ODD INICIAL:", odd_inicial)
+
+    print("VARIAÇÃO RECENTE:", round(
+        variacao_recente,
+        4
+    ), "%")
+
+    print("VARIAÇÃO DESDE INÍCIO:", round(
+        variacao_desde_inicio,
+        4
+    ), "%")
+
+    print()
+    print("BOOKMAKER:", BOOKMAKER)
+
+    print(
+        "EVENTO ODDS ENCONTRADO:",
+        "SIM" if evento_odds is not None else "NÃO"
+    )
+
+    print(
+        "MERCADOS BET365:",
+        len(mercados)
+    )
+
+    # --------------------------------------------------------
+    # MOSTRAR TODOS OS MERCADOS
+    # --------------------------------------------------------
+
+    for indice, mercado in enumerate(
+        mercados,
+        1
+    ):
+
+        if not isinstance(
+            mercado,
+            dict
+        ):
+
+            continue
+
+        print()
+        print(
+            f"--- MERCADO {indice} ---"
+        )
+
+        print(
+            "Nome:",
+            mercado.get("name")
+        )
+
+        print(
+            "Atualizado:",
+            mercado.get("updatedAt")
+        )
+
+        odds_brutas = mercado.get(
+            "odds"
+        )
+
+        print(
+            "Odds:",
+            json.dumps(
+                odds_brutas,
+                ensure_ascii=False
+            )
+        )
+
+    # --------------------------------------------------------
+    # MERCADO ML
+    # --------------------------------------------------------
+
+    print()
+    print("--- MERCADO ML ---")
+
+    if mercado_ml:
+
+        print(
+            "ML ENCONTRADO: SIM"
+        )
+
+        print(
+            "Nome:",
+            mercado_ml.get("name")
+        )
+
+        print(
+            "Atualizado:",
+            mercado_ml.get("updatedAt")
+        )
+
+        print(
+            "Odds brutas:",
+            json.dumps(
+                mercado_ml.get("odds"),
+                ensure_ascii=False
+            )
+        )
+
+        print(
+            "LINHA UTILIZADA:",
+            json.dumps(
+                linha,
+                ensure_ascii=False
+            )
+        )
+
+        print(
+            "DRAW EXTRAÍDO:",
+            linha.get("draw")
+        )
+
+    else:
+
+        print(
+            "❌ ML NÃO ENCONTRADO"
+        )
+
+    # --------------------------------------------------------
+    # OBJETO COMPLETO RECEBIDO
+    # --------------------------------------------------------
+
+    print()
+    print("--- OBJETO COMPLETO DO EVENTO ---")
+
+    try:
+
+        print(
+            json.dumps(
+                evento_odds,
+                ensure_ascii=False,
+                indent=2
+            )[:12000]
+        )
+
+    except Exception as erro:
+
+        print(
+            "Erro ao imprimir evento:",
+            erro
+        )
+
+    print()
+    print("=" * 70)
+    print("🔎 FIM DO DIAGNÓSTICO")
+    print("=" * 70)
