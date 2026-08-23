@@ -945,16 +945,14 @@ def extrair_mercados(
     odds
 ):
 
-    if not isinstance(
-        jogo,
-        dict
-    ):
-
+    if not isinstance(jogo, dict):
         return {}
 
-    event_id = jogo.get(
-        "id"
-    )
+    event_id = jogo.get("id")
+
+    # ========================================================
+    # LOCALIZAR ODDS DO EVENTO
+    # ========================================================
 
     evento_odds = _evento_odds_por_id(
         odds,
@@ -965,9 +963,236 @@ def extrair_mercados(
 
         evento_odds = jogo
 
+    # ========================================================
+    # BOOKMAKER
+    # ========================================================
+
     mercados = _mercados_bet365(
         evento_odds
     )
+
+    print()
+    print("🔎 DEBUG ODDS")
+    print(
+        "Evento:",
+        event_id
+    )
+
+    print(
+        "Times:",
+        jogo.get("home"),
+        "x",
+        jogo.get("away")
+    )
+
+    print(
+        "Mercados encontrados:",
+        len(mercados)
+    )
+
+    # ========================================================
+    # PROCURAR ML
+    # ========================================================
+
+    mercado_ml = _encontrar_mercado(
+
+        mercados,
+
+        (
+            "ML",
+            "Moneyline",
+            "1X2"
+        )
+
+    )
+
+    odd_atual = 0.0
+
+    if mercado_ml:
+
+        print(
+            "✅ Mercado ML encontrado"
+        )
+
+        linha = _primeiro_odds(
+            mercado_ml
+        )
+
+        print(
+            "Linha ML:",
+            linha
+        )
+
+        # Odd do empate
+        odd_atual = _numero(
+            linha.get("draw")
+        )
+
+    else:
+
+        print(
+            "⚠️ Mercado ML NÃO encontrado"
+        )
+
+        # Mostrar os mercados existentes
+        for mercado in mercados:
+
+            if isinstance(
+                mercado,
+                dict
+            ):
+
+                print(
+                    "Mercado:",
+                    mercado.get("name")
+                )
+
+    # ========================================================
+    # PRIMEIRA ODD
+    # ========================================================
+
+    if (
+        event_id is not None
+        and odd_atual > 0
+    ):
+
+        if event_id not in _ODD_INICIAL:
+
+            _ODD_INICIAL[
+                event_id
+            ] = odd_atual
+
+            print(
+                "🟢 PRIMEIRA ODD REGISTRADA:",
+                odd_atual
+            )
+
+    odd_inicial = _ODD_INICIAL.get(
+
+        event_id,
+
+        odd_atual
+
+    )
+
+    # ========================================================
+    # MINUTO
+    # ========================================================
+
+    minuto = _extrair_minuto(
+        jogo
+    )
+
+    # ========================================================
+    # PLACAR
+    # ========================================================
+
+    casa,
+    fora = _extrair_placar(
+        jogo
+    )
+
+    gols = casa + fora
+
+    # ========================================================
+    # ESTATÍSTICAS
+    # ========================================================
+
+    (
+        escanteios,
+        finalizacoes,
+        ataques_perigosos
+    ) = _extrair_estatisticas(
+        jogo
+    )
+
+    # ========================================================
+    # RESULTADO
+    # ========================================================
+
+    resultado = {
+
+        "odd_inicial": odd_inicial,
+
+        "odd_atual": odd_atual,
+
+        "minuto": minuto,
+
+        "gols": gols,
+
+        "escanteios": escanteios,
+
+        "finalizacoes": finalizacoes,
+
+        "ataques_perigosos": ataques_perigosos
+
+    }
+
+    # ========================================================
+    # LOG
+    # ========================================================
+
+    print()
+    print(
+        "📊",
+        jogo.get("home"),
+        "x",
+        jogo.get("away")
+    )
+
+    print(
+        "   ID:",
+        event_id
+    )
+
+    print(
+        "   Minuto:",
+        minuto
+    )
+
+    print(
+        "   Placar:",
+        casa,
+        "x",
+        fora
+    )
+
+    print(
+        "   Gols:",
+        gols
+    )
+
+    print(
+        "   Odd empate:",
+        f"{odd_inicial:.2f}",
+        "->",
+        f"{odd_atual:.2f}"
+    )
+
+    print(
+        "   Variação será calculada pelo motor IPM."
+    )
+
+    print(
+        "   Escanteios:",
+        escanteios
+    )
+
+    print(
+        "   Finalizações:",
+        finalizacoes
+    )
+
+    print(
+        "   Ataques perigosos:",
+        ataques_perigosos
+    )
+
+    print(
+        "------------------------------------------------------------"
+    )
+
+    return resultado
 
     # ========================================================
     # MERCADO ML / MONEYLINE / 1X2
