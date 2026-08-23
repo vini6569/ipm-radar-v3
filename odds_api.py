@@ -424,18 +424,6 @@ def buscar_odds_multiplos(eventos):
 
         return []
 
-    try:
-
-        api_key = obter_api_key()
-
-    except Exception as erro:
-
-        print(
-            "ERRO API KEY:",
-            erro
-        )
-
-        return []
 
     ids = []
 
