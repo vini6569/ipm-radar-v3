@@ -4,7 +4,7 @@
 # IPM-RADAR-V3
 #
 # Funcao:
-# Analisa movimentacao das odds e calcula o IPM.
+# Analisa a movimentacao das odds e os dados da partida.
 #
 # IMPORTANTE:
 # Este modulo NAO realiza apostas.
@@ -25,22 +25,16 @@ def calcular_variacao_odd(
 
     Exemplo:
 
-    Odd inicial: 2.00
-    Odd atual:   1.80
+    Odd inicial = 2.00
+    Odd atual   = 1.80
 
-    Resultado:
-    -10.00%
+    Resultado = -10.00%
     """
 
     try:
 
-        inicial = float(
-            odd_inicial
-        )
-
-        atual = float(
-            odd_atual
-        )
+        inicial = float(odd_inicial)
+        atual = float(odd_atual)
 
         if inicial <= 0:
 
@@ -66,17 +60,17 @@ def calcular_variacao_odd(
 # ============================================================
 
 def classificar_forca(
-    variacao_pct
+    variacao_pares
 ):
     """
-    Classifica a intensidade
-    da movimentacao da odd.
+    Classifica a intensidade da movimentacao
+    da odd.
     """
 
     try:
 
         valor = abs(
-            float(variacao_pct)
+            float(variacao_pares)
         )
 
     except (
@@ -129,12 +123,23 @@ def calcular_ipm(
 
     try:
 
+        # ====================================================
+        # MOVIMENTACAO DA ODD
+        # MAXIMO: 60 PONTOS
+        # ====================================================
+
         movimento = min(
             abs(
                 float(variacao_odd)
             ) * 5.0,
             60.0
         )
+
+
+        # ====================================================
+        # CONFIRMACAO POR GOLS
+        # MAXIMO: 10 PONTOS
+        # ====================================================
 
         confirmacao_gols = min(
             max(
@@ -144,6 +149,12 @@ def calcular_ipm(
             10.0
         )
 
+
+        # ====================================================
+        # CONFIRMACAO POR ESCANTEIOS
+        # MAXIMO: 10 PONTOS
+        # ====================================================
+
         confirmacao_escanteios = min(
             max(
                 int(escanteios),
@@ -151,6 +162,12 @@ def calcular_ipm(
             ) * 1.5,
             10.0
         )
+
+
+        # ====================================================
+        # CONFIRMACAO POR FINALIZACOES
+        # MAXIMO: 10 PONTOS
+        # ====================================================
 
         confirmacao_finalizacoes = min(
             max(
@@ -160,6 +177,12 @@ def calcular_ipm(
             10.0
         )
 
+
+        # ====================================================
+        # CONFIRMACAO POR ATAQUES PERIGOSOS
+        # MAXIMO: 10 PONTOS
+        # ====================================================
+
         confirmacao_ataques = min(
             max(
                 int(ataques_perigosos),
@@ -167,6 +190,11 @@ def calcular_ipm(
             ) * 0.2,
             10.0
         )
+
+
+        # ====================================================
+        # IPM FINAL
+        # ====================================================
 
         ipm = (
             movimento
@@ -176,20 +204,116 @@ def calcular_ipm(
             + confirmacao_ataques
         )
 
-        return round(
+
+        # ====================================================
+        # GARANTIR ESCALA 0-100
+        # ====================================================
+
+        ipm = max(
+            0.0,
             min(
                 ipm,
                 100.0
-            ),
-            2
+            )
         )
 
-    except (
-        TypeError,
-        ValueError
-    ):
 
-        return 0.0
+        # ====================================================
+        # CLASSIFICACAO
+        # ====================================================
+
+        forca = classificar_forca(
+            variacao_odd
+        )
+
+
+        # ====================================================
+        # RETORNO
+        # ====================================================
+
+        return {
+
+            "ipm": round(
+                ipm,
+                2
+            ),
+
+            "variacao_odd": round(
+                float(variacao_odd),
+                2
+            ),
+
+            "forca": forca,
+
+            "movimento": round(
+                movimento,
+                2
+            ),
+
+            "confirmacao_gols": round(
+                confirmacao_gols,
+                2
+            ),
+
+            "confirmacao_escanteios": round(
+                confirmacao_escanteios,
+                2
+            ),
+
+            "confirmacao_finalizacoes": round(
+                confirmacao_finalizacoes,
+                2
+            ),
+
+            "confirmacao_ataques": round(
+                confirmacao_ataques,
+                2
+            ),
+
+            "minuto": minuto,
+
+            "gols": gols,
+
+            "escanteios": escanteios,
+
+            "finalizacoes": finalizacoes,
+
+            "ataques_perigosos": ataques_perigosos
+        }
+
+
+    except Exception as erro:
+
+        return {
+
+            "ipm": 0.0,
+
+            "variacao_odd": 0.0,
+
+            "forca": "ESTAVEL",
+
+            "movimento": 0.0,
+
+            "confirmacao_gols": 0.0,
+
+            "confirmacao_escanteios": 0.0,
+
+            "confirmacao_finalizacoes": 0.0,
+
+            "confirmacao_ataques": 0.0,
+
+            "minuto": minuto,
+
+            "gols": gols,
+
+            "escanteios": escanteios,
+
+            "finalizacoes": finalizacoes,
+
+            "ataques_perigosos": ataques_perigosos,
+
+            "erro": str(erro)
+        }
 
 
 # ============================================================
@@ -206,7 +330,11 @@ def analisar_ipm(
     ataques_perigosos=0
 ):
     """
-    Executa a analise completa do IPM.
+    Funcao principal utilizada pelo main.py.
+
+    Recebe a odd inicial e a odd atual,
+    calcula automaticamente a variacao
+    e depois calcula o IPM.
     """
 
     variacao = calcular_variacao_odd(
@@ -214,35 +342,7 @@ def analisar_ipm(
         odd_atual
     )
 
-    # ========================================================
-    # DIRECAO
-    # ========================================================
-
-    if variacao < -0.05:
-
-        direcao = "QUEDA"
-
-    elif variacao > 0.05:
-
-        direcao = "ALTA"
-
-    else:
-
-        direcao = "ESTAVEL"
-
-    # ========================================================
-    # FORCA
-    # ========================================================
-
-    forca = classificar_forca(
-        variacao
-    )
-
-    # ========================================================
-    # IPM
-    # ========================================================
-
-    ipm = calcular_ipm(
+    resultado = calcular_ipm(
         variacao,
         minuto,
         gols,
@@ -251,82 +351,11 @@ def analisar_ipm(
         ataques_perigosos
     )
 
-    # ========================================================
-    # SINAL
-    # ========================================================
+    # Dados adicionais
+    resultado["odd_inicial"] = odd_inicial
+    resultado["odd_atual"] = odd_atual
 
-    if ipm >= 80:
-
-        sinal = "SINAL MUITO FORTE"
-
-    elif ipm >= 65:
-
-        sinal = "SINAL FORTE"
-
-    elif ipm >= 50:
-
-        sinal = "OBSERVAR"
-
-    else:
-
-        sinal = "SEM SINAL"
-
-    # ========================================================
-    # RESULTADO
-    # ========================================================
-
-    try:
-
-        odd_inicial_resultado = float(
-            odd_inicial
-        )
-
-    except (
-        TypeError,
-        ValueError
-    ):
-
-        odd_inicial_resultado = 0.0
-
-    try:
-
-        odd_atual_resultado = float(
-            odd_atual
-        )
-
-    except (
-        TypeError,
-        ValueError
-    ):
-
-        odd_atual_resultado = 0.0
-
-    return {
-
-        "odd_inicial":
-            odd_inicial_resultado,
-
-        "odd_atual":
-            odd_atual_resultado,
-
-        "variacao_pct":
-            round(
-                variacao,
-                2
-            ),
-
-        "direcao":
-            direcao,
-
-        "forca":
-            forca,
-
-        "ipm":
-            ipm,
-
-        "sinal":
-            sinal
-    }
+    return resultado
 
 
 # ============================================================
@@ -334,45 +363,118 @@ def analisar_ipm(
 # ============================================================
 
 def formatar_radar(
+    jogo,
     resultado
 ):
     """
-    Formata o resultado do IPM
-    para exibicao no terminal.
+    Formata os dados para exibicao no log.
     """
 
-    if not isinstance(
-        resultado,
-        dict
-    ):
+    try:
+
+        if not isinstance(
+            jogo,
+            dict
+        ):
+
+            jogo = {}
+
+        if not isinstance(
+            resultado,
+            dict
+        ):
+
+            return None
+
+
+        # ====================================================
+        # TIMES
+        # ====================================================
+
+        casa = (
+            jogo.get("home")
+            or jogo.get("home_team")
+            or "Casa"
+        )
+
+        fora = (
+            jogo.get("away")
+            or jogo.get("away_team")
+            or "Fora"
+        )
+
+
+        # ====================================================
+        # DADOS IPM
+        # ====================================================
+
+        ipm = resultado.get(
+            "ipm",
+            0
+        )
+
+        variacao = resultado.get(
+            "variacao_odd",
+            0
+        )
+
+        forca = resultado.get(
+            "forca",
+            "ESTAVEL"
+        )
+
+        minuto = resultado.get(
+            "minuto",
+            0
+        )
+
+        gols = resultado.get(
+            "gols",
+            0
+        )
+
+        escanteios = resultado.get(
+            "escanteios",
+            0
+        )
+
+        finalizacoes = resultado.get(
+            "finalizacoes",
+            0
+        )
+
+        ataques = resultado.get(
+            "ataques_perigosos",
+            0
+        )
+
+
+        # ====================================================
+        # RADAR
+        # ====================================================
+
+        texto = (
+            "\n"
+            "------------------------------------------------------------\n"
+            "📡 IPM RADAR\n"
+            "------------------------------------------------------------\n"
+            f"⚽ {casa} x {fora}\n"
+            f"⏱️ Minuto: {minuto}\n"
+            f"📈 Variacao da odd: {variacao:.2f}%\n"
+            f"🔥 Forca: {forca}\n"
+            f"🎯 IPM: {ipm:.2f}/100\n"
+            f"⚽ Gols: {gols}\n"
+            f"🚩 Escanteios: {escanteios}\n"
+            f"🥅 Finalizacoes: {finalizacoes}\n"
+            f"⚡ Ataques perigosos: {ataques}\n"
+            "------------------------------------------------------------"
+        )
+
+        return texto
+
+
+    except Exception as erro:
 
         return (
-            "\n"
-            "==============================\n"
-            "          RADAR IPM\n"
-            "==============================\n"
-            "Resultado invalido.\n"
-            "==============================\n"
-        )
-
-    return (
-        "\n"
-        "==============================\n"
-        "          RADAR IPM\n"
-        "==============================\n"
-        f"Odd inicial: "
-        f"{resultado.get('odd_inicial', 0):.2f}\n"
-        f"Odd atual: "
-        f"{resultado.get('odd_atual', 0):.2f}\n"
-        f"Variacao: "
-        f"{resultado.get('variacao_pct', 0):.2f}%\n"
-        f"Movimento: "
-        f"{resultado.get('direcao', 'ESTAVEL')}\n"
-        f"Forca: "
-        f"{resultado.get('forca', 'ESTAVEL')}\n"
-        f"IPM: "
-        f"{resultado.get('ipm', 0):.0f}/100\n"
-        f"Sinal: "
-        f"{resultado.get('sinal', 'SEM SINAL')}\n"
-        "==============================\n"
-        )
+            f"📊 IPM: erro ao formatar radar: {erro}"
+    )
