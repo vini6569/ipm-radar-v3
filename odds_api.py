@@ -1242,8 +1242,7 @@ print("🔎 RETORNO BRUTO - BOOKMAKERS")
 print()
 print("--- MERCADO ML ---")
 
-if mercado_ml:
-
+    if mercado_ml:
         print(
             "ML ENCONTRADO: SIM"
         )
@@ -1251,11 +1250,6 @@ if mercado_ml:
         print(
             "Nome:",
             mercado_ml.get("name")
-        )
-
-        print(
-            "Atualizado:",
-            mercado_ml.get("updatedAt")
         )
 
         print(
@@ -1280,7 +1274,6 @@ if mercado_ml:
         )
 
     else:
-
         print(
             "❌ ML NÃO ENCONTRADO"
         )
