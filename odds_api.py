@@ -523,19 +523,12 @@ def buscar_odds_multiplos(eventos):
                     valor
                 )
 
-        eventos_odds = valores
+            eventos_odds = valores
 
     print(
-    "Eventos enviados:",
-    len(ids)
-)
-
-print("IDs ENVIADOS:", ids)
-
-print(
-    "Bookmaker:",
-    BOOKMAKER
-)
+        "EVENTOS COM ODDS RECEBIDOS:",
+        len(eventos_odds)
+    )
 
     if not eventos_odds:
 
