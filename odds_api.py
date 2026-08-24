@@ -481,10 +481,10 @@ print(
     BOOKMAKER
 )
 
-    print(
+        print(
         "Endpoint:",
         BASE_URL + "/odds/multi"
-    )
+        )
 
     resposta = fazer_requisicao(
         url
