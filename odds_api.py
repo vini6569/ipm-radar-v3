@@ -470,14 +470,16 @@ def buscar_odds_multiplos(eventos):
     )
 
     print(
-        "Eventos enviados:",
-        len(ids)
-    )
+    "Eventos enviados:",
+    len(ids)
+)
 
-    print(
-        "Bookmaker:",
-        BOOKMAKER
-    )
+print("IDs ENVIADOS:", ids)
+
+print(
+    "Bookmaker:",
+    BOOKMAKER
+)
 
     print(
         "Endpoint:",
