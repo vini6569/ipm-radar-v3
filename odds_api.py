@@ -15,7 +15,9 @@ import urllib.error
 
 BASE_URL = "https://api.odds-api.io/v3"
 
-BOOKMAKER = "Bet365"
+# Odds API será a fonte das odds
+# Não limitar o Radar a uma casa específica
+BOOKMAKER = None
 
 MAX_EVENTOS_POR_CONSULTA = 10
 
