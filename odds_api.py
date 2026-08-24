@@ -1232,61 +1232,57 @@ def extrair_mercados(
 print("🔎 RETORNO BRUTO - BOOKMAKERS")
 
 try:
-    bookmakers = evento_odds.get("bookmakers", {})
+    bookmakers = evento_odds.get("bookmakers", [])
 
-    print(
-        "TIPO BOOKMAKERS:",
-        type(bookmakers).__name__
-    )
+    print()
+    print("🔎 RETORNO BRUTO - BOOKMAKERS")
+    print("TIPO BOOKMAKERS:", type(bookmakers).__name__)
+    print("QUANTIDADE BOOKMAKERS:", len(bookmakers) if isinstance(bookmakers, list) else "N/A")
 
-    print(
-        "BOOKMAKERS ENCONTRADOS:",
-        list(bookmakers.keys())
-        if isinstance(bookmakers, dict)
-        else "NÃO É DICT"
-    )
+    if isinstance(bookmakers, list):
 
-    if isinstance(bookmakers, dict):
-        for nome_casa, lista_mercados in bookmakers.items():
+        for bookmaker in bookmakers:
+
+            if not isinstance(bookmaker, dict):
+                continue
+
+            nome_casa = bookmaker.get("name", "SEM NOME")
 
             print()
             print("🏦 CASA:", nome_casa)
 
-            print(
-                "TIPO MERCADOS:",
-                type(lista_mercados).__name__
-            )
+            bets = bookmaker.get("bets", [])
 
-            if isinstance(lista_mercados, list):
+            print("TIPO BETS:", type(bets).__name__)
 
-                print(
-                    "QUANTIDADE MERCADOS:",
-                    len(lista_mercados)
-                )
+            if isinstance(bets, list):
 
-                for mercado in lista_mercados:
+                print("QUANTIDADE MERCADOS:", len(bets))
 
-                    if isinstance(mercado, dict):
+                for bet in bets:
 
-                        print(
-                            "➡️ MERCADO:",
-                            mercado.get("name")
+                    if not isinstance(bet, dict):
+                        continue
+
+                    print()
+                    print("➡️ MERCADO:", bet.get("name", "SEM NOME"))
+
+                    print(
+                        "   ODDS:",
+                        json.dumps(
+                            bet.get("values", []),
+                            ensure_ascii=False
                         )
+                    )
 
-                        print(
-                            "   ODDS:",
-                            json.dumps(
-                                mercado.get("odds"),
-                                ensure_ascii=False
-                            )
-                        )
+    else:
+        print("⚠️ BOOKMAKERS NÃO É LISTA")
+        print("VALOR:", bookmakers)
 
 except Exception as erro:
 
-    print(
-        "❌ ERRO DIAGNÓSTICO BOOKMAKERS:",
-        erro
-    )
+    print()
+    print("❌ ERRO DIAGNÓSTICO BOOKMAKERS:", erro)
 
     # --------------------------------------------------------
     # MOSTRAR TODOS OS MERCADOS
