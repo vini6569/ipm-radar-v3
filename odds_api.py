@@ -526,9 +526,16 @@ def buscar_odds_multiplos(eventos):
         eventos_odds = valores
 
     print(
-        "EVENTOS COM ODDS RECEBIDOS:",
-        len(eventos_odds)
-    )
+    "Eventos enviados:",
+    len(ids)
+)
+
+print("IDs ENVIADOS:", ids)
+
+print(
+    "Bookmaker:",
+    BOOKMAKER
+)
 
     if not eventos_odds:
 
