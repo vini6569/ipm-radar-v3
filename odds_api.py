@@ -1242,7 +1242,7 @@ print("🔎 RETORNO BRUTO - BOOKMAKERS")
 print()
 print("--- MERCADO ML ---")
 
-    if mercado_ml:
+if mercado_ml:
 
         print(
             "ML ENCONTRADO: SIM"
