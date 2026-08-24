@@ -25,7 +25,7 @@ from motor_ipm import (
 # ============================================================
 
 INTERVALO_CONSULTA = 300
-PORTA_SAUDE = 10000
+PORTA_SAUDE = int(os.environ.get("PORT", "10000"))
 
 FUSO_BRASIL = ZoneInfo("America/Sao_Paulo")
 
