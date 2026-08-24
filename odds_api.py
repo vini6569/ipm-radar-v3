@@ -1228,9 +1228,64 @@ def extrair_mercados(
         "SIM" if evento_odds is not None else "NÃO"
     )
 
+    print()
+print("🔎 RETORNO BRUTO - BOOKMAKERS")
+
+try:
+    bookmakers = evento_odds.get("bookmakers", {})
+
     print(
-        "MERCADOS BET365:",
-        len(mercados)
+        "TIPO BOOKMAKERS:",
+        type(bookmakers).__name__
+    )
+
+    print(
+        "BOOKMAKERS ENCONTRADOS:",
+        list(bookmakers.keys())
+        if isinstance(bookmakers, dict)
+        else "NÃO É DICT"
+    )
+
+    if isinstance(bookmakers, dict):
+        for nome_casa, lista_mercados in bookmakers.items():
+
+            print()
+            print("🏦 CASA:", nome_casa)
+
+            print(
+                "TIPO MERCADOS:",
+                type(lista_mercados).__name__
+            )
+
+            if isinstance(lista_mercados, list):
+
+                print(
+                    "QUANTIDADE MERCADOS:",
+                    len(lista_mercados)
+                )
+
+                for mercado in lista_mercados:
+
+                    if isinstance(mercado, dict):
+
+                        print(
+                            "➡️ MERCADO:",
+                            mercado.get("name")
+                        )
+
+                        print(
+                            "   ODDS:",
+                            json.dumps(
+                                mercado.get("odds"),
+                                ensure_ascii=False
+                            )
+                        )
+
+except Exception as erro:
+
+    print(
+        "❌ ERRO DIAGNÓSTICO BOOKMAKERS:",
+        erro
     )
 
     # --------------------------------------------------------
