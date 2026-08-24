@@ -474,17 +474,17 @@ def buscar_odds_multiplos(eventos):
     len(ids)
 )
 
-print("IDs ENVIADOS:", ids)
+    print("IDs ENVIADOS:", ids)
 
-print(
-    "Bookmaker:",
-    BOOKMAKER
-)
+    print(
+        "Bookmaker:",
+        BOOKMAKER
+    )
 
-print(
+    print(
         "Endpoint:",
         BASE_URL + "/odds/multi"
-        )
+    )
 
     resposta = fazer_requisicao(
         url
