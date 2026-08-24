@@ -1239,8 +1239,8 @@ print("🔎 RETORNO BRUTO - BOOKMAKERS")
     # MERCADO ML
     # --------------------------------------------------------
 
-print()
-print("--- MERCADO ML ---")
+    print()
+    print("--- MERCADO ML ---")
 
     if mercado_ml:
         print(
@@ -1277,13 +1277,6 @@ print("--- MERCADO ML ---")
         print(
             "❌ ML NÃO ENCONTRADO"
         )
-
-    # --------------------------------------------------------
-    # OBJETO COMPLETO RECEBIDO
-    # --------------------------------------------------------
-
-    print()
-    print("--- OBJETO COMPLETO DO EVENTO ---")
 
     try:
 
