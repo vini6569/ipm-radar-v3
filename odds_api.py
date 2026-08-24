@@ -1235,37 +1235,39 @@ print("🔎 RETORNO BRUTO - BOOKMAKERS")
 
 
 
-    # --------------------------------------------------------
-    # MERCADO ML
-    # --------------------------------------------------------
+# ============================================================
+# MERCADO ML
+# ============================================================
 
-    print()
-    print("--- MERCADO ML ---")
+print()
+print("--- MERCADO ML ---")
 
-    if mercado_ml:
-        print(
-            "ML ENCONTRADO: SIM"
+if mercado_ml:
+
+    print(
+        "ML ENCONTRADO: SIM"
+    )
+
+    print(
+        "Nome:",
+        mercado_ml.get("name")
+    )
+
+    print(
+        "Odds brutas:",
+        json.dumps(
+            mercado_ml.get("odds"),
+            ensure_ascii=False
         )
+    )
 
-        print(
-            "Nome:",
-            mercado_ml.get("name")
+    print(
+        "LINHA UTILIZADA:",
+        json.dumps(
+            linha,
+            ensure_ascii=False
         )
-
-        print(
-            "Odds brutas:",
-            json.dumps(
-                mercado_ml.get("odds"),
-                ensure_ascii=False
-            )
-        )
-
-        print(
-            "LINHA UTILIZADA:",
-            json.dumps(
-                linha,
-                ensure_ascii=False
-            )
+    )
         )
 
         print(
