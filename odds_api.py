@@ -1239,8 +1239,8 @@ print("🔎 RETORNO BRUTO - BOOKMAKERS")
     # MERCADO ML
     # --------------------------------------------------------
 
-    print()
-    print("--- MERCADO ML ---")
+print()
+print("--- MERCADO ML ---")
 
     if mercado_ml:
 
