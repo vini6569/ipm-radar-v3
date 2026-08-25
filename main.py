@@ -7,6 +7,7 @@ import time
 import threading
 from datetime import datetime, time as horario
 from zoneinfo import ZoneInfo
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from odds_api import (
     buscar_jogos_ao_vivo,
