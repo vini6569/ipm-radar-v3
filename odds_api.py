@@ -1200,39 +1200,28 @@ def extrair_mercados(
     # ========================================================
 
     print()
-    print("=" * 70)
-    print("🔎 DIAGNÓSTICO ODDS API / BET365")
-    print("=" * 70)
 
-    print("EVENT ID:", event_id)
+print("=" * 70)
+print("🔎 RETORNO BRUTO - BOOKMAKERS")
+print("=" * 70)
 
-    print("ODD ATUAL:", odd_atual)
-
-    print("ODD ANTERIOR:", odd_anterior)
-
-    print("ODD INICIAL:", odd_inicial)
-
-    print("VARIAÇÃO RECENTE:", round(
-        variacao_recente,
-        4
-    ), "%")
-
-    print("VARIAÇÃO DESDE INÍCIO:", round(
-        variacao_desde_inicio,
-        4
-    ), "%")
-
-    print()
-    print("BOOKMAKER:", BOOKMAKER)
+if evento_odds is not None:
 
     print(
-        "EVENTO ODDS ENCONTRADO:",
-        "SIM" if evento_odds is not None else "NÃO"
+        json.dumps(
+            evento_odds.get(
+                "bookmakers",
+                {}
+            ),
+            indent=2,
+            ensure_ascii=False
+        )
     )
 
-    print()
-print("🔎 RETORNO BRUTO - BOOKMAKERS")
+else:
 
+    print(
+        "NENHUM EVENTO ODDS PARA EXIBIR"
+    )
 
-
-
+print("=" * 70)
