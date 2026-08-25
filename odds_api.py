@@ -75,14 +75,25 @@ def obter_api_key():
 
     print("=" * 60)
 
-    eventos_odds = _lista_eventos(
+        eventos_odds = _lista_eventos(
         resposta
     )
 
-        print(
+    print(
         "HTTP STATUS ODDS API:",
         status
     )
+
+    if not conteudo:
+        print(
+            "Resposta vazia da Odds API"
+        )
+        return []
+
+    try:
+        return json.loads(
+            conteudo
+        )
 
     if not conteudo:
         print(
