@@ -1261,13 +1261,12 @@ if mercado_ml:
         )
     )
 
-    print(
-        "LINHA UTILIZADA:",
-        json.dumps(
-            linha,
-            ensure_ascii=False
-        )
-    
+            print(
+            "LINHA UTILIZADA:",
+            json.dumps(
+                linha,
+                ensure_ascii=False
+            )
         )
 
         print(
