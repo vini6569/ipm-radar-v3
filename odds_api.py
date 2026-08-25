@@ -79,10 +79,10 @@ def obter_api_key():
         resposta
     )
 
-        print(
+    print(
             "HTTP STATUS ODDS API:",
             status
-        )
+    )
 
         if not conteudo:
 
