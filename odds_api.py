@@ -56,55 +56,50 @@ def obter_api_key():
 # REQUISIÇÃO HTTP
 # ============================================================
 
-    resposta = fazer_requisicao(
-        url
-    )
+resposta = fazer_requisicao(
+    url
+)
 
-    print()
-    print("=" * 60)
-    print("🔬 DEBUG - RESPOSTA BRUTA ODDS API")
-    print("=" * 60)
+print()
+print("=" * 60)
+print("🔎 DEBUG - RESPOSTA BRUTA ODDS API")
+print("=" * 60)
 
+print(
+    json.dumps(
+        resposta,
+        indent=2,
+        ensure_ascii=False
+    )[:10000]
+)
+
+print("=" * 60)
+
+eventos_odds = _lista_eventos(
+    resposta
+)
+
+print(
+    "HTTP STATUS ODDS API:",
+    status
+)
+
+if not conteudo:
     print(
-        json.dumps(
-            resposta,
-            indent=2,
-            ensure_ascii=False
-        )[:10000]
+        "Resposta vazia da Odds API"
+    )
+    return []
+
+try:
+    return json.loads(
+        conteudo
     )
 
-    print("=" * 60)
-
-        eventos_odds = _lista_eventos(
-        resposta
-    )
-
+except json.JSONDecodeError:
     print(
-        "HTTP STATUS ODDS API:",
-        status
+        "Erro ao decodificar JSON da Odds API"
     )
-
-    if not conteudo:
-        print(
-            "Resposta vazia da Odds API"
-        )
-        return []
-
-    try:
-        return json.loads(
-            conteudo
-        )
-
-    if not conteudo:
-        print(
-            "Resposta vazia da Odds API"
-        )
-        return []
-
-    try:
-        return json.loads(
-            conteudo
-        )
+    return []
 
         except json.JSONDecodeError:
 
