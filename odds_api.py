@@ -84,22 +84,22 @@ print(
     status
 )
 
-if not conteudo:
-    print(
-        "Resposta vazia da Odds API"
-    )
-    return []
+    if not conteudo:
+        print(
+            "Resposta vazia da Odds API"
+        )
+        return []
 
-try:
-    return json.loads(
-        conteudo
-    )
+    try:
+        return json.loads(
+            conteudo
+        )
 
-except json.JSONDecodeError:
-    print(
-        "Erro ao decodificar JSON da Odds API"
-    )
-    return []
+    except json.JSONDecodeError:
+        print(
+            "Erro ao decodificar JSON da Odds API"
+        )
+        return []
 
         except json.JSONDecodeError:
 
