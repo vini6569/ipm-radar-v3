@@ -84,10 +84,11 @@ def obter_api_key():
             status
     )
 
-        if not conteudo:
+    if not conteudo:
 
             print(
-                "Resposta vazia da Odds API."
+                "Resposta vazia da Odds
+API..."
             )
 
             return []
