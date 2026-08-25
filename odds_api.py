@@ -25,14 +25,134 @@ TIMEOUT_REQUISICAO = 20
 
 
 # ============================================================
-# MEMÓRIA DAS ODDS
+# MEMÓRIA DAS ODDS - IPM RADAR V3
 # ============================================================
 
-# Primeira odd observada no evento
-_ODD_INICIAL = {}
+import json
+import os
 
-# Última odd observada no evento
-_ODD_ANTERIOR = {}
+ARQUIVO_MEMORIA_ODDS = "memoria_odds.json"
+
+
+def carregar_memoria_odds():
+    """
+    Carrega a última odd conhecida de cada jogo.
+    """
+    try:
+        if os.path.exists(ARQUIVO_MEMORIA_ODDS):
+            with open(ARQUIVO_MEMORIA_ODDS, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+
+                if isinstance(dados, dict):
+                    return dados
+
+    except Exception as e:
+        print(f"⚠️ Erro ao carregar memória das odds: {e}")
+
+    return {}
+
+
+def salvar_memoria_odds(memoria):
+    """
+    Salva a última odd de cada jogo.
+    """
+    try:
+        with open(ARQUIVO_MEMORIA_ODDS, "w", encoding="utf-8") as f:
+            json.dump(memoria, f, ensure_ascii=False, indent=2)
+
+    except Exception as e:
+        print(f"⚠️ Erro ao salvar memória das odds: {e}")
+
+
+MEMORIA_ODDS = carregar_memoria_odds()
+
+
+def obter_odd_anterior(event_id):
+    """
+    Retorna a última odd registrada para o jogo.
+    """
+    if event_id is None:
+        return None
+
+    return MEMORIA_ODDS.get(str(event_id))
+
+
+def atualizar_odd(event_id, odd_atual):
+    """
+    Atualiza a memória somente quando a odd atual é válida.
+    """
+    if event_id is None:
+        return
+
+    if odd_atual is None:
+        return
+
+    try:
+        odd_atual = float(odd_atual)
+
+        if odd_atual <= 0:
+            return
+
+        MEMORIA_ODDS[str(event_id)] = odd_atual
+        salvar_memoria_odds(MEMORIA_ODDS)
+
+    except (ValueError, TypeError):
+        pass
+
+
+def calcular_variacao_odd(odd_anterior, odd_atual):
+    """
+    Calcula a variação percentual da odd.
+    """
+
+    if odd_anterior is None:
+        return 0.0
+
+    if odd_atual is None:
+        return 0.0
+
+    try:
+        odd_anterior = float(odd_anterior)
+        odd_atual = float(odd_atual)
+
+        if odd_anterior <= 0:
+            return 0.0
+
+        variacao = ((odd_atual - odd_anterior) / odd_anterior) * 100
+
+        return round(variacao, 2)
+
+    except (ValueError, TypeError, ZeroDivisionError):
+        return 0.0
+
+
+def analisar_odd(event_id, odd_atual):
+    """
+    Retorna:
+
+    odd_anterior
+    odd_atual
+    variacao_percentual
+    """
+
+    odd_anterior = obter_odd_anterior(event_id)
+
+    variacao = calcular_variacao_odd(
+        odd_anterior,
+        odd_atual
+    )
+
+    # Atualiza a memória DEPOIS de calcular a variação
+    atualizar_odd(
+        event_id,
+        odd_atual
+    )
+
+    return (
+        odd_anterior,
+        odd_atual,
+        variacao
+    )
 
 
 # ============================================================
