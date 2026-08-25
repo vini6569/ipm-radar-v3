@@ -56,300 +56,58 @@ def obter_api_key():
 # REQUISIÇÃO HTTP
 # ============================================================
 
-resposta = fazer_requisicao(
-    url
-)
-
-print()
-print("=" * 60)
-print("🔎 DEBUG - RESPOSTA BRUTA ODDS API")
-print("=" * 60)
-
-print(
-    json.dumps(
-        resposta,
-        indent=2,
-        ensure_ascii=False
-    )[:10000]
-)
-
-print("=" * 60)
-
-eventos_odds = _lista_eventos(
-    resposta
-)
-
-print(
-    "HTTP STATUS ODDS API:",
-    status
-)
-
-    if not conteudo:
-        print(
-            "Resposta vazia da Odds API"
-        )
-        return []
-
-    try:
-        return json.loads(
-            conteudo
-        )
-
-    except json.JSONDecodeError:
-        print(
-            "Erro ao decodificar JSON da Odds API"
-        )
-        return []
-
-        except json.JSONDecodeError:
-
-            resposta = fazer_requisicao(
-    url
-)
+resposta = fazer_requisicao(url)
 
 print()
 print("=" * 60)
 print("🔬 DEBUG - RESPOSTA BRUTA ODDS API")
 print("=" * 60)
 
-print(
-    json.dumps(
-        resposta,
-        indent=2,
-        ensure_ascii=False
-    )[:10000]
-)
+try:
+    print(
+        json.dumps(
+            resposta,
+            indent=2,
+            ensure_ascii=False
+        )[:10000]
+    )
+except Exception:
+    print(resposta)
 
 print("=" * 60)
 
-            return []
+# ============================================================
+# LISTA DE EVENTOS
+# ============================================================
 
-    except urllib.error.HTTPError as erro:
+eventos_odds = _lista_eventos(resposta)
 
-        detalhe = ""
+print(
+    "HTTP STATUS ODDS API:",
+    status
+)
 
-        try:
+# ============================================================
+# VERIFICAÇÃO DA RESPOSTA
+# ============================================================
 
-            detalhe = erro.read().decode(
-                "utf-8"
-            )
+if not resposta:
+    print("Resposta vazia da Odds API")
+    return []
 
-        except Exception:
+# ============================================================
+# CONVERSÃO PARA JSON
+# ============================================================
 
-            pass
+if isinstance(resposta, (dict, list)):
+    return resposta
 
-        print()
-        print("=" * 60)
-        print("ERRO HTTP ODDS API")
-        print("=" * 60)
+try:
+    return json.loads(resposta)
 
-        print(
-            "Código:",
-            erro.code
-        )
-
-        print(
-            "URL:",
-            url
-        )
-
-        print(
-            "Detalhes:",
-            detalhe[:2000]
-        )
-
-        if erro.code == 401:
-
-            print(
-                "⚠️ API KEY inválida ou não autorizada."
-            )
-
-        elif erro.code == 403:
-
-            print(
-                "⚠️ Acesso negado pela Odds API."
-            )
-
-        elif erro.code == 429:
-
-            print(
-                "⚠️ LIMITE 429 DA ODDS API."
-            )
-
-        print("=" * 60)
-
-        return []
-
-    except urllib.error.URLError as erro:
-
-        print()
-def fazer_requisicao(url):
-
-    requisicao = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": "IPM-Radar/3.0",
-            "Accept": "application/json"
-        }
-    )
-
-    try:
-
-        with urllib.request.urlopen(
-            requisicao,
-            timeout=TIMEOUT_REQUISICAO
-        ) as resposta:
-
-            status = resposta.status
-
-            conteudo = resposta.read().decode(
-                "utf-8"
-            )
-
-        print(
-            "HTTP STATUS ODDS API:",
-            status
-        )
-
-        if not conteudo:
-
-            print(
-                "Resposta vazia da Odds API."
-            )
-
-            return []
-
-        try:
-
-            dados = json.loads(
-                conteudo
-            )
-
-            print()
-            print("=" * 60)
-            print("🔬 DEBUG - RESPOSTA BRUTA ODDS API")
-            print("=" * 60)
-
-            print(
-                json.dumps(
-                    dados,
-                    indent=2,
-                    ensure_ascii=False
-                )[:10000]
-            )
-
-            print("=" * 60)
-
-            return dados
-
-        except json.JSONDecodeError:
-
-            print()
-            print("=" * 60)
-            print("RESPOSTA NÃO É JSON")
-            print("=" * 60)
-
-            print(
-                conteudo[:2000]
-            )
-
-            print("=" * 60)
-
-            return []
-
-    except urllib.error.HTTPError as erro:
-
-        detalhe = ""
-
-        try:
-
-            detalhe = erro.read().decode(
-                "utf-8"
-            )
-
-        except Exception:
-
-            pass
-
-        print()
-        print("=" * 60)
-        print("ERRO HTTP ODDS API")
-        print("=" * 60)
-
-        print(
-            "Código:",
-            erro.code
-        )
-
-        print(
-            "URL:",
-            url
-        )
-
-        print(
-            "Detalhes:",
-            detalhe[:2000]
-        )
-
-        if erro.code == 401:
-
-            print(
-                "⚠️ API KEY inválida ou não autorizada."
-            )
-
-        elif erro.code == 403:
-
-            print(
-                "⚠️ Acesso negado pela Odds API."
-            )
-
-        elif erro.code == 429:
-
-            print(
-                "⚠️ LIMITE 429 DA ODDS API."
-            )
-
-        print("=" * 60)
-
-        return []
-
-    except urllib.error.URLError as erro:
-
-        print()
-        print("=" * 60)
-        print("ERRO DE CONEXÃO ODDS API")
-        print("=" * 60)
-
-        print(
-            type(erro).__name__
-        )
-
-        print(
-            erro
-        )
-
-        print("=" * 60)
-
-        return []
-
-    except Exception as erro:
-
-        print()
-        print("=" * 60)
-        print("ERRO NA REQUISIÇÃO ODDS API")
-        print("=" * 60)
-
-        print(
-            type(erro).__name__
-        )
-
-        print(
-            erro
-        )
-
-        print("=" * 60)
-
-        return []
+except json.JSONDecodeError:
+    print("Erro ao decodificar JSON da Odds API")
+    return []
 
 # ============================================================
 # NORMALIZAR LISTA DE EVENTOS
