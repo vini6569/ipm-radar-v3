@@ -117,6 +117,7 @@ def _lista_eventos(resposta):
         "data",
         "results"
     ):
+
         valor = resposta.get(chave)
 
         if isinstance(valor, list):
@@ -125,25 +126,6 @@ def _lista_eventos(resposta):
         if isinstance(valor, dict):
             return [valor]
 
-    return []
-
-# ============================================================
-# LISTA DE EVENTOS
-# ============================================================
-
-eventos_odds = _lista_eventos(resposta)
-
-print(
-    "HTTP STATUS ODDS API:",
-    status
-)
-
-# ============================================================
-# VERIFICAÇÃO DA RESPOSTA
-# ============================================================
-
-if not resposta:
-    print("Resposta vazia da Odds API")
     return []
 
 # ============================================================
