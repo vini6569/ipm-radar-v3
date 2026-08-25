@@ -1,5 +1,5 @@
 # ============================================================
-# MAIN - IPM RADAR V3
+# MAIN - IPM RADAR V3 - TESTE DE COMPARACAO
 # ============================================================
 
 import os
@@ -16,14 +16,14 @@ from odds_api import (
     _extrair_estatisticas
 )
 
-from motor_ipm import (
-    analisar_ipm,
+from motor_ipm_v2 import (
+    analisar_ipm_com_memoria,
     formatar_radar
 )
 
 
 # ============================================================
-# CONFIGURAÇÃO
+# CONFIGURACAO
 # ============================================================
 
 INTERVALO_CONSULTA = 300
@@ -36,7 +36,7 @@ HORA_FIM = horario(0, 0)
 
 
 # ============================================================
-# SERVIDOR DE SAÚDE
+# SERVIDOR DE SAUDE
 # ============================================================
 
 class HealthHandler(BaseHTTPRequestHandler):
@@ -46,7 +46,7 @@ class HealthHandler(BaseHTTPRequestHandler):
         agora = datetime.now(FUSO_BRASIL)
 
         resposta = (
-            "IPM RADAR V3 ONLINE | "
+            "IPM RADAR V3 TESTE ONLINE | "
             f"Brasil: {agora.strftime('%d/%m/%Y %H:%M:%S')}"
         ).encode("utf-8")
 
@@ -94,7 +94,7 @@ def iniciar_servidor_saude():
 
 
 # ============================================================
-# HORÁRIO BRASIL
+# HORARIO BRASIL
 # ============================================================
 
 def horario_brasil():
@@ -110,7 +110,6 @@ def radar_ativo():
 
     agora = horario_brasil().time()
 
-    # Ativo das 06:00 até 23:59:59
     if HORA_INICIO <= agora:
 
         return True
@@ -127,12 +126,12 @@ def executar_consulta():
     agora = horario_brasil()
 
     print()
-    print("============================================================")
+    print("=" * 60)
     print(
-        "📡 RADAR ATIVO |",
+        "📡 RADAR TESTE |",
         agora.strftime("%d/%m/%Y %H:%M:%S")
     )
-    print("============================================================")
+    print("=" * 60)
 
     print("Consultando jogos ao vivo...")
 
@@ -151,7 +150,6 @@ def executar_consulta():
         if not jogos:
 
             print("Nenhum jogo ao vivo encontrado.")
-
             return
 
         print("Buscando odds...")
@@ -186,10 +184,6 @@ def executar_consulta():
 
             try:
 
-                # =================================================
-                # MERCADOS / ODDS
-                # =================================================
-
                 mercados = extrair_mercados(
                     jogo,
                     odds
@@ -198,21 +192,18 @@ def executar_consulta():
                 if mercados is None:
                     mercados = {}
 
-
                 # =================================================
                 # DADOS DAS ODDS
                 # =================================================
-
-                odd_inicial = mercados.get(
-                    "odd_inicial",
-                    0
-                )
 
                 odd_atual = mercados.get(
                     "odd_atual",
                     0
                 )
 
+                event_id = jogo.get(
+                    "id"
+                )
 
                 # =================================================
                 # DADOS DO EVENTO
@@ -228,9 +219,8 @@ def executar_consulta():
                     0
                 )
 
-
                 # =================================================
-                # ESTATÍSTICAS REAIS DO JOGO
+                # ESTATISTICAS REAIS
                 # =================================================
 
                 try:
@@ -256,46 +246,21 @@ def executar_consulta():
 
 
                 # =================================================
-                # DIAGNÓSTICO DAS ESTATÍSTICAS
+                # DIAGNOSTICO DA COMPARACAO
                 # =================================================
 
                 print()
-                print(
-                    "📊 ESTATÍSTICAS DO JOGO"
-                )
-
-                print(
-                    "Minuto:",
-                    minuto
-                )
-
-                print(
-                    "Gols:",
-                    gols
-                )
-
-                print(
-                    "Escanteios:",
-                    escanteios
-                )
-
-                print(
-                    "Finalizações:",
-                    finalizacoes
-                )
-
-                print(
-                    "Ataques perigosos:",
-                    ataques_perigosos
-                )
-
+                print("-" * 60)
+                print("🔎 TESTE DE COMPARACAO DE ODDS")
+                print("EVENT ID:", event_id)
+                print("ODD ATUAL RECEBIDA:", odd_atual)
 
                 # =================================================
-                # MOTOR IPM
+                # MOTOR IPM V2 COM MEMORIA
                 # =================================================
 
-                resultado = analisar_ipm(
-                    odd_inicial,
+                resultado = analisar_ipm_com_memoria(
+                    event_id,
                     odd_atual,
                     minuto,
                     gols,
@@ -304,9 +269,37 @@ def executar_consulta():
                     ataques_perigosos
                 )
 
+                print(
+                    "ODD ANTERIOR:",
+                    resultado.get("odd_anterior")
+                )
+
+                print(
+                    "ODD ATUAL:",
+                    resultado.get("odd_atual")
+                )
+
+                print(
+                    "VARIACAO:",
+                    resultado.get("variacao_odd"),
+                    "%"
+                )
+
+                print(
+                    "MOVIMENTO:",
+                    resultado.get("movimento")
+                )
+
+                print(
+                    "IPM:",
+                    resultado.get("ipm")
+                )
+
+                print("-" * 60)
+
 
                 # =================================================
-                # EXIBIÇÃO DO RADAR
+                # EXIBICAO DO RADAR
                 # =================================================
 
                 try:
@@ -317,7 +310,6 @@ def executar_consulta():
                     )
 
                     if texto:
-
                         print(texto)
 
                 except Exception as erro_formatacao:
@@ -332,14 +324,12 @@ def executar_consulta():
                         resultado
                     )
 
-
             except Exception as erro:
 
                 print(
                     "Erro ao analisar jogo:",
                     erro
                 )
-
 
     except Exception as erro:
 
@@ -356,14 +346,15 @@ def executar_consulta():
 def loop_consulta():
 
     print()
-    print("============================================================")
-    print("🚀 IPM RADAR V3 INICIADO")
-    print("============================================================")
+    print("=" * 60)
+    print("🚀 IPM RADAR V3 - TESTE")
+    print("=" * 60)
     print("Fuso horário: America/Sao_Paulo")
     print("Horário ativo: 06:00 até 00:00")
-    print("Horário de pausa: 00:00 até 06:00")
     print("Intervalo: 300 segundos")
-    print("============================================================")
+    print("Motor: motor_ipm_v2.py")
+    print("Comparação: ODD ANTERIOR x ODD ATUAL")
+    print("=" * 60)
 
     while True:
 
@@ -401,16 +392,16 @@ def loop_consulta():
 
 
 # ============================================================
-# INÍCIO
+# INICIO
 # ============================================================
 
 if __name__ == "__main__":
 
     print()
-    print("============================================================")
-    print("IPM RADAR V3")
+    print("=" * 60)
+    print("IPM RADAR V3 - TESTE")
     print("Inicializando...")
-    print("============================================================")
+    print("=" * 60)
 
     thread_saude = threading.Thread(
         target=iniciar_servidor_saude,
@@ -420,3 +411,4 @@ if __name__ == "__main__":
     thread_saude.start()
 
     loop_consulta()
+                
