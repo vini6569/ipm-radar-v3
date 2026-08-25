@@ -1195,33 +1195,4 @@ def extrair_mercados(
         jogo
     )
 
-       # ========================================================
-    # 🔎 DIAGNÓSTICO REAL DOS DADOS DA ODDS API
-    # ========================================================
-
-    print()
-
-print("=" * 70)
-print("🔎 RETORNO BRUTO - BOOKMAKERS")
-print("=" * 70)
-
-if evento_odds is not None:
-
-    print(
-        json.dumps(
-            evento_odds.get(
-                "bookmakers",
-                {}
-            ),
-            indent=2,
-            ensure_ascii=False
-        )
-    )
-
-else:
-
-    print(
-        "NENHUM EVENTO ODDS PARA EXIBIR"
-    )
-
-print("=" * 70)
+       
