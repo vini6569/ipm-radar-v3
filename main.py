@@ -12,7 +12,8 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from odds_api import (
     buscar_jogos_ao_vivo,
     buscar_odds_multiplos,
-    extrair_mercados
+    extrair_mercados,
+    _extrair_estatisticas
 )
 
 from motor_ipm import (
@@ -185,6 +186,10 @@ def executar_consulta():
 
             try:
 
+                # =================================================
+                # MERCADOS / ODDS
+                # =================================================
+
                 mercados = extrair_mercados(
                     jogo,
                     odds
@@ -195,7 +200,7 @@ def executar_consulta():
 
 
                 # =================================================
-                # DADOS DO EVENTO
+                # DADOS DAS ODDS
                 # =================================================
 
                 odd_inicial = mercados.get(
@@ -208,6 +213,11 @@ def executar_consulta():
                     0
                 )
 
+
+                # =================================================
+                # DADOS DO EVENTO
+                # =================================================
+
                 minuto = mercados.get(
                     "minuto",
                     0
@@ -218,19 +228,65 @@ def executar_consulta():
                     0
                 )
 
-                escanteios = mercados.get(
-                    "escanteios",
-                    0
+
+                # =================================================
+                # ESTATÍSTICAS REAIS DO JOGO
+                # =================================================
+
+                try:
+
+                    (
+                        escanteios,
+                        finalizacoes,
+                        ataques_perigosos
+                    ) = _extrair_estatisticas(
+                        jogo
+                    )
+
+                except Exception as erro_estatisticas:
+
+                    print(
+                        "Erro ao extrair estatísticas:",
+                        erro_estatisticas
+                    )
+
+                    escanteios = 0
+                    finalizacoes = 0
+                    ataques_perigosos = 0
+
+
+                # =================================================
+                # DIAGNÓSTICO DAS ESTATÍSTICAS
+                # =================================================
+
+                print()
+                print(
+                    "📊 ESTATÍSTICAS DO JOGO"
                 )
 
-                finalizacoes = mercados.get(
-                    "finalizacoes",
-                    0
+                print(
+                    "Minuto:",
+                    minuto
                 )
 
-                ataques_perigosos = mercados.get(
-                    "ataques_perigosos",
-                    0
+                print(
+                    "Gols:",
+                    gols
+                )
+
+                print(
+                    "Escanteios:",
+                    escanteios
+                )
+
+                print(
+                    "Finalizações:",
+                    finalizacoes
+                )
+
+                print(
+                    "Ataques perigosos:",
+                    ataques_perigosos
                 )
 
 
