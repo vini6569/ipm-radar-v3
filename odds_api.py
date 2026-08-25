@@ -1242,43 +1242,41 @@ print("🔎 RETORNO BRUTO - BOOKMAKERS")
 print()
 print("--- MERCADO ML ---")
 
-    if mercado_ml:
+if mercado_ml:
+    print(
+        "ML ENCONTRADO: SIM"
+    )
 
-        print(
-            "ML ENCONTRADO: SIM"
+    print(
+        "Nome:",
+        mercado_ml.get("name")
+    )
+
+    print(
+        "Odds brutas:",
+        json.dumps(
+            mercado_ml.get("odds"),
+            ensure_ascii=False
         )
+    )
 
-        print(
-            "Nome:",
-            mercado_ml.get("name")
+    print(
+        "LINHA UTILIZADA:",
+        json.dumps(
+            linha,
+            ensure_ascii=False
         )
+    )
 
-        print(
-            "Odds brutas:",
-            json.dumps(
-                mercado_ml.get("odds"),
-                ensure_ascii=False
-            )
-        )
+    print(
+        "DRAW EXTRAÍDO:",
+        linha.get("draw")
+    )
 
-        print(
-            "LINHA UTILIZADA:",
-            json.dumps(
-                linha,
-                ensure_ascii=False
-            )
-        )
-
-        print(
-            "DRAW EXTRAÍDO:",
-            linha.get("draw")
-        )
-
-    else:
-
-        print(
-            "❌ ML NÃO ENCONTRADO"
-        )
+else:
+    print(
+        "❌ ML NÃO ENCONTRADO"
+    )
 
     try:
 
