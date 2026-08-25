@@ -56,25 +56,76 @@ def obter_api_key():
 # REQUISIÇÃO HTTP
 # ============================================================
 
-resposta = fazer_requisicao(url)
+def buscar_odds_multiplos(url):
+    resposta = fazer_requisicao(url)
 
-print()
-print("=" * 60)
-print("🔬 DEBUG - RESPOSTA BRUTA ODDS API")
-print("=" * 60)
+    print()
+    print("=" * 60)
+    print("🔬 DEBUG - RESPOSTA BRUTA ODDS API")
+    print("=" * 60)
 
-try:
-    print(
-        json.dumps(
-            resposta,
-            indent=2,
-            ensure_ascii=False
-        )[:10000]
-    )
-except Exception:
-    print(resposta)
+    try:
+        print(
+            json.dumps(
+                resposta,
+                indent=2,
+                ensure_ascii=False
+            )[:10000]
+        )
+    except Exception:
+        print(resposta)
 
-print("=" * 60)
+    print("=" * 60)
+
+    # ========================================================
+    # VERIFICAÇÃO DA RESPOSTA
+    # ========================================================
+
+    if not resposta:
+        print("Resposta vazia da Odds API")
+        return []
+
+    # ========================================================
+    # CONVERSÃO PARA JSON
+    # ========================================================
+
+    if isinstance(resposta, (dict, list)):
+        return resposta
+
+    try:
+        return json.loads(resposta)
+
+    except json.JSONDecodeError:
+        print("Erro ao decodificar JSON da Odds API")
+        return []
+
+
+# ============================================================
+# NORMALIZAR LISTA DE EVENTOS
+# ============================================================
+
+def _lista_eventos(resposta):
+
+    if isinstance(resposta, list):
+        return resposta
+
+    if not isinstance(resposta, dict):
+        return []
+
+    for chave in (
+        "events",
+        "data",
+        "results"
+    ):
+        valor = resposta.get(chave)
+
+        if isinstance(valor, list):
+            return valor
+
+        if isinstance(valor, dict):
+            return [valor]
+
+    return []
 
 # ============================================================
 # LISTA DE EVENTOS
