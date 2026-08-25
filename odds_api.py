@@ -56,26 +56,83 @@ def obter_api_key():
 # REQUISIÇÃO HTTP
 # ============================================================
 
-def buscar_odds_multiplos(url):
-    resposta = fazer_requisicao(url)
-
-    print()
-    print("=" * 60)
-    print("🔬 DEBUG - RESPOSTA BRUTA ODDS API")
-    print("=" * 60)
+def fazer_requisicao(url):
 
     try:
-        print(
-            json.dumps(
-                resposta,
-                indent=2,
-                ensure_ascii=False
-            )[:10000]
-        )
-    except Exception:
-        print(resposta)
 
-    print("=" * 60)
+        requisicao = urllib.request.Request(
+
+            url,
+
+            headers={
+                "User-Agent": "IPM-RADAR-V3"
+            }
+
+        )
+
+        with urllib.request.urlopen(
+            requisicao,
+            timeout=TIMEOUT_REQUISICAO
+        ) as resposta:
+
+            dados = resposta.read().decode(
+                "utf-8"
+            )
+
+            if not dados:
+                return []
+
+            try:
+                return json.loads(dados)
+
+            except json.JSONDecodeError:
+
+                print(
+                    "⚠️ Resposta não é JSON válido."
+                )
+
+                return []
+
+    except urllib.error.HTTPError as erro:
+
+        print(
+            f"❌ HTTP Error {erro.code}: {erro.reason}"
+        )
+
+        try:
+
+            corpo = erro.read().decode(
+                "utf-8",
+                errors="ignore"
+            )
+
+            print(
+                "Resposta da API:",
+                corpo[:2000]
+            )
+
+        except Exception:
+            pass
+
+        return []
+
+    except urllib.error.URLError as erro:
+
+        print(
+            "❌ Erro de conexão:",
+            erro
+        )
+
+        return []
+
+    except Exception as erro:
+
+        print(
+            "❌ Erro na requisição:",
+            erro
+        )
+
+        return []
 
     # ========================================================
     # VERIFICAÇÃO DA RESPOSTA
