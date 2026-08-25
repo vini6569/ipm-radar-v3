@@ -1267,7 +1267,7 @@ if mercado_ml:
             linha,
             ensure_ascii=False
         )
-    )
+    
         )
 
         print(
