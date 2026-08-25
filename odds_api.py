@@ -79,25 +79,21 @@ def obter_api_key():
         resposta
     )
 
-    print(
-            "HTTP STATUS ODDS API:",
-            status
+        print(
+        "HTTP STATUS ODDS API:",
+        status
     )
 
     if not conteudo:
+        print(
+            "Resposta vazia da Odds API"
+        )
+        return []
 
-            print(
-                "Resposta vazia da Odds
-API..."
-            )
-
-            return []
-
-        try:
-
-            return json.loads(
-                conteudo
-            )
+    try:
+        return json.loads(
+            conteudo
+        )
 
         except json.JSONDecodeError:
 
