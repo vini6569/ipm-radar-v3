@@ -100,16 +100,24 @@ def fazer_requisicao(url):
 
         except json.JSONDecodeError:
 
-            print()
-            print("=" * 60)
-            print("RESPOSTA NÃO É JSON")
-            print("=" * 60)
+            resposta = fazer_requisicao(
+    url
+)
 
-            print(
-                conteudo[:2000]
-            )
+print()
+print("=" * 60)
+print("🔬 DEBUG - RESPOSTA BRUTA ODDS API")
+print("=" * 60)
 
-            print("=" * 60)
+print(
+    json.dumps(
+        resposta,
+        indent=2,
+        ensure_ascii=False
+    )[:10000]
+)
+
+print("=" * 60)
 
             return []
 
