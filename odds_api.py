@@ -75,15 +75,23 @@ def fazer_requisicao(url):
             timeout=TIMEOUT_REQUISICAO
         ) as resposta:
 
-            dados = resposta.read().decode(
+            conteudo = resposta.read().decode(
                 "utf-8"
             )
 
-            if not dados:
-                return []
+            if not conteudo:
+
+                print(
+                    "⚠️ Resposta HTTP vazia."
+                )
+
+                return {}
 
             try:
-                return json.loads(dados)
+
+                return json.loads(
+                    conteudo
+                )
 
             except json.JSONDecodeError:
 
@@ -91,19 +99,23 @@ def fazer_requisicao(url):
                     "⚠️ Resposta não é JSON válido."
                 )
 
-                return []
+                print(
+                    conteudo[:2000]
+                )
+
+                return {}
 
     except urllib.error.HTTPError as erro:
 
         print(
-            f"❌ HTTP Error {erro.code}: {erro.reason}"
+            f"❌ HTTP ERROR: {erro.code}"
         )
 
         try:
 
             corpo = erro.read().decode(
                 "utf-8",
-                errors="ignore"
+                errors="replace"
             )
 
             print(
@@ -112,18 +124,27 @@ def fazer_requisicao(url):
             )
 
         except Exception:
+
             pass
 
-        return []
+        return {}
 
     except urllib.error.URLError as erro:
 
         print(
-            "❌ Erro de conexão:",
+            "❌ URL ERROR:",
             erro
         )
 
-        return []
+        return {}
+
+    except TimeoutError:
+
+        print(
+            "❌ Timeout na requisição."
+        )
+
+        return {}
 
     except Exception as erro:
 
@@ -132,7 +153,7 @@ def fazer_requisicao(url):
             erro
         )
 
-        return []
+        return {}
 
     # ========================================================
     # VERIFICAÇÃO DA RESPOSTA
