@@ -17,7 +17,7 @@ BASE_URL = "https://api.odds-api.io/v3"
 
 # Odds API será a fonte das odds
 # Não limitar o Radar a uma casa específica
-BOOKMAKER = None
+BOOKMAKER = "Bet365"
 
 MAX_EVENTOS_POR_CONSULTA = 10
 
