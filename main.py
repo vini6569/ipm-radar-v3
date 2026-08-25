@@ -2,7 +2,7 @@
 # MAIN - IPM RADAR V3
 # ============================================================
 
-import time
+import os
 import threading
 from datetime import datetime, time as horario
 from zoneinfo import ZoneInfo
