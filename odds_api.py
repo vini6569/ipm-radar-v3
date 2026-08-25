@@ -56,28 +56,28 @@ def obter_api_key():
 # REQUISIÇÃO HTTP
 # ============================================================
 
-def fazer_requisicao(url):
-
-    requisicao = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": "IPM-Radar/3.0",
-            "Accept": "application/json"
-        }
+    resposta = fazer_requisicao(
+        url
     )
 
-    try:
+    print()
+    print("=" * 60)
+    print("🔬 DEBUG - RESPOSTA BRUTA ODDS API")
+    print("=" * 60)
 
-        with urllib.request.urlopen(
-            requisicao,
-            timeout=TIMEOUT_REQUISICAO
-        ) as resposta:
+    print(
+        json.dumps(
+            resposta,
+            indent=2,
+            ensure_ascii=False
+        )[:10000]
+    )
 
-            status = resposta.status
+    print("=" * 60)
 
-            conteudo = resposta.read().decode(
-                "utf-8"
-            )
+    eventos_odds = _lista_eventos(
+        resposta
+    )
 
         print(
             "HTTP STATUS ODDS API:",
