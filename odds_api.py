@@ -1726,7 +1726,7 @@ if isinstance(
     # PRIMEIRA ODD VÁLIDA
     # ========================================================
 
-    odd_inicial = 0.0
+        odd_inicial = 0.0
 
     if (
         event_id is not None
@@ -1841,5 +1841,3 @@ if isinstance(
 
         "ataques_perigosos":
             ataques_perigosos
-    }
-       
