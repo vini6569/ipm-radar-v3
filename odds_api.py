@@ -1241,201 +1241,27 @@ def extrair_mercados(
     # ========================================================
 
     mercado_ml = _encontrar_mercado(
-
         mercados,
-
         (
             "ML",
             "Moneyline",
-            "1X2",
-            "Match Winner",
-            "Match Result",
-            "Full Time Result"
+            "1X2"
+        )
+    )
+
+    odd_atual = 0.0
+
+    if mercado_ml:
+
+        linha = _primeiro_odds(
+            mercado_ml
         )
 
-    )
+        # ====================================================
+        # ODD DO EMPATE
+        # ====================================================
 
-    print()
-    print(
-        "🔎 MERCADO ML ENCONTRADO:"
-    )
-
-    print(
-        mercado_ml
-    )
-
-# ========================================================
-# ODD ATUAL
-# ========================================================
-
-odd_atual = 0.0
-
-if mercado_ml:
-
-    linha = _primeiro_odds(
-        mercado_ml
-    )
-
-    print()
-    print(
-        "🔎 LINHA DE ODDS:"
-    )
-
-    print(
-        linha
-    )
-
-    # ----------------------------------------------------
-    # EMPATE
-    # ----------------------------------------------------
-
-    if isinstance(
-        linha,
-        dict
-    ):
-
-        # Tentativa 1
-        odd_atual = _numero(
-            linha.get(
-                "draw"
-            )
-        )
-
-        # Tentativa 2
-        if odd_atual <= 0:
-
-            odd_atual = _numero(
-                linha.get(
-                    "X"
-                )
-            )
-
-        # Tentativa 3
-        if odd_atual <= 0:
-
-            odd_atual = _numero(
-                linha.get(
-                    "tie"
-                )
-            )
-
-        # Tentativa 4
-        if odd_atual <= 0:
-
-            odd_atual = _numero(
-                linha.get(
-                    "Draw"
-                )
-            )
-
-    print()
-    print(
-        "💰 ODD ATUAL EXTRAÍDA:",
-        odd_atual
-    )
-
-# ========================================================
-# MEMÓRIA DAS ODDS
-# ========================================================
-
-odd_anterior = 0.0
-
-if event_id is not None:
-
-    odd_anterior = _ODD_ANTERIOR.get(
-        event_id,
-        0.0
-    )
-
-# ========================================================
-# PRIMEIRA ODD VÁLIDA
-# ========================================================
-
-if (
-    event_id is not None
-    and odd_atual > 0
-):
-
-    if event_id not in _ODD_INICIAL:
-
-        _ODD_INICIAL[
-            event_id
-        ] = odd_atual
-
-odd_inicial = _ODD_INICIAL.get(
-    event_id,
-    odd_atual
-)
-
-# ========================================================
-# VARIAÇÕES
-# ========================================================
-
-variacao_desde_inicio = 0.0
-
-variacao_recente = 0.0
-
-if odd_inicial > 0:
-
-    variacao_desde_inicio = (
-
-        (
-            odd_atual
-            - odd_inicial
-        )
-        / odd_inicial
-
-    ) * 100.0
-
-if odd_anterior > 0:
-
-    variacao_recente = (
-
-        (
-            odd_atual
-            - odd_anterior
-        )
-        / odd_anterior
-
-    ) * 100.0
-
-# ========================================================
-# ATUALIZAR MEMÓRIA
-# ========================================================
-
-if (
-    event_id is not None
-    and odd_atual > 0
-):
-
-    _ODD_ANTERIOR[
-        event_id
-    ] = odd_atual
-    # -----------------------------------------------
-    # EMPATE
-    # -----------------------------------------------
-
-if isinstance(
-        linha,
-        dict
-    ):
-
-        # Tentativa 1
-        odd_atual = _numero(
-            linha.get(
-                "draw"
-            )
-        )
-
-        # Tentativa 2
-        if odd_atual <= 0:
-
-            odd_atual = _numero(
-                linha.get(
-                    "X"
-                )
-    )
-
+        if isinstance(linha, dict):
 
             # Tentativa 1
             odd_atual = _numero(
@@ -1462,252 +1288,20 @@ if isinstance(
                     )
                 )
 
-                    # Tentativa 4
-        if odd_atual <= 0:
-            odd_atual = _numero(
-                linha.get(
-                    "Draw"
+            # Tentativa 4
+            if odd_atual <= 0:
+
+                odd_atual = _numero(
+                    linha.get(
+                        "Draw"
+                    )
                 )
-            )
-
-        print()
-        print(
-            "💰 ODD ATUAL EXTRAÍDA:",
-            odd_atual
-        )
-
-        # ============================================
-        # MEMÓRIA DAS ODDS
-        # ============================================
-
-        odd_anterior = 0.0
-
-        if event_id is not None:
-            odd_anterior = _ODD_ANTERIOR.get(
-                event_id,
-                0.0
-            )
-
-        # ============================================
-        # PRIMEIRA ODD VÁLIDA
-        # ============================================
-
-        if (
-            event_id is not None
-            and odd_atual > 0
-        ):
-
-            if event_id not in _ODD_INICIAL:
-                _ODD_INICIAL[event_id] = odd_atual
-
-            odd_inicial = _ODD_INICIAL.get(
-                event_id,
-                odd_atual
-            )
-
-        # ============================================
-        # MINUTO
-        # ============================================
-
-        minuto = _extrair_minuto(
-            jogo
-        )
-
-        # ============================================
-        # PLACAR
-        # ============================================
-
-        casa, fora = _extrair_placar(
-            jogo
-        )
-
-        gols = casa + fora
-
-    # ========================================================
-    # ESTATÍSTICAS
-    # ========================================================
-
-    (
-        escanteios,
-        finalizacoes,
-        ataques_perigosos
-    ) = _extrair_estatisticas(
-        jogo
-            )
-
-    # ========================================================
-    # RESULTADO
-    # ========================================================
-
-    resultado = {
-
-        "event_id": event_id,
-
-        "odd_inicial": odd_inicial,
-
-        "odd_anterior": odd_anterior,
-
-        "odd_atual": odd_atual,
-
-        "variacao_desde_inicio":
-            variacao_desde_inicio,
-
-        "variacao_recente":
-            variacao_recente,
-
-        "minuto": minuto,
-
-        "casa": casa,
-
-        "fora": fora,
-
-        "gols": gols,
-
-        "escanteios":
-            escanteios,
-
-        "finalizacoes":
-            finalizacoes,
-
-        "ataques_perigosos":
-            ataques_perigosos
-
-    }
-
-    # ========================================================
-    # RESULTADO
-    # ========================================================
-
-    resultado = {
-
-        "event_id": event_id,
-
-        "odd_inicial": odd_inicial,
-
-        "odd_anterior": odd_anterior,
-
-        "odd_atual": odd_atual,
-
-        "variacao_desde_inicio":
-            variacao_desde_inicio,
-
-        "variacao_recente":
-            variacao_recente,
-
-        "minuto": minuto,
-
-        "casa": casa,
-
-        "fora": fora,
-
-        "gols": gols,
-
-        "escanteios":
-            escanteios,
-
-        "finalizacoes":
-            finalizacoes,
-
-        "ataques_perigosos":
-            ataques_perigosos
-
-    }
-
-    # ========================================================
-    # DEBUG FINAL
-    # ========================================================
 
     print()
-    print("=" * 60)
-    print("📊 DADOS EXTRAÍDOS DO EVENTO")
-    print("=" * 60)
-
     print(
-        "ID:",
-        event_id
-    )
-
-    print(
-        "Odd inicial:",
-        odd_inicial
-    )
-
-    print(
-        "Odd anterior:",
-        odd_anterior
-    )
-
-    print(
-        "Odd atual:",
+        "💰 ODD ATUAL EXTRAÍDA:",
         odd_atual
     )
-
-    print(
-        "Variação recente:",
-        f"{variacao_recente:.2f}%"
-    )
-
-    print(
-        "Minuto:",
-        minuto
-    )
-
-    print(
-        "Placar:",
-        f"{casa} x {fora}"
-    )
-
-    print(
-        "Gols:",
-        gols
-    )
-
-    print(
-        "Escanteios:",
-        escanteios
-    )
-
-    print(
-        "Finalizações:",
-        finalizacoes
-    )
-
-    print(
-        "Ataques perigosos:",
-        ataques_perigosos
-    )
-
-    print("=" * 60)
-
-    return resultado
-
-    # ========================================================
-    # MERCADO ML / MONEYLINE / 1X2
-    # ========================================================
-
-    mercado_ml = _encontrar_mercado(
-        mercados,
-        (
-            "ML",
-            "Moneyline",
-            "1X2"
-        )
-    )
-
-    odd_atual = 0.0
-
-    if mercado_ml:
-
-        linha = _primeiro_odds(
-            mercado_ml
-        )
-
-        # Odd do empate
-        odd_atual = _numero(
-            linha.get(
-                "draw"
-            )
-        )
 
     # ========================================================
     # MEMÓRIA DAS ODDS
@@ -1726,7 +1320,7 @@ if isinstance(
     # PRIMEIRA ODD VÁLIDA
     # ========================================================
 
-        odd_inicial = 0.0
+    odd_inicial = 0.0
 
     if (
         event_id is not None
@@ -1753,21 +1347,25 @@ if isinstance(
     if odd_inicial > 0:
 
         variacao_desde_inicio = (
+
             (
                 odd_atual
                 - odd_inicial
             )
             / odd_inicial
+
         ) * 100.0
 
     if odd_anterior > 0:
 
         variacao_recente = (
+
             (
                 odd_atual
                 - odd_anterior
             )
             / odd_anterior
+
         ) * 100.0
 
     # ========================================================
@@ -1803,7 +1401,13 @@ if isinstance(
     # ESTATÍSTICAS
     # ========================================================
 
-    escanteios, finalizacoes, ataques_perigosos = _extrair_estatisticas(jogo)
+    (
+        escanteios,
+        finalizacoes,
+        ataques_perigosos
+    ) = _extrair_estatisticas(
+        jogo
+    )
 
     # ========================================================
     # RESULTADO
@@ -1841,3 +1445,9 @@ if isinstance(
 
         "ataques_perigosos":
             ataques_perigosos
+
+    }
+
+    return resultado
+
+    
