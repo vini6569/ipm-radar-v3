@@ -1448,6 +1448,6 @@ def extrair_mercados(
 
     }
 
-    return resultado
+    print("=" * 60)
 
-    
+    return resultado
