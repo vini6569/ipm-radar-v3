@@ -1305,7 +1305,7 @@ mercado_ml_2h = _encontrar_mercado(
     # PROCURAR A ODD DO EMPATE
     # --------------------------------------------------------
 
-    if mercado_1x2:
+if mercado_1x2:
 
         print()
         print("🎯 MERCADO DE RESULTADO ENCONTRADO:")
