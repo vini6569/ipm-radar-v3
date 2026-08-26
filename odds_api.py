@@ -1388,66 +1388,150 @@ def extrair_mercados(
     )
 
     # ========================================================
-    # PLACAR
-    # ========================================================
+# ========================================================
+# ODD ATUAL
+# ========================================================
 
-    casa, fora = _extrair_placar(
-        jogo
+odd_atual = 0.0
+
+if mercado_ml:
+
+    linha = _primeiro_odds(
+        mercado_ml
     )
 
-    gols = casa + fora
-
-    # ========================================================
-    # ESTATÍSTICAS
-    # ========================================================
-
-    (
-        escanteios,
-        finalizacoes,
-        ataques_perigosos
-    ) = _extrair_estatisticas(
-        jogo
+    print()
+    print(
+        "🔎 LINHA DE ODDS:"
     )
 
-    # ========================================================
-    # RESULTADO
-    # ========================================================
+    print(
+        linha
+    )
 
-    resultado = {
+    # ----------------------------------------------------
+    # EMPATE
+    # ----------------------------------------------------
 
-        "event_id": event_id,
+    if isinstance(
+        linha,
+        dict
+    ):
 
-        "odd_inicial": odd_inicial,
+        # Tentativa 1
+        odd_atual = _numero(
+            linha.get(
+                "draw"
+            )
+        )
 
-        "odd_anterior": odd_anterior,
+        # Tentativa 2
+        if odd_atual <= 0:
 
-        "odd_atual": odd_atual,
+            odd_atual = _numero(
+                linha.get(
+                    "X"
+                )
+            )
 
-        "variacao_desde_inicio":
-            variacao_desde_inicio,
+        # Tentativa 3
+        if odd_atual <= 0:
 
-        "variacao_recente":
-            variacao_recente,
+            odd_atual = _numero(
+                linha.get(
+                    "tie"
+                )
+            )
 
-        "minuto": minuto,
+        # Tentativa 4
+        if odd_atual <= 0:
 
-        "casa": casa,
+            odd_atual = _numero(
+                linha.get(
+                    "Draw"
+                )
+            )
 
-        "fora": fora,
+    print()
+    print(
+        "💰 ODD ATUAL EXTRAÍDA:",
+        odd_atual
+    )
 
-        "gols": gols,
+# ========================================================
+# MEMÓRIA DAS ODDS
+# ========================================================
 
-        "escanteios":
-            escanteios,
+odd_anterior = 0.0
 
-        "finalizacoes":
-            finalizacoes,
+if event_id is not None:
 
-        "ataques_perigosos":
-            ataques_perigosos
+    odd_anterior = _ODD_ANTERIOR.get(
+        event_id,
+        0.0
+    )
 
-    }
+# ========================================================
+# PRIMEIRA ODD VÁLIDA
+# ========================================================
 
-    print("=" * 60)
+if (
+    event_id is not None
+    and odd_atual > 0
+):
 
-    return resultado
+    if event_id not in _ODD_INICIAL:
+
+        _ODD_INICIAL[
+            event_id
+        ] = odd_atual
+
+odd_inicial = _ODD_INICIAL.get(
+    event_id,
+    odd_atual
+)
+
+# ========================================================
+# VARIAÇÕES
+# ========================================================
+
+variacao_desde_inicio = 0.0
+
+variacao_recente = 0.0
+
+if odd_inicial > 0:
+
+    variacao_desde_inicio = (
+
+        (
+            odd_atual
+            - odd_inicial
+        )
+        / odd_inicial
+
+    ) * 100.0
+
+if odd_anterior > 0:
+
+    variacao_recente = (
+
+        (
+            odd_atual
+            - odd_anterior
+        )
+        / odd_anterior
+
+    ) * 100.0
+
+# ========================================================
+# ATUALIZAR MEMÓRIA
+# ========================================================
+
+if (
+    event_id is not None
+    and odd_atual > 0
+):
+
+    _ODD_ANTERIOR[
+        event_id
+    ] = odd_atual
