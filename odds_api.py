@@ -1656,7 +1656,6 @@ if isinstance(
     )
 
     odd_atual = 0.0
-    odd_inicial = 0.0
 
     if mercado_ml:
 
@@ -1665,7 +1664,6 @@ if isinstance(
         )
 
         # Odd do empate
-
         odd_atual = _numero(
             linha.get(
                 "draw"
@@ -1689,6 +1687,8 @@ if isinstance(
     # PRIMEIRA ODD VÁLIDA
     # ========================================================
 
+    odd_inicial = 0.0
+
     if (
         event_id is not None
         and odd_atual > 0
@@ -1703,10 +1703,6 @@ if isinstance(
             odd_atual
         )
 
-        # Guarda a odd atual para a próxima leitura
-
-        _ODD_ANTERIOR[event_id] = odd_atual
-
     # ========================================================
     # VARIAÇÕES
     # ========================================================
@@ -1718,25 +1714,21 @@ if isinstance(
     if odd_inicial > 0:
 
         variacao_desde_inicio = (
-
             (
                 odd_atual
                 - odd_inicial
             )
             / odd_inicial
-
         ) * 100.0
 
     if odd_anterior > 0:
 
         variacao_recente = (
-
             (
                 odd_atual
                 - odd_anterior
             )
             / odd_anterior
-
         ) * 100.0
 
     # ========================================================
@@ -1772,7 +1764,11 @@ if isinstance(
     # ESTATÍSTICAS
     # ========================================================
 
-    escanteios, finalizacoes, ataques_perigosos = _extrair_estatisticas(
+    (
+        escanteios,
+        finalizacoes,
+        ataques_perigosos
+    ) = _extrair_estatisticas(
         jogo
     )
 
@@ -1812,7 +1808,6 @@ if isinstance(
 
         "ataques_perigosos":
             ataques_perigosos
-
     }
 
     # ========================================================
@@ -1842,6 +1837,11 @@ if isinstance(
     print(
         "Odd atual:",
         odd_atual
+    )
+
+    print(
+        "Variação desde início:",
+        f"{variacao_desde_inicio:.2f}%"
     )
 
     print(
