@@ -1462,20 +1462,19 @@ if isinstance(
                     )
                 )
 
-            # Tentativa 4
-            if odd_atual <= 0:
-
-                odd_atual = _numero(
-                    linha.get(
-                        "Draw"
-                    )
+                    # Tentativa 4
+        if odd_atual <= 0:
+            odd_atual = _numero(
+                linha.get(
+                    "Draw"
                 )
+            )
 
-    print()
-    print(
-        "💰 ODD ATUAL EXTRAÍDA:",
-        odd_atual
-    )
+        print()
+        print(
+            "💰 ODD ATUAL EXTRAÍDA:",
+            odd_atual
+        )
 
     # ========================================================
     # MEMÓRIA DAS ODDS
