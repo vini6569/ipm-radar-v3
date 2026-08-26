@@ -1446,7 +1446,7 @@ if mercado_1x2:
 
                 break
 
-    else:
+        else:
 
         print()
         print(
