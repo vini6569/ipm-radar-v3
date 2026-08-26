@@ -1527,9 +1527,46 @@ if isinstance(
     # ESTATÍSTICAS
     # ========================================================
 
-             escanteios, finalizacoes,
-         ataques_perigosos =
-          _extrair_estatisticas(jogo)
+    escanteios, finalizacoes, ataques_perigosos = _extrair_estatisticas(jogo)
+
+    # ========================================================
+    # RESULTADO
+    # ========================================================
+
+    resultado = {
+
+        "event_id": event_id,
+
+        "odd_inicial": odd_inicial,
+
+        "odd_anterior": odd_anterior,
+
+        "odd_atual": odd_atual,
+
+        "variacao_desde_inicio":
+            variacao_desde_inicio,
+
+        "variacao_recente":
+            variacao_recente,
+
+        "minuto": minuto,
+
+        "casa": casa,
+
+        "fora": fora,
+
+        "gols": gols,
+
+        "escanteios":
+            escanteios,
+
+        "finalizacoes":
+            finalizacoes,
+
+        "ataques_perigosos":
+            ataques_perigosos
+
+    }
 
     # ========================================================
     # RESULTADO
