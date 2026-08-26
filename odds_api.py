@@ -1529,7 +1529,7 @@ if isinstance(
 
              escanteios, finalizacoes,
          ataques_perigosos =
-         _extrair_estatisticas(jogo)
+          _extrair_estatisticas(jogo)
 
     # ========================================================
     # RESULTADO
