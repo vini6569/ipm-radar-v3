@@ -1247,6 +1247,59 @@ def extrair_mercados(
             "Moneyline"
         )
     )
+# --------------------------------------------------------
+# LOCALIZAR OUTROS MERCADOS
+# --------------------------------------------------------
+
+mercado_draw_no_bet = _encontrar_mercado(
+    mercados,
+    ("Draw No Bet",)
+)
+
+mercado_double_chance = _encontrar_mercado(
+    mercados,
+    ("Double Chance",)
+)
+
+mercado_spread = _encontrar_mercado(
+    mercados,
+    ("Spread",)
+)
+
+mercado_totals = _encontrar_mercado(
+    mercados,
+    ("Totals",)
+)
+
+mercado_odd_even = _encontrar_mercado(
+    mercados,
+    ("Odd/Even",)
+)
+
+mercado_european_handicap = _encontrar_mercado(
+    mercados,
+    ("European Handicap",)
+)
+
+mercado_correct_score = _encontrar_mercado(
+    mercados,
+    ("Correct Score",)
+)
+
+mercado_last_team_to_score = _encontrar_mercado(
+    mercados,
+    ("Last Team To Score",)
+)
+
+mercado_corners_totals = _encontrar_mercado(
+    mercados,
+    ("Corners Totals",)
+)
+
+mercado_ml_2h = _encontrar_mercado(
+    mercados,
+    ("ML 2H",)
+)
 
     # --------------------------------------------------------
     # PROCURAR A ODD DO EMPATE
