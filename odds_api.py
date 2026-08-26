@@ -1438,22 +1438,12 @@ if mercado_1x2:
 
 
                 if odd_empate > 0:
-
-                        print()
-                        print(
-                            "✅ ODD DE EMPATE
-        ENCONTRADA:",
-                            odd_empate
-                        )
-                        break
-                
-                else:
-
-                        print()
-                        print(
-                            "⚠️ MERCADO ML /
-        1X2 NÃO ENCONTRADO"
-                        )
+    print()
+    print("✅ ODD DE EMPATE ENCONTRADA:", odd_empate)
+    break
+else:
+    print()
+    print("⚠️ MERCADO ML / 1X2 NÃO ENCONTRADO")
 
     # --------------------------------------------------------
     # RESULTADO DA EXTRAÇÃO
