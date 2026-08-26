@@ -1760,13 +1760,7 @@ if isinstance(
     # ESTATÍSTICAS
     # ========================================================
 
-    (
-        escanteios,
-        finalizacoes,
-        ataques_perigosos
-    ) = _extrair_estatisticas(
-        jogo
-    )
+    escanteios, finalizacoes, ataques_perigosos = _extrair_estatisticas(jogo)
 
     # ========================================================
     # RESULTADO
@@ -1805,77 +1799,4 @@ if isinstance(
         "ataques_perigosos":
             ataques_perigosos
     }
-
-    # ========================================================
-    # DEBUG FINAL
-    # ========================================================
-
-    print()
-    print("=" * 60)
-    print("📊 DADOS EXTRAÍDOS DO EVENTO")
-    print("=" * 60)
-
-    print(
-        "ID:",
-        event_id
-    )
-
-    print(
-        "Odd inicial:",
-        odd_inicial
-    )
-
-    print(
-        "Odd anterior:",
-        odd_anterior
-    )
-
-    print(
-        "Odd atual:",
-        odd_atual
-    )
-
-    print(
-        "Variação desde início:",
-        f"{variacao_desde_inicio:.2f}%"
-    )
-
-    print(
-        "Variação recente:",
-        f"{variacao_recente:.2f}%"
-    )
-
-    print(
-        "Minuto:",
-        minuto
-    )
-
-    print(
-        "Placar:",
-        f"{casa} x {fora}"
-    )
-
-    print(
-        "Gols:",
-        gols
-    )
-
-    print(
-        "Escanteios:",
-        escanteios
-    )
-
-    print(
-        "Finalizações:",
-        finalizacoes
-    )
-
-    print(
-        "Ataques perigosos:",
-        ataques_perigosos
-    )
-
-    print("=" * 60)
-
-    return resultado
        
