@@ -1265,25 +1265,152 @@ def extrair_mercados(
     )
 
     # ========================================================
-    # ODD ATUAL
-    # ========================================================
+# ODD ATUAL
+# ========================================================
 
-    odd_atual = 0.0
+odd_atual = 0.0
 
-    if mercado_ml:
+if mercado_ml:
 
-        linha = _primeiro_odds(
-            mercado_ml
+    linha = _primeiro_odds(
+        mercado_ml
+    )
+
+    print()
+    print(
+        "🔎 LINHA DE ODDS:"
+    )
+
+    print(
+        linha
+    )
+
+    # ----------------------------------------------------
+    # EMPATE
+    # ----------------------------------------------------
+
+    if isinstance(
+        linha,
+        dict
+    ):
+
+        # Tentativa 1
+        odd_atual = _numero(
+            linha.get(
+                "draw"
+            )
         )
 
-        print()
-        print(
-            "🔎 LINHA DE ODDS:"
-        )
+        # Tentativa 2
+        if odd_atual <= 0:
 
-        print(
-            linha
+            odd_atual = _numero(
+                linha.get(
+                    "X"
+                )
+            )
+
+        # Tentativa 3
+        if odd_atual <= 0:
+
+            odd_atual = _numero(
+                linha.get(
+                    "tie"
+                )
+            )
+
+        # Tentativa 4
+        if odd_atual <= 0:
+
+            odd_atual = _numero(
+                linha.get(
+                    "Draw"
+                )
+            )
+
+    print()
+    print(
+        "💰 ODD ATUAL EXTRAÍDA:",
+        odd_atual
+    )
+
+# ========================================================
+# MEMÓRIA DAS ODDS
+# ========================================================
+
+odd_anterior = 0.0
+
+if event_id is not None:
+
+    odd_anterior = _ODD_ANTERIOR.get(
+        event_id,
+        0.0
+    )
+
+# ========================================================
+# PRIMEIRA ODD VÁLIDA
+# ========================================================
+
+if (
+    event_id is not None
+    and odd_atual > 0
+):
+
+    if event_id not in _ODD_INICIAL:
+
+        _ODD_INICIAL[
+            event_id
+        ] = odd_atual
+
+odd_inicial = _ODD_INICIAL.get(
+    event_id,
+    odd_atual
+)
+
+# ========================================================
+# VARIAÇÕES
+# ========================================================
+
+variacao_desde_inicio = 0.0
+
+variacao_recente = 0.0
+
+if odd_inicial > 0:
+
+    variacao_desde_inicio = (
+
+        (
+            odd_atual
+            - odd_inicial
         )
+        / odd_inicial
+
+    ) * 100.0
+
+if odd_anterior > 0:
+
+    variacao_recente = (
+
+        (
+            odd_atual
+            - odd_anterior
+        )
+        / odd_anterior
+
+    ) * 100.0
+
+# ========================================================
+# ATUALIZAR MEMÓRIA
+# ========================================================
+
+if (
+    event_id is not None
+    and odd_atual > 0
+):
+
+    _ODD_ANTERIOR[
+        event_id
+    ] = odd_atual
 
         # ----------------------------------------------------
         # EMPATE
