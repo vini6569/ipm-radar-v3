@@ -1642,23 +1642,21 @@ if isinstance(
 
     return resultado
 
-    # ========================================================
+        # ========================================================
     # MERCADO ML / MONEYLINE / 1X2
     # ========================================================
 
     mercado_ml = _encontrar_mercado(
-
         mercados,
-
         (
             "ML",
             "Moneyline",
             "1X2"
         )
-
     )
 
     odd_atual = 0.0
+    odd_inicial = 0.0
 
     if mercado_ml:
 
@@ -1674,27 +1672,30 @@ if isinstance(
             )
         )
 
-    # ============================================================
+    # ========================================================
     # MEMÓRIA DAS ODDS
-    # ============================================================
+    # ========================================================
 
     odd_anterior = 0.0
 
     if event_id is not None:
+
         odd_anterior = _ODD_ANTERIOR.get(
             event_id,
             0.0
         )
 
-    # ============================================================
+    # ========================================================
     # PRIMEIRA ODD VÁLIDA
-    # ============================================================
+    # ========================================================
 
     if (
         event_id is not None
         and odd_atual > 0
     ):
+
         if event_id not in _ODD_INICIAL:
+
             _ODD_INICIAL[event_id] = odd_atual
 
         odd_inicial = _ODD_INICIAL.get(
@@ -1703,6 +1704,7 @@ if isinstance(
         )
 
         # Guarda a odd atual para a próxima leitura
+
         _ODD_ANTERIOR[event_id] = odd_atual
 
     # ========================================================
@@ -1746,9 +1748,7 @@ if isinstance(
         and odd_atual > 0
     ):
 
-        _ODD_ANTERIOR[
-            event_id
-        ] = odd_atual
+        _ODD_ANTERIOR[event_id] = odd_atual
 
     # ========================================================
     # MINUTO
@@ -1772,12 +1772,114 @@ if isinstance(
     # ESTATÍSTICAS
     # ========================================================
 
-    (
-        escanteios,
-        finalizacoes,
-        ataques_perigosos
-    ) = _extrair_estatisticas(
+    escanteios, finalizacoes, ataques_perigosos = _extrair_estatisticas(
         jogo
     )
 
+    # ========================================================
+    # RESULTADO
+    # ========================================================
+
+    resultado = {
+
+        "event_id": event_id,
+
+        "odd_inicial": odd_inicial,
+
+        "odd_anterior": odd_anterior,
+
+        "odd_atual": odd_atual,
+
+        "variacao_desde_inicio":
+            variacao_desde_inicio,
+
+        "variacao_recente":
+            variacao_recente,
+
+        "minuto": minuto,
+
+        "casa": casa,
+
+        "fora": fora,
+
+        "gols": gols,
+
+        "escanteios":
+            escanteios,
+
+        "finalizacoes":
+            finalizacoes,
+
+        "ataques_perigosos":
+            ataques_perigosos
+
+    }
+
+    # ========================================================
+    # DEBUG FINAL
+    # ========================================================
+
+    print()
+    print("=" * 60)
+    print("📊 DADOS EXTRAÍDOS DO EVENTO")
+    print("=" * 60)
+
+    print(
+        "ID:",
+        event_id
+    )
+
+    print(
+        "Odd inicial:",
+        odd_inicial
+    )
+
+    print(
+        "Odd anterior:",
+        odd_anterior
+    )
+
+    print(
+        "Odd atual:",
+        odd_atual
+    )
+
+    print(
+        "Variação recente:",
+        f"{variacao_recente:.2f}%"
+    )
+
+    print(
+        "Minuto:",
+        minuto
+    )
+
+    print(
+        "Placar:",
+        f"{casa} x {fora}"
+    )
+
+    print(
+        "Gols:",
+        gols
+    )
+
+    print(
+        "Escanteios:",
+        escanteios
+    )
+
+    print(
+        "Finalizações:",
+        finalizacoes
+    )
+
+    print(
+        "Ataques perigosos:",
+        ataques_perigosos
+    )
+
+    print("=" * 60)
+
+    return resultado
        
