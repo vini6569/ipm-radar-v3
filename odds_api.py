@@ -1681,39 +1681,36 @@ if isinstance(
             )
         )
 
-    # ========================================================
+        # ============================================================
     # MEMÓRIA DAS ODDS
-    # ========================================================
+    # ============================================================
 
-        odd_anterior = 0.0
+    odd_anterior = 0.0
 
-        if event_id is not None:
-            
-            odd_anterior = _ODD_ANTERIOR.get(
-                event_id,
-                0.0
-            )
+    if event_id is not None:
+        odd_anterior = _ODD_ANTERIOR.get(
+            event_id,
+            0.0
+        )
 
-    # Primeira odd válida
+    # ============================================================
+    # PRIMEIRA ODD VÁLIDA
+    # ============================================================
 
     if (
         event_id is not None
         and odd_atual > 0
     ):
-
         if event_id not in _ODD_INICIAL:
+            _ODD_INICIAL[event_id] = odd_atual
 
-            _ODD_INICIAL[
-                event_id
-            ] = odd_atual
+        odd_inicial = _ODD_INICIAL.get(
+            event_id,
+            odd_atual
+        )
 
-    odd_inicial = _ODD_INICIAL.get(
-
-        event_id,
-
-        odd_atual
-
-    )
+        # Guarda a odd atual para a próxima leitura
+        _ODD_ANTERIOR[event_id] = odd_atual
 
     # ========================================================
     # VARIAÇÕES
