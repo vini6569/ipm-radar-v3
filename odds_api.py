@@ -1437,7 +1437,7 @@ if mercado_1x2:
             # ------------------------------------------------
 
 
-                if odd_empate > 0:
+    if odd_empate > 0:
     print()
     print("✅ ODD DE EMPATE ENCONTRADA:", odd_empate)
     break
