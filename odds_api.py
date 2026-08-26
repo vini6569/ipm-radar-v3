@@ -1155,6 +1155,10 @@ def extrair_mercados(
     odds
 ):
 
+    # --------------------------------------------------------
+    # VALIDAR JOGO
+    # --------------------------------------------------------
+
     if not isinstance(
         jogo,
         dict
@@ -1162,258 +1166,262 @@ def extrair_mercados(
 
         return {}
 
+    # --------------------------------------------------------
+    # ID DO EVENTO
+    # --------------------------------------------------------
+
     event_id = jogo.get(
         "id"
     )
 
-    # ========================================================
+    # --------------------------------------------------------
     # LOCALIZAR EVENTO NAS ODDS
-    # ========================================================
+    # --------------------------------------------------------
 
     evento_odds = _evento_odds_por_id(
         odds,
         event_id
     )
 
-    # Caso o próprio jogo já contenha bookmakers
-
-    if evento_odds is None:
-
-        evento_odds = jogo
-
-    # ========================================================
-    # MERCADOS BET365
-    # ========================================================
-
-    mercados = _mercados_bet365(
-        evento_odds
-    )
-
-    # ========================================================
-    # DEBUG - RESPOSTA REAL DO EVENTO
-    # ========================================================
-
-    print()
-    print("=" * 60)
-    print("🔬 DEBUG MERCADOS DO EVENTO")
-    print("=" * 60)
-
-    print(
-        "EVENTO ID:",
-        event_id
-    )
-
-    print(
-        "TIPO EVENTO ODDS:",
-        type(evento_odds).__name__
-    )
-
-    if isinstance(
+    if not isinstance(
         evento_odds,
         dict
     ):
 
         print(
-            "CHAVES DO EVENTO:",
-            list(
-                evento_odds.keys()
-            )
+            "⚠️ Odds não encontradas para o evento:",
+            event_id
+        )
+
+        return {
+            "odd_empate": 0.0,
+            "odd_atual": 0.0,
+            "mercados": []
+        }
+
+    # --------------------------------------------------------
+    # LOCALIZAR MERCADOS DA BET365
+    # --------------------------------------------------------
+
+    mercados = _mercados_bet365(
+        evento_odds
+    )
+
+    print()
+    print(
+        "🔎 MERCADOS ENCONTRADOS:",
+        len(mercados)
+    )
+
+    # --------------------------------------------------------
+    # MOSTRAR NOMES DOS MERCADOS
+    # --------------------------------------------------------
+
+    for mercado in mercados:
+
+        if not isinstance(
+            mercado,
+            dict
+        ):
+
+            continue
+
+        print(
+            "📌 Mercado:",
+            mercado.get("name")
+        )
+
+    # --------------------------------------------------------
+    # MERCADO 1X2
+    # --------------------------------------------------------
+
+    mercado_1x2 = _encontrar_mercado(
+        mercados,
+        (
+            "1X2",
+            "Match Winner",
+            "Match Result",
+            "Full Time Result",
+            "Moneyline"
+        )
+    )
+
+    # --------------------------------------------------------
+    # MERCADO EMPATE
+    # --------------------------------------------------------
+
+    odd_empate = 0.0
+
+    if mercado_1x2:
+
+        linha = _primeiro_odds(
+            mercado_1x2
         )
 
         print()
         print(
-            "BOOKMAKERS:",
-            evento_odds.get(
-                "bookmakers"
-            )
+            "🔎 LINHA DE ODDS:"
         )
 
-    print()
-    print(
-        "MERCADOS BET365:",
-        mercados
-    )
-
-    print("=" * 60)
-
-# ========================================================
-# MERCADO ML / MONEYLINE / 1X2
-# ========================================================
-
-mercado_ml = _encontrar_mercado(
-    mercados,
-    (
-        "ML",
-        "Moneyline",
-        "1X2"
-    )
-)
-
-# ============================================================
-# ODD ATUAL - EMPATE (X) - IPM RADAR V3
-# ============================================================
-
-odd_atual = 0.0
-
-# ------------------------------------------------------------
-# LOCALIZAR OS MERCADOS DO BOOKMAKER
-# ------------------------------------------------------------
-
-mercados = _mercados_bet365(
-    evento_odds
-)
-
-print()
-print("🔎 MERCADOS BET365 ENCONTRADOS:")
-print(mercados)
-
-
-# ------------------------------------------------------------
-# LOCALIZAR MERCADO ML
-# ------------------------------------------------------------
-
-mercado_ml = _encontrar_mercado(
-    mercados,
-    (
-        "ML",
-        "Match Winner",
-        "1X2",
-        "Match Result"
-    )
-)
-
-print()
-print("🔎 MERCADO ML:")
-print(mercado_ml)
-
-
-# ------------------------------------------------------------
-# EXTRAIR PRIMEIRA LINHA DE ODDS
-# ------------------------------------------------------------
-
-if mercado_ml is not None:
-
-    linha = _primeiro_odds(
-        mercado_ml
-    )
-
-    print()
-    print("🔎 LINHA DE ODDS:")
-    print(linha)
-
-    # --------------------------------------------------------
-    # ODDS DO EMPATE
-    # --------------------------------------------------------
-
-    if isinstance(
-        linha,
-        dict
-    ):
-
-        # Tentativa 1 - padrão Odds-API.io
-        odd_atual = _numero(
-            linha.get("draw")
+        print(
+            linha
         )
 
-        # Tentativa 2
-        if odd_atual <= 0:
+        if isinstance(
+            linha,
+            dict
+        ):
 
-            odd_atual = _numero(
-                linha.get("X")
+            # -----------------------------------------------
+            # TENTATIVA 1
+            # -----------------------------------------------
+
+            odd_empate = _numero(
+                linha.get(
+                    "draw"
+                )
             )
 
-        # Tentativa 3
-        if odd_atual <= 0:
+            # -----------------------------------------------
+            # TENTATIVA 2
+            # -----------------------------------------------
 
-            odd_atual = _numero(
-                linha.get("tie")
+            if odd_empate <= 0:
+
+                odd_empate = _numero(
+                    linha.get(
+                        "X"
+                    )
+                )
+
+            # -----------------------------------------------
+            # TENTATIVA 3
+            # -----------------------------------------------
+
+            if odd_empate <= 0:
+
+                odd_empate = _numero(
+                    linha.get(
+                        "tie"
+                    )
+                )
+
+            # -----------------------------------------------
+            # TENTATIVA 4
+            # -----------------------------------------------
+
+            if odd_empate <= 0:
+
+                odd_empate = _numero(
+                    linha.get(
+                        "Draw"
+                    )
+                )
+
+            # -----------------------------------------------
+            # TENTATIVA 5
+            # -----------------------------------------------
+
+            if odd_empate <= 0:
+
+                odd_empate = _numero(
+                    linha.get(
+                        "drawOdd"
+                    )
+                )
+
+            # -----------------------------------------------
+            # TENTATIVA 6
+            # -----------------------------------------------
+
+            if odd_empate <= 0:
+
+                odd_empate = _numero(
+                    linha.get(
+                        "odd_draw"
+                    )
+                )
+
+        print()
+        print(
+            "💰 ODD EMPATE EXTRAÍDA:",
+            odd_empate
+        )
+
+    # --------------------------------------------------------
+    # MEMÓRIA DA ODD
+    # --------------------------------------------------------
+
+    odd_anterior = _memorizar_odd(
+        event_id,
+        odd_empate
+    )
+
+    # --------------------------------------------------------
+    # VARIAÇÃO DA ODD
+    # --------------------------------------------------------
+
+    variacao_odd = _calcular_variacao_odd(
+        odd_anterior,
+        odd_empate
+    )
+
+    # --------------------------------------------------------
+    # RESULTADO
+    # --------------------------------------------------------
+
+    resultado = {
+
+        "odd_empate": round(
+            odd_empate,
+            2
+        ),
+
+        "odd_atual": round(
+            odd_empate,
+            2
+        ),
+
+        "odd_anterior": (
+            round(
+                odd_anterior,
+                2
             )
+            if odd_anterior is not None
+            else 0.0
+        ),
 
-        # Tentativa 4
-        if odd_atual <= 0:
+        "variacao_odd": round(
+            variacao_odd,
+            2
+        ),
 
-            odd_atual = _numero(
-                linha.get("Draw")
-            )
+        "mercados": mercados
+
+    }
+
+    # --------------------------------------------------------
+    # DEBUG FINAL
+    # --------------------------------------------------------
 
     print()
     print(
-        "💰 ODD EMPATE EXTRAÍDA:",
-        odd_atual
+        "💰 ODD ATUAL:",
+        resultado["odd_atual"]
     )
 
-else:
-
-    print()
     print(
-        "⚠️ MERCADO ML NÃO ENCONTRADO."
+        "💰 ODD ANTERIOR:",
+        resultado["odd_anterior"]
     )
 
-    odd_atual = 0.0
+    print(
+        "📈 VARIAÇÃO:",
+        resultado["variacao_odd"],
+        "%"
+    )
+
+    return resultado
 
 
-# ============================================================
-# MEMÓRIA DA ODD
-# ============================================================
-
-odd_anterior = _ODD_ANTERIOR.get(
-    str(event_id)
-) if event_id is not None else None
-
-
-# ============================================================
-# VARIAÇÃO DA ODD
-# ============================================================
-
-variacao_odd = _calcular_variacao_odd(
-    odd_anterior,
-    odd_atual
-)
-
-
-# ============================================================
-# ATUALIZAR MEMÓRIA
-# ============================================================
-
-if (
-    event_id is not None
-    and odd_atual > 0
-):
-
-    _ODD_ANTERIOR[
-        str(event_id)
-    ] = odd_atual
-
-
-# ============================================================
-# DEBUG FINAL DA ODD
-# ============================================================
-
-print()
-print("=" * 60)
-print("📊 RESULTADO ODD - IPM RADAR V3")
-print("=" * 60)
-
-print(
-    "Evento:",
-    event_id
-)
-
-print(
-    "Odd anterior:",
-    odd_anterior
-)
-
-print(
-    "Odd atual:",
-    odd_atual
-)
-
-print(
-    "Variação:",
-    f"{variacao_odd:.2f}%"
-)
-
-print("=" * 60)
-
-
+        
