@@ -1509,9 +1509,9 @@ if isinstance(
     # MINUTO
     # ========================================================
 
-    minuto = _extrair_minuto(
-        jogo
-    )
+        minuto = _extrair_minuto(
+            jogo
+        )
 
     # ========================================================
     # PLACAR
