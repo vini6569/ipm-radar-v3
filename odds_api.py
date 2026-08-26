@@ -1411,7 +1411,30 @@ if (
     _ODD_ANTERIOR[
         event_id
     ] = odd_atual
+    # -----------------------------------------------
+    # EMPATE
+    # -----------------------------------------------
 
+if isinstance(
+        linha,
+        dict
+    ):
+
+        # Tentativa 1
+        odd_atual = _numero(
+            linha.get(
+                "draw"
+            )
+        )
+
+        # Tentativa 2
+        if odd_atual <= 0:
+
+            odd_atual = _numero(
+                linha.get(
+                    "X"
+                )
+    )
 
 
             # Tentativa 1
@@ -1471,7 +1494,7 @@ if (
     # PRIMEIRA ODD VÁLIDA
     # ========================================================
 
-    if (
+        if (
         event_id is not None
         and odd_atual > 0
     ):
