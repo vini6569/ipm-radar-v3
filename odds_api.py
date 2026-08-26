@@ -1527,9 +1527,9 @@ if isinstance(
     # ESTATÍSTICAS
     # ========================================================
 
-    escanteios, finalizacoes,
-ataques_perigosos =
- _extrair_estatisticas(jogo)
+    escanteios, finalizacoes, 
+ataques_perigosos = 
+_extrair_estatisticas(jogo)
 
     # ========================================================
     # RESULTADO
