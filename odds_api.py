@@ -15,8 +15,6 @@ import urllib.error
 
 BASE_URL = "https://api.odds-api.io/v3"
 
-# Odds API será a fonte das odds
-# Não limitar o Radar a uma casa específica
 BOOKMAKER = "Bet365"
 
 MAX_EVENTOS_POR_CONSULTA = 10
@@ -25,74 +23,14 @@ TIMEOUT_REQUISICAO = 20
 
 
 # ============================================================
-# MEMÓRIA DA ODD - IPM RADAR V3
+# MEMÓRIA DAS ODDS
 # ============================================================
 
+# Primeira odd observada no evento
+_ODD_INICIAL = {}
+
+# Última odd observada no evento
 _ODD_ANTERIOR = {}
-
-
-def _memorizar_odd(evento_id, odd_atual):
-    """
-    Guarda a última odd de cada jogo.
-
-    Primeira consulta:
-        anterior = None
-
-    Próximas consultas:
-        anterior = última odd registrada
-    """
-
-    if evento_id is None:
-        return None
-
-    if odd_atual is None:
-        return None
-
-    try:
-        odd_atual = float(odd_atual)
-    except (ValueError, TypeError):
-        return None
-
-    if odd_atual <= 0:
-        return None
-
-    evento_id = str(evento_id)
-
-    anterior = _ODD_ANTERIOR.get(evento_id)
-
-    # Atualiza somente depois de guardar a anterior
-    _ODD_ANTERIOR[evento_id] = odd_atual
-
-    return anterior
-
-
-def _calcular_variacao_odd(odd_anterior, odd_atual):
-    """
-    Calcula a variação percentual da odd.
-    """
-
-    if odd_anterior is None:
-        return 0.0
-
-    if odd_atual is None:
-        return 0.0
-
-    try:
-        odd_anterior = float(odd_anterior)
-        odd_atual = float(odd_atual)
-
-        if odd_anterior <= 0:
-            return 0.0
-
-        variacao = (
-            (odd_atual - odd_anterior)
-            / odd_anterior
-        ) * 100
-
-        return round(variacao, 2)
-
-    except (ValueError, TypeError, ZeroDivisionError):
-        return 0.0
 
 
 # ============================================================
@@ -118,222 +56,155 @@ def obter_api_key():
 
 def fazer_requisicao(url):
 
+    requisicao = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "IPM-Radar/3.0",
+            "Accept": "application/json"
+        }
+    )
+
     try:
-
-        requisicao = urllib.request.Request(
-
-            url,
-
-            headers={
-                "User-Agent": "IPM-RADAR-V3"
-            }
-
-        )
 
         with urllib.request.urlopen(
             requisicao,
             timeout=TIMEOUT_REQUISICAO
         ) as resposta:
 
+            status = resposta.status
+
             conteudo = resposta.read().decode(
                 "utf-8"
             )
 
-            if not conteudo:
-
-                print(
-                    "⚠️ Resposta HTTP vazia."
-                )
-
-                return {}
-
-            try:
-
-                return json.loads(
-                    conteudo
-                )
-
-            except json.JSONDecodeError:
-
-                print(
-                    "⚠️ Resposta não é JSON válido."
-                )
-
-                print(
-                    conteudo[:2000]
-                )
-
-                return {}
-
-    except urllib.error.HTTPError as erro:
-
         print(
-            f"❌ HTTP ERROR: {erro.code}"
+            "HTTP STATUS ODDS API:",
+            status
         )
+
+        if not conteudo:
+
+            print(
+                "Resposta vazia da Odds API."
+            )
+
+            return []
 
         try:
 
-            corpo = erro.read().decode(
-                "utf-8",
-                errors="replace"
+            return json.loads(
+                conteudo
             )
 
+        except json.JSONDecodeError:
+
+            print()
+            print("=" * 60)
+            print("RESPOSTA NÃO É JSON")
+            print("=" * 60)
+
             print(
-                "Resposta da API:",
-                corpo[:2000]
+                conteudo[:2000]
+            )
+
+            print("=" * 60)
+
+            return []
+
+    except urllib.error.HTTPError as erro:
+
+        detalhe = ""
+
+        try:
+
+            detalhe = erro.read().decode(
+                "utf-8"
             )
 
         except Exception:
 
             pass
 
-        return {}
+        print()
+        print("=" * 60)
+        print("ERRO HTTP ODDS API")
+        print("=" * 60)
+
+        print(
+            "Código:",
+            erro.code
+        )
+
+        print(
+            "URL:",
+            url
+        )
+
+        print(
+            "Detalhes:",
+            detalhe[:2000]
+        )
+
+        if erro.code == 401:
+
+            print(
+                "⚠️ API KEY inválida ou não autorizada."
+            )
+
+        elif erro.code == 403:
+
+            print(
+                "⚠️ Acesso negado pela Odds API."
+            )
+
+        elif erro.code == 429:
+
+            print(
+                "⚠️ LIMITE 429 DA ODDS API."
+            )
+
+        print("=" * 60)
+
+        return []
 
     except urllib.error.URLError as erro:
 
+        print()
+        print("=" * 60)
+        print("ERRO DE CONEXÃO ODDS API")
+        print("=" * 60)
+
         print(
-            "❌ URL ERROR:",
+            type(erro).__name__
+        )
+
+        print(
             erro
         )
 
-        return {}
+        print("=" * 60)
 
-    except TimeoutError:
-
-        print(
-            "❌ Timeout na requisição."
-        )
-
-        return {}
+        return []
 
     except Exception as erro:
 
+        print()
+        print("=" * 60)
+        print("ERRO NA REQUISIÇÃO ODDS API")
+        print("=" * 60)
+
         print(
-            "❌ Erro na requisição:",
+            type(erro).__name__
+        )
+
+        print(
             erro
         )
 
-        return {}
+        print("=" * 60)
 
-    # ========================================================
-    # VERIFICAÇÃO DA RESPOSTA
-    # ========================================================
-
-    if not resposta:
-        print("Resposta vazia da Odds API")
         return []
 
-    # ========================================================
-    # CONVERSÃO PARA JSON
-    # ========================================================
-
-    if isinstance(resposta, (dict, list)):
-        return resposta
-
-    try:
-        return json.loads(resposta)
-
-    except json.JSONDecodeError:
-        print("Erro ao decodificar JSON da Odds API")
-        return []
-
-
-# ============================================================
-# NORMALIZAR LISTA DE EVENTOS
-# ============================================================
-
-def _lista_eventos(resposta):
-
-    if isinstance(resposta, list):
-        return resposta
-
-    if not isinstance(resposta, dict):
-        return []
-
-    for chave in (
-        "events",
-        "data",
-        "results"
-    ):
-
-        valor = resposta.get(chave)
-
-        if isinstance(valor, list):
-            return valor
-
-        if isinstance(valor, dict):
-            return [valor]
-
-    return []
-
-# ============================================================
-# CONVERSÃO PARA JSON
-# ============================================================
-
-def buscar_odds_multiplos(url):
-
-    resposta = fazer_requisicao(url)
-
-    print()
-    print("=" * 60)
-    print("🔬 DEBUG - RESPOSTA BRUTA ODDS API")
-    print("=" * 60)
-
-    try:
-        print(
-            json.dumps(
-                resposta,
-                indent=2,
-                ensure_ascii=False
-            )[:10000]
-        )
-    except Exception:
-        print(resposta)
-
-    print("=" * 60)
-
-    if not resposta:
-        print("Resposta vazia da Odds API")
-        return []
-
-    if isinstance(resposta, (dict, list)):
-        return resposta
-
-    try:
-        return json.loads(resposta)
-
-    except json.JSONDecodeError:
-        print("Erro ao decodificar JSON da Odds API")
-        return []
-
-
-# ============================================================
-# NORMALIZAR LISTA DE EVENTOS
-# ============================================================
-
-def _lista_eventos(resposta):
-
-    if isinstance(resposta, list):
-        return resposta
-
-    if not isinstance(resposta, dict):
-        return []
-
-    for chave in (
-        "events",
-        "data",
-        "results"
-    ):
-
-        valor = resposta.get(chave)
-
-        if isinstance(valor, list):
-            return valor
-
-        if isinstance(valor, dict):
-            return [valor]
-
-    return []
 
 # ============================================================
 # NORMALIZAR LISTA DE EVENTOS
@@ -455,7 +326,6 @@ def buscar_jogos_ao_vivo():
             evento,
             dict
         ):
-
             continue
 
         liga = evento.get(
@@ -466,7 +336,6 @@ def buscar_jogos_ao_vivo():
             liga,
             dict
         ):
-
             liga = (
                 liga.get("name")
                 or liga.get("slug")
@@ -599,11 +468,9 @@ def buscar_odds_multiplos(eventos):
     )
 
     print(
-    "Eventos enviados:",
-    len(ids)
-)
-
-    print("IDs ENVIADOS:", ids)
+        "Eventos enviados:",
+        len(ids)
+    )
 
     print(
         "Bookmaker:",
@@ -654,7 +521,7 @@ def buscar_odds_multiplos(eventos):
                     valor
                 )
 
-            eventos_odds = valores
+        eventos_odds = valores
 
     print(
         "EVENTOS COM ODDS RECEBIDOS:",
@@ -1155,10 +1022,6 @@ def extrair_mercados(
     odds
 ):
 
-    # --------------------------------------------------------
-    # VALIDAR JOGO
-    # --------------------------------------------------------
-
     if not isinstance(
         jogo,
         dict
@@ -1166,371 +1029,162 @@ def extrair_mercados(
 
         return {}
 
-    # --------------------------------------------------------
-    # ID DO EVENTO
-    # --------------------------------------------------------
-
     event_id = jogo.get(
         "id"
     )
-
-    # --------------------------------------------------------
-    # LOCALIZAR EVENTO NAS ODDS
-    # --------------------------------------------------------
 
     evento_odds = _evento_odds_por_id(
         odds,
         event_id
     )
 
-    if not isinstance(
-        evento_odds,
-        dict
-    ):
+    # Caso o próprio evento já contenha bookmakers.
 
-        print(
-            "⚠️ Odds não encontradas para o evento:",
-            event_id
-        )
+    if evento_odds is None:
 
-        return {
-            "odd_empate": 0.0,
-            "odd_atual": 0.0,
-            "mercados": []
-        }
-
-    # --------------------------------------------------------
-    # LOCALIZAR MERCADOS DA BET365
-    # --------------------------------------------------------
+        evento_odds = jogo
 
     mercados = _mercados_bet365(
         evento_odds
     )
 
-    print()
-    print(
-        "🔎 MERCADOS ENCONTRADOS:",
-        len(mercados)
-    )
+    # ========================================================
+    # MERCADO ML / MONEYLINE / 1X2
+    # ========================================================
 
-    # --------------------------------------------------------
-    # MOSTRAR NOMES DOS MERCADOS
-    # --------------------------------------------------------
+    mercado_ml = _encontrar_mercado(
 
-    for mercado in mercados:
-
-        if not isinstance(
-            mercado,
-            dict
-        ):
-
-            continue
-
-        print(
-            "📌 Mercado:",
-            mercado.get("name")
-        )
-    # --------------------------------------------------------
-    # MERCADO DE RESULTADO / MATCH WINNER
-    # --------------------------------------------------------
-
-    odd_empate = 0.0
-
-    mercado_1x2 = _encontrar_mercado(
         mercados,
+
         (
             "ML",
-            "1X2",
-            "Match Winner",
-            "Match Result",
-            "Full Time Result",
-            "Moneyline"
+            "Moneyline",
+            "1X2"
         )
+
     )
-# --------------------------------------------------------
-# LOCALIZAR OUTROS MERCADOS
-# --------------------------------------------------------
 
-mercado_draw_no_bet = _encontrar_mercado(
-    mercados,
-    ("Draw No Bet",)
-)
+    odd_atual = 0.0
 
-mercado_double_chance = _encontrar_mercado(
-    mercados,
-    ("Double Chance",)
-)
+    if mercado_ml:
 
-mercado_spread = _encontrar_mercado(
-    mercados,
-    ("Spread",)
-)
-
-mercado_totals = _encontrar_mercado(
-    mercados,
-    ("Totals",)
-)
-
-mercado_odd_even = _encontrar_mercado(
-    mercados,
-    ("Odd/Even",)
-)
-
-mercado_european_handicap = _encontrar_mercado(
-    mercados,
-    ("European Handicap",)
-)
-
-mercado_correct_score = _encontrar_mercado(
-    mercados,
-    ("Correct Score",)
-)
-
-mercado_last_team_to_score = _encontrar_mercado(
-    mercados,
-    ("Last Team To Score",)
-)
-
-mercado_corners_totals = _encontrar_mercado(
-    mercados,
-    ("Corners Totals",)
-)
-
-mercado_ml_2h = _encontrar_mercado(
-    mercados,
-    ("ML 2H",)
-)
-
-    # --------------------------------------------------------
-    # PROCURAR A ODD DO EMPATE
-    # --------------------------------------------------------
-
-if mercado_1x2:
+        linha = _primeiro_odds(
+            mercado_ml
+        )
 
         print()
-        print("🎯 MERCADO DE RESULTADO ENCONTRADO:")
         print(
-            mercado_1x2.get("name")
+            "🔎 LINHA DE ODDS:"
         )
-
-        linhas = mercado_1x2.get(
-            "odds",
-            []
-        )
-
-        # ----------------------------------------------------
-        # NORMALIZAR ODDS
-        # ----------------------------------------------------
+        print(linha)
 
         if isinstance(
-            linhas,
+            linha,
             dict
         ):
 
-            linhas = [
-                linhas
-            ]
+            # Tentativa 1 - draw
+            odd_atual = _numero(
+                linha.get("draw")
+            )
 
-        if not isinstance(
-            linhas,
-            list
-        ):
+            # Tentativa 2 - X
+            if odd_atual <= 0:
+                odd_atual = _numero(
+                    linha.get("X")
+                )
 
-            linhas = []
+            # Tentativa 3 - tie
+            if odd_atual <= 0:
+                odd_atual = _numero(
+                    linha.get("tie")
+                )
 
+            # Tentativa 4 - Draw
+            if odd_atual <= 0:
+                odd_atual = _numero(
+                    linha.get("Draw")
+                )
+
+            # Tentativa 5 - drawOdd
+            if odd_atual <= 0:
+                odd_atual = _numero(
+                    linha.get("drawOdd")
+                )
+
+            # Tentativa 6 - odd_draw
+            if odd_atual <= 0:
+                odd_atual = _numero(
+                    linha.get("odd_draw")
+                )
+
+        print()
         print(
-            "📊 LINHAS DE ODDS:",
-            len(linhas)
+            "💰 ODD EMPATE EXTRAÍDA:",
+            odd_atual
         )
 
-        # ----------------------------------------------------
-        # PERCORRER TODAS AS LINHAS
-        # ----------------------------------------------------
+    else:
 
-        for linha in linhas:
+        print()
+        print(
+            "⚠️ MERCADO ML / 1X2 NÃO ENCONTRADO"
+        )
 
-            if not isinstance(
-                linha,
-                dict
-            ):
+    # ========================================================
+    # MEMÓRIA DAS ODDS
+    # ========================================================
 
-                continue
+    odd_anterior = 0.0
 
-            print()
-            print(
-                "🔎 LINHA:",
-                linha
-            )
+    if event_id is not None:
 
-            # ------------------------------------------------
-            # TENTATIVA 1 - DRAW
-            # ------------------------------------------------
+        odd_anterior = _ODD_ANTERIOR.get(
+            event_id,
+            0.0
+        )
 
-            odd_empate = _numero(
-                linha.get(
-                    "draw"
-                )
-            )
+    # Primeira odd válida
 
-            # ------------------------------------------------
-            # TENTATIVA 2 - X
-            # ------------------------------------------------
+    if (
+        event_id is not None
+        and odd_atual > 0
+    ):
 
-            if odd_empate <= 0:
+        if event_id not in _ODD_INICIAL:
 
-                odd_empate = _numero(
-                    linha.get(
-                        "X"
-                    )
-                )
+            _ODD_INICIAL[
+                event_id
+            ] = odd_atual
 
-            # ------------------------------------------------
-            # TENTATIVA 3 - TIE
-            # ------------------------------------------------
+    odd_inicial = _ODD_INICIAL.get(
 
-            if odd_empate <= 0:
-
-                odd_empate = _numero(
-                    linha.get(
-                        "tie"
-                    )
-                )
-
-            # ------------------------------------------------
-            # TENTATIVA 4 - DRAW MAIÚSCULO
-            # ------------------------------------------------
-
-            if odd_empate <= 0:
-
-                odd_empate = _numero(
-                    linha.get(
-                        "Draw"
-                    )
-                )
-
-            # ------------------------------------------------
-            # TENTATIVA 5 - DRAWODD
-            # ------------------------------------------------
-
-            if odd_empate <= 0:
-
-                odd_empate = _numero(
-                    linha.get(
-                        "drawOdd"
-                    )
-                )
-
-            # ------------------------------------------------
-            # TENTATIVA 6 - ODD_DRAW
-            # ------------------------------------------------
-
-            if odd_empate <= 0:
-
-                odd_empate = _numero(
-                    linha.get(
-                        "odd_draw"
-                    )
-                )
-
-            # ------------------------------------------------
-            # SE ENCONTROU, PARA
-            # ------------------------------------------------
-
-
-if odd_empate > 0:
-    print()
-    print("ODD DE EMPATE ENCONTRADA")
-    print(odd_empate)
-    
-else:
-    print()
-    print("MERCADO ML / 1X2 NAO ENCONTRADO")
-
-    # --------------------------------------------------------
-    # RESULTADO DA EXTRAÇÃO
-    # --------------------------------------------------------
-
-    print()
-    print(
-        "💰 ODD EMPATE EXTRAÍDA:",
-        odd_empate
-    )
-    
-
-    # --------------------------------------------------------
-    # MEMÓRIA DA ODD
-    # --------------------------------------------------------
-
-    odd_anterior = _memorizar_odd(
         event_id,
-        odd_empate
+
+        odd_atual
+
     )
 
-    # --------------------------------------------------------
-    # VARIAÇÃO DA ODD
-    # --------------------------------------------------------
+    # ========================================================
+    # VARIAÇÕES
+    # ========================================================
 
-    variacao_odd = _calcular_variacao_odd(
-        odd_anterior,
-        odd_empate
-    )
+    variacao_desde_inicio = 0.0
 
-    # --------------------------------------------------------
-    # RESULTADO
-    # --------------------------------------------------------
+    variacao_recente = 0.0
 
-    resultado = {
+    if odd_inicial > 0:
 
-        "odd_empate": round(
-            odd_empate,
-            2
-        ),
+        variacao_desde_inicio = (
 
-        "odd_atual": round(
-            odd_empate,
-            2
-        ),
-
-        "odd_anterior": (
-            round(
-                odd_anterior,
-                2
+            (
+                odd_atual
+                - odd_inicial
             )
-            if odd_anterior is not None
-            else 0.0
-        ),
+            / odd_inicial
 
-        "variacao_odd": round(
-            variacao_odd,
-            2
-        ),
+        ) * 100.0
 
-        "mercados": mercados
+    if odd_anterior > 0:
 
-    }
-
-    # --------------------------------------------------------
-    # DEBUG FINAL
-    # --------------------------------------------------------
-
-    print()
-    print(
-        "💰 ODD ATUAL:",
-        resultado["odd_atual"]
-    )
-
-    print(
-        "💰 ODD ANTERIOR:",
-        resultado["odd_anterior"]
-    )
-
-    print(
-        "📈 VARIAÇÃO:",
-        resultado["variacao_odd"],
-        "%"
-    )
-
-    return resultado
-
-
-        
+        variaca
