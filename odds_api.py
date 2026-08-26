@@ -1412,14 +1412,7 @@ if (
         event_id
     ] = odd_atual
 
-        # ----------------------------------------------------
-        # EMPATE
-        # ----------------------------------------------------
 
-        if isinstance(
-            linha,
-            dict
-        ):
 
             # Tentativa 1
             odd_atual = _numero(
@@ -1496,51 +1489,6 @@ if (
         odd_atual
 
     )
-
-    # ========================================================
-    # VARIAÇÕES
-    # ========================================================
-
-    variacao_desde_inicio = 0.0
-
-    variacao_recente = 0.0
-
-    if odd_inicial > 0:
-
-        variacao_desde_inicio = (
-
-            (
-                odd_atual
-                - odd_inicial
-            )
-            / odd_inicial
-
-        ) * 100.0
-
-    if odd_anterior > 0:
-
-        variacao_recente = (
-
-            (
-                odd_atual
-                - odd_anterior
-            )
-            / odd_anterior
-
-        ) * 100.0
-
-    # ========================================================
-    # ATUALIZAR MEMÓRIA
-    # ========================================================
-
-    if (
-        event_id is not None
-        and odd_atual > 0
-    ):
-
-        _ODD_ANTERIOR[
-            event_id
-        ] = odd_atual
 
     # ========================================================
     # MINUTO
