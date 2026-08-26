@@ -1480,14 +1480,14 @@ if isinstance(
     # MEMÓRIA DAS ODDS
     # ========================================================
 
-    odd_anterior = 0.0
+            odd_anterior = 0.0
 
-    if event_id is not None:
+        if event_id is not None:
 
-        odd_anterior = _ODD_ANTERIOR.get(
-            event_id,
-            0.0
-        )
+            odd_anterior = _ODD_ANTERIOR.get(
+                event_id,
+                0.0
+            )
 
     # ========================================================
     # PRIMEIRA ODD VÁLIDA
@@ -1685,14 +1685,14 @@ if isinstance(
     # MEMÓRIA DAS ODDS
     # ========================================================
 
-    odd_anterior = 0.0
+        odd_anterior = 0.0
 
-    if event_id is not None:
-
-        odd_anterior = _ODD_ANTERIOR.get(
-            event_id,
-            0.0
-        )
+        if event_id is not None:
+            
+            odd_anterior = _ODD_ANTERIOR.get(
+                event_id,
+                0.0
+            )
 
     # Primeira odd válida
 
