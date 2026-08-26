@@ -1249,73 +1249,171 @@ mercado_ml = _encontrar_mercado(
     )
 )
 
-
-# ========================================================
-# ODD ATUAL
-# ========================================================
+# ============================================================
+# ODD ATUAL - EMPATE (X) - IPM RADAR V3
+# ============================================================
 
 odd_atual = 0.0
 
-if mercado_ml:
+# ------------------------------------------------------------
+# LOCALIZAR OS MERCADOS DO BOOKMAKER
+# ------------------------------------------------------------
+
+mercados = _mercados_bet365(
+    evento_odds
+)
+
+print()
+print("🔎 MERCADOS BET365 ENCONTRADOS:")
+print(mercados)
+
+
+# ------------------------------------------------------------
+# LOCALIZAR MERCADO ML
+# ------------------------------------------------------------
+
+mercado_ml = _encontrar_mercado(
+    mercados,
+    (
+        "ML",
+        "Match Winner",
+        "1X2",
+        "Match Result"
+    )
+)
+
+print()
+print("🔎 MERCADO ML:")
+print(mercado_ml)
+
+
+# ------------------------------------------------------------
+# EXTRAIR PRIMEIRA LINHA DE ODDS
+# ------------------------------------------------------------
+
+if mercado_ml is not None:
 
     linha = _primeiro_odds(
         mercado_ml
     )
 
     print()
-    print(
-        "🔎 LINHA DE ODDS:"
-    )
+    print("🔎 LINHA DE ODDS:")
+    print(linha)
 
-    print(
-        linha
-    )
-
-    # ----------------------------------------------------
-    # EMPATE
-    # ----------------------------------------------------
+    # --------------------------------------------------------
+    # ODDS DO EMPATE
+    # --------------------------------------------------------
 
     if isinstance(
         linha,
         dict
     ):
 
-        # Tentativa 1
+        # Tentativa 1 - padrão Odds-API.io
         odd_atual = _numero(
-            linha.get(
-                "draw"
-            )
+            linha.get("draw")
         )
 
         # Tentativa 2
         if odd_atual <= 0:
 
             odd_atual = _numero(
-                linha.get(
-                    "X"
-                )
+                linha.get("X")
             )
 
         # Tentativa 3
         if odd_atual <= 0:
 
             odd_atual = _numero(
-                linha.get(
-                    "tie"
-                )
+                linha.get("tie")
             )
 
         # Tentativa 4
         if odd_atual <= 0:
 
             odd_atual = _numero(
-                linha.get(
-                    "Draw"
-                )
+                linha.get("Draw")
             )
 
     print()
     print(
-        "💰 ODD ATUAL EXTRAÍDA:",
+        "💰 ODD EMPATE EXTRAÍDA:",
         odd_atual
-            )
+    )
+
+else:
+
+    print()
+    print(
+        "⚠️ MERCADO ML NÃO ENCONTRADO."
+    )
+
+    odd_atual = 0.0
+
+
+# ============================================================
+# MEMÓRIA DA ODD
+# ============================================================
+
+odd_anterior = _ODD_ANTERIOR.get(
+    str(event_id)
+) if event_id is not None else None
+
+
+# ============================================================
+# VARIAÇÃO DA ODD
+# ============================================================
+
+variacao_odd = _calcular_variacao_odd(
+    odd_anterior,
+    odd_atual
+)
+
+
+# ============================================================
+# ATUALIZAR MEMÓRIA
+# ============================================================
+
+if (
+    event_id is not None
+    and odd_atual > 0
+):
+
+    _ODD_ANTERIOR[
+        str(event_id)
+    ] = odd_atual
+
+
+# ============================================================
+# DEBUG FINAL DA ODD
+# ============================================================
+
+print()
+print("=" * 60)
+print("📊 RESULTADO ODD - IPM RADAR V3")
+print("=" * 60)
+
+print(
+    "Evento:",
+    event_id
+)
+
+print(
+    "Odd anterior:",
+    odd_anterior
+)
+
+print(
+    "Odd atual:",
+    odd_atual
+)
+
+print(
+    "Variação:",
+    f"{variacao_odd:.2f}%"
+)
+
+print("=" * 60)
+
+
