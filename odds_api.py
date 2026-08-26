@@ -1476,7 +1476,7 @@ if isinstance(
             odd_atual
         )
 
-    # ============================================================
+        # ============================================================
     # MEMÓRIA DAS ODDS
     # ============================================================
 
@@ -1498,9 +1498,7 @@ if isinstance(
     ):
 
         if event_id not in _ODD_INICIAL:
-            _ODD_INICIAL[
-                event_id
-            ] = odd_atual
+            _ODD_INICIAL[event_id] = odd_atual
 
         odd_inicial = _ODD_INICIAL.get(
             event_id,
