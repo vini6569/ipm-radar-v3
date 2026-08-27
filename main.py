@@ -1,6 +1,6 @@
 # ============================================================
 # MAIN - IPM RADAR V3
-# TESTE DE COMPARACAO DE ODDS
+# CONSULTA DE ODDS + PAUSA OPERACIONAL
 # ============================================================
 
 import os
@@ -153,10 +153,17 @@ def radar_ativo():
 
     agora = horario_brasil().time()
 
-    # 06:00 ate 23:59
+    # --------------------------------------------------------
+    # 06:00 ATÉ 23:59
+    # --------------------------------------------------------
+
     if agora >= HORA_INICIO:
 
         return True
+
+    # --------------------------------------------------------
+    # 00:00 ATÉ 05:59
+    # --------------------------------------------------------
 
     return False
 
@@ -169,21 +176,44 @@ def executar_consulta():
 
     agora = horario_brasil()
 
+    ativo = radar_ativo()
+
     print()
     print(
         "=" * 60
     )
 
     print(
-        "📡 RADAR V3 |",
+        "📡 IPM RADAR V3 |",
         agora.strftime(
             "%d/%m/%Y %H:%M:%S"
         )
     )
 
+    if ativo:
+
+        print(
+            "🟢 MODO: RADAR ATIVO"
+        )
+
+    else:
+
+        print(
+            "⏸️ MODO: PAUSA OPERACIONAL"
+        )
+
+        print(
+            "📊 ODDS CONTINUAM SENDO CONSULTADAS"
+        )
+
+        print(
+            "🚫 SINAIS DO RADAR DESATIVADOS"
+        )
+
     print(
         "=" * 60
     )
+
 
     # ========================================================
     # JOGOS AO VIVO
@@ -223,6 +253,7 @@ def executar_consulta():
 
         return
 
+
     # ========================================================
     # ODDS
     # ========================================================
@@ -255,6 +286,7 @@ def executar_consulta():
 
         odds = []
 
+
     # ========================================================
     # ANALISAR JOGOS
     # ========================================================
@@ -262,19 +294,6 @@ def executar_consulta():
     for jogo in jogos:
 
         try:
-
-            # ------------------------------------------------
-            # MERCADOS
-            # ------------------------------------------------
-
-            mercados = extrair_mercados(
-                jogo,
-                odds
-            )
-
-            if mercados is None:
-
-                mercados = {}
 
             # ------------------------------------------------
             # ID DO JOGO
@@ -292,6 +311,21 @@ def executar_consulta():
 
                 continue
 
+
+            # ------------------------------------------------
+            # MERCADOS
+            # ------------------------------------------------
+
+            mercados = extrair_mercados(
+                jogo,
+                odds
+            )
+
+            if mercados is None:
+
+                mercados = {}
+
+
             # ------------------------------------------------
             # ODD ATUAL
             # ------------------------------------------------
@@ -299,6 +333,7 @@ def executar_consulta():
             odd_atual = mercados.get(
                 "odd_atual"
             )
+
 
             # ------------------------------------------------
             # DADOS DO JOGO
@@ -313,6 +348,7 @@ def executar_consulta():
                 "gols",
                 0
             )
+
 
             # ------------------------------------------------
             # ESTATISTICAS
@@ -339,8 +375,9 @@ def executar_consulta():
                 finalizacoes = 0
                 ataques_perigosos = 0
 
+
             # =================================================
-            # CABECALHO DO TESTE
+            # CABECALHO
             # =================================================
 
             print()
@@ -362,8 +399,9 @@ def executar_consulta():
                 odd_atual
             )
 
+
             # =================================================
-            # MOTOR IPM COM MEMORIA
+            # MOTOR IPM
             # =================================================
 
             resultado = analisar_ipm_com_memoria(
@@ -381,7 +419,9 @@ def executar_consulta():
                 finalizacoes,
 
                 ataques_perigosos
+
             )
+
 
             # =================================================
             # DIAGNOSTICO
@@ -430,8 +470,57 @@ def executar_consulta():
                 )
             )
 
+
             # =================================================
-            # RADAR
+            # PAUSA OPERACIONAL
+            # =================================================
+
+            if not ativo:
+
+                print()
+                print(
+                    "⏸️ PAUSA OPERACIONAL"
+                )
+
+                print(
+                    "💰 ODD OBSERVADA:",
+                    resultado.get(
+                        "odd_atual"
+                    )
+                )
+
+                print(
+                    "💰 ODD ANTERIOR:",
+                    resultado.get(
+                        "odd_anterior"
+                    )
+                )
+
+                print(
+                    "📈 VARIACAO:",
+                    resultado.get(
+                        "variacao_odd"
+                    ),
+                    "%"
+                )
+
+                print(
+                    "🧠 MEMORIA ATUALIZADA"
+                )
+
+                print(
+                    "🚫 RADAR/SINAL NAO EXECUTADO"
+                )
+
+                print(
+                    "-" * 60
+                )
+
+                continue
+
+
+            # =================================================
+            # RADAR ATIVO
             # =================================================
 
             texto = formatar_radar(
@@ -448,6 +537,7 @@ def executar_consulta():
             print(
                 "-" * 60
             )
+
 
         except Exception as erro_jogo:
 
@@ -485,6 +575,10 @@ def loop_consulta():
     )
 
     print(
+        "Horario de pausa: 00:00 ate 06:00"
+    )
+
+    print(
         "Intervalo:",
         INTERVALO_CONSULTA,
         "segundos"
@@ -499,15 +593,23 @@ def loop_consulta():
     )
 
     print(
+        "Pausa: CONSULTA DE ODDS MANTIDA"
+    )
+
+    print(
+        "Apostas automaticas: DESATIVADAS"
+    )
+
+    print(
         "=" * 60
     )
+
 
     while True:
 
         agora = horario_brasil()
 
         print()
-
         print(
             "🕒 Horario Brasil:",
             agora.strftime(
@@ -515,19 +617,13 @@ def loop_consulta():
             )
         )
 
-        if radar_ativo():
 
-            executar_consulta()
+        # ====================================================
+        # UMA CONSULTA A CADA 300 SEGUNDOS
+        # ====================================================
 
-        else:
+        executar_consulta()
 
-            print(
-                "⏸️ Radar em periodo de pausa."
-            )
-
-            print(
-                "Horario ativo: 06:00 ate 00:00"
-            )
 
         print()
 
@@ -570,6 +666,7 @@ if __name__ == "__main__":
         target=iniciar_servidor_saude,
 
         daemon=True
+
     )
 
     thread_saude.start()
