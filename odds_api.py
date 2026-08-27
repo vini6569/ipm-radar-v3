@@ -1507,13 +1507,7 @@ def extrair_mercados(
                 "odd_handicap_away"
             ] = _numero(
                 linha.get("away")
-            )
-
-            resultado[
-                "odd_handicap_away"
-            ] = _numero(
-                linha.get("away")
-            )
+            
 
             resultado[
                 "mercados_encontrados"
