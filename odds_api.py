@@ -1026,7 +1026,6 @@ def extrair_mercados(
         jogo,
         dict
     ):
-
         return {}
 
     event_id = jogo.get(
@@ -1038,15 +1037,180 @@ def extrair_mercados(
         event_id
     )
 
-    # Caso o próprio evento já contenha bookmakers.
-
+    # Caso o próprio evento já contenha bookmakers
     if evento_odds is None:
-
         evento_odds = jogo
 
     mercados = _mercados_bet365(
         evento_odds
     )
+
+    # ========================================================
+    # MERCADO ML / MONEYLINE / 1X2
+    # ========================================================
+
+    mercado_ml = _encontrar_mercado(
+        mercados,
+        (
+            "ML",
+            "Moneyline",
+            "1X2"
+        )
+    )
+
+    odd_atual = 0.0
+
+    if mercado_ml:
+
+        linha = _primeiro_odds(
+            mercado_ml
+        )
+
+        print()
+        print(
+            "🔎 LINHA DE ODDS:"
+        )
+
+        print(linha)
+
+        if isinstance(
+            linha,
+            dict
+        ):
+
+            # Tentativa 1 - draw
+            odd_atual = _numero(
+                linha.get("draw")
+            )
+
+            # Tentativa 2 - X
+            if odd_atual <= 0:
+                odd_atual = _numero(
+                    linha.get("X")
+                )
+
+            # Tentativa 3 - tie
+            if odd_atual <= 0:
+                odd_atual = _numero(
+                    linha.get("tie")
+                )
+
+            # Tentativa 4 - Draw
+            if odd_atual <= 0:
+                odd_atual = _numero(
+                    linha.get("Draw")
+                )
+
+            # Tentativa 5 - drawOdd
+            if odd_atual <= 0:
+                odd_atual = _numero(
+                    linha.get("drawOdd")
+                )
+
+            # Tentativa 6 - odd_draw
+            if odd_atual <= 0:
+                odd_atual = _numero(
+                    linha.get("odd_draw")
+                )
+
+        print()
+        print(
+            "💰 ODD EMPATE EXTRAÍDA:",
+            odd_atual
+        )
+
+    else:
+
+        print()
+        print(
+            "⚠️ MERCADO ML / 1X2 NÃO ENCONTRADO"
+        )
+
+    # ========================================================
+    # MEMÓRIA DAS ODDS
+    # ========================================================
+
+    odd_anterior = 0.0
+
+    if event_id is not None:
+
+        odd_anterior = _ODD_ANTERIOR.get(
+            event_id,
+            0.0
+        )
+
+    # ========================================================
+    # PRIMEIRA ODD VÁLIDA
+    # ========================================================
+
+    if (
+        event_id is not None
+        and odd_atual > 0
+    ):
+
+        if event_id not in _ODD_INICIAL:
+
+            _ODD_INICIAL[
+                event_id
+            ] = odd_atual
+
+    odd_inicial = _ODD_INICIAL.get(
+        event_id,
+        odd_atual
+    )
+
+    # ========================================================
+    # VARIAÇÕES
+    # ========================================================
+
+    variacao_desde_inicio = 0.0
+
+    variacao_recente = 0.0
+
+    if odd_inicial > 0:
+
+        variacao_desde_inicio = (
+            (
+                odd_atual
+                - odd_inicial
+            )
+            / odd_inicial
+        ) * 100.0
+
+    if odd_anterior > 0:
+
+        variacao_recente = (
+            (
+                odd_atual
+                - odd_anterior
+            )
+            / odd_anterior
+        ) * 100.0
+
+    # ========================================================
+    # ATUALIZA MEMÓRIA
+    # ========================================================
+
+    if (
+        event_id is not None
+        and odd_atual > 0
+    ):
+
+        _ODD_ANTERIOR[
+            event_id
+        ] = odd_atual
+
+    # ========================================================
+    # RESULTADO
+    # ========================================================
+
+    return {
+        "odd_empate": odd_atual,
+        "odd_inicial": odd_inicial,
+        "odd_anterior": odd_anterior,
+        "variacao_desde_inicio": variacao_desde_inicio,
+        "variacao_recente": variacao_recente
+    }
 
     # ========================================================
     # MERCADO ML / MONEYLINE / 1X2
