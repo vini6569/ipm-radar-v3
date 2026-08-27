@@ -12,4 +12,3 @@ def obter_api_key():
     if not key:
         raise RuntimeError("ODDS_API_KEY não configurada no Render.")
     return key
-    
