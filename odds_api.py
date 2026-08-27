@@ -1242,9 +1242,9 @@ def extrair_mercados(
         )
         print(linha)
 
-if isinstance(
-    linha,
-    dict
+    if isinstance(
+        linha,
+        dict
     ):
 
     # Tentativa 1 - draw
