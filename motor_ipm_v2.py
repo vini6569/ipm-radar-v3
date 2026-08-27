@@ -1,104 +1,135 @@
-_odds_anteriores = {}
+import json, urllib.error, urllib.parse, urllib.request
+from datetime import datetime, timezone
+from config import BASE_URL, BOOKMAKER, SPORT, MAX_EVENTOS_POR_CONSULTA, TIMEOUT_REQUISICAO, obter_api_key
+from motor_ipm import analisar_movimento
 
-def _converter_odd(valor):
+def _json(endpoint, params):
+    url = f"{BASE_URL}/{endpoint.lstrip('/')}?{urllib.parse.urlencode(params)}"
+    req = urllib.request.Request(url, headers={"User-Agent":"IPM-Radar/4.0","Accept":"application/json"})
     try:
-        valor = float(valor)
-        return valor if valor > 0 else None
-    except (TypeError, ValueError):
-        return None
+        with urllib.request.urlopen(req, timeout=TIMEOUT_REQUISICAO) as r:
+            print("HTTP STATUS ODDS API:", r.status)
+            body = r.read().decode("utf-8")
+        return json.loads(body) if body else []
+    except urllib.error.HTTPError as e:
+        try: detail = e.read().decode("utf-8")
+        except Exception: detail = ""
+        print(f"❌ ODDS API HTTP {e.code}: {detail[:1200]}")
+    except Exception as e:
+        print(f"❌ ODDS API: {type(e).__name__}: {e}")
+    return []
 
-def calcular_variacao_odd(odd_anterior, odd_atual):
-    anterior = _converter_odd(odd_anterior)
-    atual = _converter_odd(odd_atual)
-    if anterior is None or atual is None:
-        return 0.0
-    return ((atual - anterior) / anterior) * 100.0
+def _lista(x):
+    if isinstance(x, list): return x
+    if not isinstance(x, dict): return []
+    for k in ("events","data","results","response"):
+        if isinstance(x.get(k), list): return x[k]
+    return [x] if x.get("id") is not None else []
 
-def classificar_forca(variacao_odd):
+def buscar_jogos_ao_vivo():
+    try: key = obter_api_key()
+    except Exception as e:
+        print("❌", e); return []
+    eventos = _lista(_json("/events/live", {"apiKey":key,"sport":SPORT}))
+    print("📡 JOGOS AO VIVO:", len(eventos))
+    return eventos
+
+def buscar_odds_multiplos(eventos):
+    try: key = obter_api_key()
+    except Exception as e:
+        print("❌", e); return []
+    ids = list(dict.fromkeys(str(e["id"]) for e in eventos if isinstance(e,dict) and e.get("id")))[:MAX_EVENTOS_POR_CONSULTA]
+    if not ids: return []
+    resposta = _json("/odds/multi", {"apiKey":key,"eventIds":",".join(ids),"bookmakers":BOOKMAKER})
+    result = _lista(resposta)
+    if not result and isinstance(resposta,dict):
+        result = [v for v in resposta.values() if isinstance(v,dict) and v.get("id") is not None]
+    print("📊 EVENTOS COM ODDS:", len(result))
+    return result
+
+def _evento(odds, event_id):
+    alvo = str(event_id)
+    if isinstance(odds,list):
+        return next((x for x in odds if isinstance(x,dict) and str(x.get("id"))==alvo), None)
+    if isinstance(odds,dict):
+        if str(odds.get("id")) == alvo: return odds
+        if isinstance(odds.get(alvo),dict): return odds[alvo]
+    return None
+
+def _mercados(evento):
+    b = evento.get("bookmakers",{}) if isinstance(evento,dict) else {}
+    if isinstance(b,dict):
+        m = b.get(BOOKMAKER)
+        if m is None:
+            m = next((v for k,v in b.items() if str(k).lower()==BOOKMAKER.lower()), [])
+        return m if isinstance(m,list) else []
+    if isinstance(b,list):
+        for x in b:
+            if isinstance(x,dict) and str(x.get("name","")).lower()==BOOKMAKER.lower():
+                return x.get("markets",[]) if isinstance(x.get("markets",[]),list) else []
+    return []
+
+def _periodo(nome, mercado):
+    s = " ".join(str(mercado.get(k,"")) for k in ("name","period","scope","description")).lower()
+    if any(x in s for x in ("half time","half-time","halftime","1st half","first half"," 1h"," ht")):
+        return "HT"
+    return "FT"
+
+def _linha(o):
+    for k in ("hdp","line","point","total","handicap"):
+        if o.get(k) is not None: return str(o[k])
+    return ""
+
+def _valor(v):
     try:
-        valor = abs(float(variacao_odd))
-    except (TypeError, ValueError):
-        return "ESTAVEL"
-    if valor >= 10: return "MUITO FORTE"
-    if valor >= 5: return "FORTE"
-    if valor >= 2: return "MODERADO"
-    if valor >= 0.5: return "FRACO"
-    return "ESTAVEL"
+        v=float(v)
+        return v if v>0 else None
+    except (TypeError,ValueError): return None
 
-def calcular_ipm(variacao_odd, minuto=0, gols=0, escanteios=0,
-                 finalizacoes=0, ataques_perigosos=0):
-    try:
-        movimento = min(abs(float(variacao_odd)) * 5.0, 60.0)
-        confirmacao_gols = min(max(int(gols), 0) * 5.0, 10.0)
-        confirmacao_escanteios = min(max(int(escanteios), 0) * 1.5, 10.0)
-        confirmacao_finalizacoes = min(max(int(finalizacoes), 0) * 0.5, 10.0)
-        confirmacao_ataques = min(max(int(ataques_perigosos), 0) * 0.2, 10.0)
-        ipm = max(0.0, min(movimento + confirmacao_gols +
-            confirmacao_escanteios + confirmacao_finalizacoes +
-            confirmacao_ataques, 100.0))
-        return {
-            "ipm": round(ipm, 2),
-            "variacao_odd": round(float(variacao_odd), 2),
-            "forca": classificar_forca(variacao_odd),
-            "movimento": round(movimento, 2),
-            "confirmacao_gols": round(confirmacao_gols, 2),
-            "confirmacao_escanteios": round(confirmacao_escanteios, 2),
-            "confirmacao_finalizacoes": round(confirmacao_finalizacoes, 2),
-            "confirmacao_ataques": round(confirmacao_ataques, 2),
-            "minuto": minuto, "gols": gols, "escanteios": escanteios,
-            "finalizacoes": finalizacoes, "ataques_perigosos": ataques_perigosos
-        }
-    except Exception as erro:
-        return {"ipm": 0.0, "variacao_odd": 0.0, "forca": "ESTAVEL",
-                "movimento": 0.0, "confirmacao_gols": 0.0,
-                "confirmacao_escanteios": 0.0, "confirmacao_finalizacoes": 0.0,
-                "confirmacao_ataques": 0.0, "minuto": minuto, "gols": gols,
-                "escanteios": escanteios, "finalizacoes": finalizacoes,
-                "ataques_perigosos": ataques_perigosos, "erro": str(erro)}
+def _outcomes(o):
+    if not isinstance(o,dict): return []
+    for k in ("odd","price"):
+        v=_valor(o.get(k))
+        if v: return [(str(o.get("name",o.get("selection",k))),_linha(o),v)]
+    out=[]
+    for k in ("home","draw","away","over","under","yes","no","1X","12","X2","Home","Draw","Away","Over","Under","Yes","No"):
+        v=_valor(o.get(k))
+        if v: out.append((k,_linha(o),v))
+    return out
 
-def analisar_ipm_com_memoria(chave_jogo, odd_atual, minuto=0, gols=0,
-                              escanteios=0, finalizacoes=0,
-                              ataques_perigosos=0):
-    if chave_jogo is None:
-        raise ValueError("chave_jogo é obrigatória")
-    chave = str(chave_jogo)
-    atual = _converter_odd(odd_atual)
-    if atual is None:
-        r = calcular_ipm(0.0, minuto, gols, escanteios, finalizacoes, ataques_perigosos)
-        r.update({"odd_anterior": None, "odd_atual": odd_atual,
-                  "primeira_consulta": False, "erro": "odd_atual_invalida"})
-        return r
-    anterior = _odds_anteriores.get(chave)
-    variacao = 0.0 if anterior is None else calcular_variacao_odd(anterior, atual)
-    r = calcular_ipm(variacao, minuto, gols, escanteios, finalizacoes, ataques_perigosos)
-    r.update({"odd_anterior": anterior, "odd_atual": atual,
-              "primeira_consulta": anterior is None})
-    _odds_anteriores[chave] = atual
+def _minuto(j):
+    for k in ("minute","elapsed","timer","clock"):
+        v=j.get(k)
+        if isinstance(v,dict): v=v.get("minute",v.get("elapsed"))
+        try:
+            v=int(float(v))
+            if v>=0: return v
+        except (TypeError,ValueError): pass
+    return 0
+
+def _placar(j):
+    s=j.get("score",{})
+    if isinstance(s,dict):
+        try: return int(float(s.get("home",0) or 0)), int(float(s.get("away",0) or 0))
+        except (TypeError,ValueError): pass
+    return 0,0
+
+def extrair_mercados(jogo, odds):
+    eid=jogo.get("id")
+    evento=_evento(odds,eid) or jogo
+    mercados=_mercados(evento)
+    r={"event_id":eid,"timestamp_utc":datetime.now(timezone.utc).isoformat(),
+       "minuto":_minuto(jogo),"placar":dict(zip(("home","away"),_placar(jogo))),
+       "bookmaker":BOOKMAKER,"HT":[],"FT":[],"OUTROS":[],"todos":[],"nomes_mercados":[]}
+    for m in mercados:
+        if not isinstance(m,dict): continue
+        nome=str(m.get("name","UNKNOWN")).strip()
+        periodo=_periodo(nome,m)
+        if nome not in r["nomes_mercados"]: r["nomes_mercados"].append(nome)
+        for o in m.get("odds",[]) if isinstance(m.get("odds",[]),list) else [m.get("odds",{})]:
+            for selecao,linha,odd in _outcomes(o):
+                mov=analisar_movimento(eid,periodo,nome,linha,selecao,odd)
+                item={"mercado":nome,"periodo":periodo,"linha":linha,"selecao":selecao,"odd":odd,
+                      "updated_at":m.get("updatedAt") or m.get("updated_at"),**mov}
+                r["todos"].append(item); r[periodo].append(item) if periodo in ("HT","FT") else r["OUTROS"].append(item)
     return r
-
-def limpar_memoria_jogo(chave_jogo):
-    _odds_anteriores.pop(str(chave_jogo), None)
-
-def limpar_memoria():
-    _odds_anteriores.clear()
-
-def formatar_radar(jogo, resultado):
-    casa = jogo.get("home") or "Casa"
-    fora = jogo.get("away") or "Fora"
-    primeira = resultado.get("primeira_consulta", False)
-    variacao = resultado.get("variacao_odd", 0.0)
-    texto = "AGUARDANDO COMPARACAO" if primeira else f"{variacao:.2f}%"
-    return (
-        "\n============================================================\n"
-        "📡 IPM RADAR V3\n"
-        "============================================================\n"
-        f"⚽ {casa} x {fora}\n"
-        f"⏱️ Minuto: {resultado.get('minuto', 0)}\n"
-        f"💰 Odd anterior: {resultado.get('odd_anterior')}\n"
-        f"💰 Odd atual: {resultado.get('odd_atual')}\n"
-        f"📈 Variacao da odd: {texto}\n"
-        f"🔥 Forca: {resultado.get('forca')}\n"
-        f"🎯 IPM: {resultado.get('ipm', 0):.2f}/100\n"
-        "============================================================"
-        )
-                
