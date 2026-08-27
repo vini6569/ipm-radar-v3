@@ -1,12 +1,26 @@
 # ============================================================
 # ODDS API - IPM RADAR V4.1
 # ============================================================
+# Consulta jogos ao vivo e odds da Bet365.
+#
+# Fluxo:
+#   /events/live
+#       ↓
+#   seleciona até 10 jogos
+#       ↓
+#   /odds/multi
+#       ↓
+#   extrai todos os mercados
+#       ↓
+#   memória das odds
+#       ↓
+#   IPM
+# ============================================================
 
 import json
 import urllib.error
 import urllib.parse
 import urllib.request
-
 
 from config import (
     BASE_URL,
@@ -23,7 +37,6 @@ from config import (
 # ============================================================
 
 _ODD_INICIAL = {}
-
 _ODD_ANTERIOR = {}
 
 
@@ -69,12 +82,9 @@ def _request_json(
             )
 
         if not body:
-
             return []
 
-        return json.loads(
-            body
-        )
+        return json.loads(body)
 
     except urllib.error.HTTPError as erro:
 
@@ -84,7 +94,6 @@ def _request_json(
                 .read()
                 .decode("utf-8")
             )
-
         except Exception:
             detalhe = ""
 
@@ -278,7 +287,6 @@ def buscar_odds_multiplos(
 ):
 
     if not eventos:
-
         return []
 
     try:
@@ -302,7 +310,6 @@ def buscar_odds_multiplos(
             evento,
             dict
         ):
-
             continue
 
         event_id = evento.get(
@@ -359,7 +366,7 @@ def buscar_odds_multiplos(
 
 
 # ============================================================
-# CONVERSORES
+# CONVERSOR NUMÉRICO
 # ============================================================
 
 def _numero(
@@ -393,6 +400,10 @@ def _numero(
 
         return padrao
 
+
+# ============================================================
+# CONVERSOR INTEIRO
+# ============================================================
 
 def _inteiro(
     valor,
@@ -430,7 +441,6 @@ def _evento_odds_por_id(
 ):
 
     if event_id is None:
-
         return None
 
     alvo = str(
@@ -501,10 +511,19 @@ def _mercados_bet365(
         {}
     )
 
+    nome_bet = (
+        BOOKMAKER
+        .strip()
+        .lower()
+    )
+
+    # --------------------------------------------------------
     # Estrutura:
-    # {
-    #   "Bet365": [...]
+    #
+    # "bookmakers": {
+    #     "Bet365": [...]
     # }
+    # --------------------------------------------------------
 
     if isinstance(
         bookmakers,
@@ -525,14 +544,10 @@ def _mercados_bet365(
                     str(nome)
                     .strip()
                     .lower()
-                    ==
-                    BOOKMAKER
-                    .strip()
-                    .lower()
+                    == nome_bet
                 ):
 
                     mercados = valor
-
                     break
 
         if isinstance(
@@ -542,13 +557,16 @@ def _mercados_bet365(
 
             return mercados
 
+    # --------------------------------------------------------
     # Estrutura alternativa:
-    # [
-    #   {
-    #       "name": "Bet365",
-    #       "markets": [...]
-    #   }
+    #
+    # "bookmakers": [
+    #     {
+    #         "name": "Bet365",
+    #         "markets": [...]
+    #     }
     # ]
+    # --------------------------------------------------------
 
     if isinstance(
         bookmakers,
@@ -571,11 +589,7 @@ def _mercados_bet365(
                 )
             ).strip().lower()
 
-            if nome == (
-                BOOKMAKER
-                .strip()
-                .lower()
-            ):
+            if nome == nome_bet:
 
                 mercados = bookmaker.get(
                     "markets",
@@ -638,7 +652,7 @@ def _primeiro_odds(
 
 
 # ============================================================
-# TODAS AS LINHAS
+# TODAS AS LINHAS DE ODDS
 # ============================================================
 
 def _linhas_odds(
@@ -760,7 +774,6 @@ def _eh_ht(
         "ht result",
         "ht totals",
         "half time result",
-        "half-time",
     )
 
     return any(
@@ -809,7 +822,7 @@ def _categoria_mercado(
 
 
 # ============================================================
-# PLACAR
+# EXTRAIR PLACAR
 # ============================================================
 
 def _extrair_placar(
@@ -898,7 +911,7 @@ def _extrair_placar(
 
 
 # ============================================================
-# MINUTO
+# EXTRAIR MINUTO
 # ============================================================
 
 def _extrair_minuto(
@@ -921,23 +934,45 @@ def _extrair_minuto(
 
     for valor in candidatos:
 
+        # ----------------------------------------------------
+        # Caso a API envie:
+        #
+        # {"minute": 42}
+        #
+        # ou
+        #
+        # {"elapsed": 42}
+        # ----------------------------------------------------
+
         if isinstance(
             valor,
             dict
         ):
 
-            valor = valor.get(
+            minuto_dict = valor.get(
                 "minute"
             )
 
-            if valor is None:
+            if minuto_dict is None:
 
-                valor = valor.get(
+                minuto_dict = valor.get(
                     "elapsed"
-                ) if isinstance(
-                    valor,
-                    dict
-                ) else None
+                )
+
+            if minuto_dict is None:
+
+                minuto_dict = valor.get(
+                    "value"
+                )
+
+            valor = minuto_dict
+
+        # ----------------------------------------------------
+        # Caso venha:
+        #
+        # "42'"
+        # "42 min"
+        # ----------------------------------------------------
 
         if isinstance(
             valor,
@@ -970,7 +1005,7 @@ def _extrair_minuto(
 
 
 # ============================================================
-# ESTATÍSTICAS
+# EXTRAIR ESTATÍSTICAS
 # ============================================================
 
 def _extrair_estatisticas(
@@ -1042,7 +1077,7 @@ def _extrair_estatisticas(
 
 
 # ============================================================
-# COPIA MERCADO
+# COPIAR MERCADO
 # ============================================================
 
 def _copiar_mercado(
@@ -1083,6 +1118,10 @@ def _memoria_odd(
         else 0.0
     )
 
+    # --------------------------------------------------------
+    # Guarda a primeira odd válida
+    # --------------------------------------------------------
+
     if (
         event_id is not None
         and odd_atual > 0
@@ -1099,8 +1138,11 @@ def _memoria_odd(
     )
 
     recente = 0.0
-
     desde = 0.0
+
+    # --------------------------------------------------------
+    # Variação desde a última consulta
+    # --------------------------------------------------------
 
     if anterior > 0:
 
@@ -1112,109 +1154,12 @@ def _memoria_odd(
             / anterior
         ) * 100.0
 
+    # --------------------------------------------------------
+    # Variação desde a primeira consulta
+    # --------------------------------------------------------
+
     if inicial > 0:
 
         desde = (
             (
                 odd_atual
-                - inicial
-            )
-            / inicial
-        ) * 100.0
-
-    if (
-        event_id is not None
-        and odd_atual > 0
-    ):
-
-        _ODD_ANTERIOR[
-            event_id
-        ] = odd_atual
-
-    return (
-        anterior,
-        inicial,
-        recente,
-        desde
-    )
-
-
-# ============================================================
-# EXTRAIR MERCADOS
-# ============================================================
-
-def extrair_mercados(
-    jogo,
-    odds
-):
-
-    if not isinstance(
-        jogo,
-        dict
-    ):
-
-        return {}
-
-    event_id = jogo.get(
-        "id"
-    )
-
-    evento = (
-        _evento_odds_por_id(
-            odds,
-            event_id
-        )
-        or jogo
-    )
-
-    mercados = _mercados_bet365(
-        evento
-    )
-
-    casa, fora = _extrair_placar(
-        jogo
-    )
-
-    esc, fin, atq = (
-        _extrair_estatisticas(
-            jogo
-        )
-    )
-
-    resultado = {
-
-        "event_id": event_id,
-
-        "odd_home": 0.0,
-        "odd_draw": 0.0,
-        "odd_away": 0.0,
-
-        "odd_atual": 0.0,
-        "odd_anterior": 0.0,
-        "odd_inicial": 0.0,
-
-        "variacao_desde_inicio": 0.0,
-        "variacao_recente": 0.0,
-
-        "over_linha": 0.0,
-        "odd_over": 0.0,
-
-        "under_linha": 0.0,
-        "odd_under": 0.0,
-
-        "odd_btts_sim": 0.0,
-        "odd_btts_nao": 0.0,
-
-        "handicap_linha": 0.0,
-        "odd_handicap_home": 0.0,
-        "odd_handicap_away": 0.0,
-
-        "odd_1x": 0.0,
-        "odd_12": 0.0,
-        "odd_x2": 0.0,
-
-        "odd_dnb_home": 0.0,
-        "odd_dnb_away": 0.0,
-
-        "minuto": _extrair_minuto(
-          
