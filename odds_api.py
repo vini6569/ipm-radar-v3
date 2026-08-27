@@ -1187,4 +1187,4 @@ def extrair_mercados(
 
     if odd_anterior > 0:
 
-        variaca
+        variações 
