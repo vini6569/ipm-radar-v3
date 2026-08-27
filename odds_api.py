@@ -1079,59 +1079,50 @@ def extrair_mercados(
         print(linha)
 
         if isinstance(
-            linha,
-            dict
-        ):
+    linha,
+    dict
+):
 
-            # EXTRAIR ODD DO EMPATE
-odd_atual = 0.0
+    # Tentativa 1 - draw
+    odd_atual = _numero(
+        linha.get("draw")
+    )
 
-if isinstance(linha, dict):
-
-    # Formato padrão: {"value": "Draw", "odd": "3.40"}
-    if str(linha.get("value", "")).strip().lower() in (
-        "draw",
-        "x",
-        "tie",
-        "empate"
-    ):
-        odd_atual = _numero(
-            linha.get("odd")
-        )
-
-    # Outros formatos possíveis
+    # Tentativa 2 - X
     if odd_atual <= 0:
         odd_atual = _numero(
-            linha.get("odd_draw")
+            linha.get("X")
         )
 
+    # Tentativa 3 - tie
     if odd_atual <= 0:
         odd_atual = _numero(
-            linha.get("drawOdd")
+            linha.get("tie")
         )
 
-    if odd_atual <= 0:
-        odd_atual = _numero(
-            linha.get("draw")
-        )
-
+    # Tentativa 4 - Draw
     if odd_atual <= 0:
         odd_atual = _numero(
             linha.get("Draw")
         )
 
-        print()
-        print(
-            "💰 ODD EMPATE EXTRAÍDA:",
-            odd_atual
+    # Tentativa 5 - drawOdd
+    if odd_atual <= 0:
+        odd_atual = _numero(
+            linha.get("drawOdd")
         )
 
-    else:
-
-        print()
-        print(
-            "⚠️ MERCADO ML / 1X2 NÃO ENCONTRADO"
+    # Tentativa 6 - odd_draw
+    if odd_atual <= 0:
+        odd_atual = _numero(
+            linha.get("odd_draw")
         )
+
+    print()
+    print(
+        "💰 ODD EMPATE EXTRAÍDA:",
+        odd_atual
+    )
 
     # ========================================================
     # MEMÓRIA DAS ODDS
