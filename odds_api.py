@@ -1211,24 +1211,142 @@ def extrair_mercados(
         "variacao_desde_inicio": variacao_desde_inicio,
         "variacao_recente": variacao_recente
     }
+    # ============================================================
+# EXTRAIR MERCADOS
+# ============================================================
+
+def extrair_mercados(
+    jogo,
+    odds
+):
+
+    if not isinstance(jogo, dict):
+        return {}
+
+    event_id = jogo.get("id")
+
+    evento_odds = _evento_odds_por_id(
+        odds,
+        event_id
+    )
+
+    # Caso o próprio evento já contenha bookmakers
+    if evento_odds is None:
+        evento_odds = jogo
+
+    mercados = _mercados_bet365(
+        evento_odds
+    )
 
     # ========================================================
-    # MERCADO ML / MONEYLINE / 1X2
+    # FUNÇÃO AUXILIAR
+    # ========================================================
+
+    def pegar_linha(nomes):
+
+        mercado = _encontrar_mercado(
+            mercados,
+            nomes
+        )
+
+        if mercado is None:
+            return None
+
+        linha = _primeiro_odds(
+            mercado
+        )
+
+        if not isinstance(linha, dict):
+            return None
+
+        return linha
+
+    # ========================================================
+    # INICIALIZA RESULTADO
+    # ========================================================
+
+    resultado = {
+
+        "event_id": event_id,
+
+        # ----------------------------------------------------
+        # 1X2
+        # ----------------------------------------------------
+
+        "odd_home": 0.0,
+        "odd_draw": 0.0,
+        "odd_away": 0.0,
+
+        # Mantém compatibilidade com o IPM atual
+        "odd_atual": 0.0,
+        "odd_anterior": 0.0,
+        "odd_inicial": 0.0,
+
+        "variacao_desde_inicio": 0.0,
+        "variacao_recente": 0.0,
+
+        # ----------------------------------------------------
+        # OVER / UNDER
+        # ----------------------------------------------------
+
+        "over_linha": 0.0,
+        "odd_over": 0.0,
+
+        "under_linha": 0.0,
+        "odd_under": 0.0,
+
+        # ----------------------------------------------------
+        # AMBAS MARCAM
+        # ----------------------------------------------------
+
+        "odd_btts_sim": 0.0,
+        "odd_btts_nao": 0.0,
+
+        # ----------------------------------------------------
+        # ASIÁTICO / SPREAD
+        # ----------------------------------------------------
+
+        "handicap_linha": 0.0,
+        "odd_handicap_home": 0.0,
+        "odd_handicap_away": 0.0,
+
+        # ----------------------------------------------------
+        # DOUBLE CHANCE
+        # ----------------------------------------------------
+
+        "odd_1x": 0.0,
+        "odd_12": 0.0,
+        "odd_x2": 0.0,
+
+        # ----------------------------------------------------
+        # DNB
+        # ----------------------------------------------------
+
+        "odd_dnb_home": 0.0,
+        "odd_dnb_away": 0.0,
+
+        # ----------------------------------------------------
+        # STATUS
+        # ----------------------------------------------------
+
+        "mercados_encontrados": [],
+
+        "mercados_disponiveis": []
+
+    }
+
+    # ========================================================
+    # 1️⃣ MERCADO ML / 1X2
     # ========================================================
 
     mercado_ml = _encontrar_mercado(
-
         mercados,
-
         (
             "ML",
             "Moneyline",
             "1X2"
         )
-
     )
-
-    odd_atual = 0.0
 
     if mercado_ml:
 
@@ -1236,61 +1354,582 @@ def extrair_mercados(
             mercado_ml
         )
 
-        print()
-        print(
-            "🔎 LINHA DE ODDS:"
+        if isinstance(linha, dict):
+
+            resultado["odd_home"] = _numero(
+                linha.get("home")
+            )
+
+            resultado["odd_draw"] = _numero(
+                linha.get("draw")
+            )
+
+            resultado["odd_away"] = _numero(
+                linha.get("away")
+            )
+
+            # A odd principal do IPM continua sendo
+            # a odd do EMPATE.
+
+            resultado["odd_atual"] = (
+                resultado["odd_draw"]
+            )
+
+            resultado[
+                "mercados_encontrados"
+            ].append("ML")
+
+    # ========================================================
+    # 2️⃣ OVER / UNDER
+    # ========================================================
+
+    mercado_totals = _encontrar_mercado(
+        mercados,
+        (
+            "Totals",
+            "Total",
+            "Over/Under",
+            "Over Under",
+            "O/U"
         )
-        print(linha)
-
-    if isinstance(
-        linha,
-        dict
-    ):
-
-    # Tentativa 1 - draw
-       odd_atual = _numero(
-        linha.get("draw")
     )
 
-    # Tentativa 2 - X
-    if odd_atual <= 0:
-        odd_atual = _numero(
-            linha.get("X")
+    if mercado_totals:
+
+        linha = _primeiro_odds(
+            mercado_totals
         )
 
-    # Tentativa 3 - tie
-    if odd_atual <= 0:
-        odd_atual = _numero(
-            linha.get("tie")
+        if isinstance(linha, dict):
+
+            resultado["over_linha"] = _numero(
+                linha.get("hdp"),
+                0.0
+            )
+
+            resultado["under_linha"] = (
+                resultado["over_linha"]
+            )
+
+            resultado["odd_over"] = _numero(
+                linha.get("over")
+            )
+
+            resultado["odd_under"] = _numero(
+                linha.get("under")
+            )
+
+            resultado[
+                "mercados_encontrados"
+            ].append("TOTALS")
+
+    # ========================================================
+    # 3️⃣ AMBAS MARCAM
+    # ========================================================
+
+    mercado_btts = _encontrar_mercado(
+        mercados,
+        (
+            "Both Teams To Score",
+            "Both Teams to Score",
+            "BTTS",
+            "Both Teams Score"
+        )
+    )
+
+    if mercado_btts:
+
+        linha = _primeiro_odds(
+            mercado_btts
         )
 
-    # Tentativa 4 - Draw
-    if odd_atual <= 0:
-        odd_atual = _numero(
-            linha.get("Draw")
+        if isinstance(linha, dict):
+
+            resultado["odd_btts_sim"] = _numero(
+                linha.get("yes")
+            )
+
+            if resultado["odd_btts_sim"] <= 0:
+
+                resultado["odd_btts_sim"] = _numero(
+                    linha.get("Yes")
+                )
+
+            resultado["odd_btts_nao"] = _numero(
+                linha.get("no")
+            )
+
+            if resultado["odd_btts_nao"] <= 0:
+
+                resultado["odd_btts_nao"] = _numero(
+                    linha.get("No")
+                )
+
+            resultado[
+                "mercados_encontrados"
+            ].append("BTTS")
+
+    # ========================================================
+    # 4️⃣ ASIAN HANDICAP / SPREAD
+    # ========================================================
+
+    mercado_handicap = _encontrar_mercado(
+        mercados,
+        (
+            "Spread",
+            "Asian Handicap",
+            "Handicap",
+            "Asian Handicap 3-Way"
+        )
+    )
+
+    if mercado_handicap:
+
+        linha = _primeiro_odds(
+            mercado_handicap
         )
 
-    # Tentativa 5 - drawOdd
-    if odd_atual <= 0:
-        odd_atual = _numero(
-            linha.get("drawOdd")
-        )
+        if isinstance(linha, dict):
 
-    # Tentativa 6 - odd_draw
-    if odd_atual <= 0:
-        odd_atual = _numero(
-            linha.get("odd_draw")
-        )
+            resultado[
+                "handicap_linha"
+            ] = _numero(
+                linha.get("hdp")
+            )
 
-    print()
-    print(
-        "💰 ODD EMPATE EXTRAÍDA:",
-        odd_atual
+            resultado[
+                "odd_handicap_home"
+            ] = _numero(
+                linha.get("home")
+            )
+
+            resultado[
+                "odd_handicap_away"
+            ] = _numero(
+                linha.get("away")
+            )
+
+            resultado[
+
+# ============================================================
+# EXTRAIR MERCADOS
+# ============================================================
+
+def extrair_mercados(
+    jogo,
+    odds
+):
+
+    if not isinstance(jogo, dict):
+        return {}
+
+    event_id = jogo.get("id")
+
+    evento_odds = _evento_odds_por_id(
+        odds,
+        event_id
+    )
+
+    # Caso o próprio evento já contenha bookmakers
+    if evento_odds is None:
+        evento_odds = jogo
+
+    mercados = _mercados_bet365(
+        evento_odds
     )
 
     # ========================================================
-    # MEMÓRIA DAS ODDS
+    # FUNÇÃO AUXILIAR
     # ========================================================
+
+    def pegar_linha(nomes):
+
+        mercado = _encontrar_mercado(
+            mercados,
+            nomes
+        )
+
+        if mercado is None:
+            return None
+
+        linha = _primeiro_odds(
+            mercado
+        )
+
+        if not isinstance(linha, dict):
+            return None
+
+        return linha
+
+    # ========================================================
+    # INICIALIZA RESULTADO
+    # ========================================================
+
+    resultado = {
+
+        "event_id": event_id,
+
+        # ----------------------------------------------------
+        # 1X2
+        # ----------------------------------------------------
+
+        "odd_home": 0.0,
+        "odd_draw": 0.0,
+        "odd_away": 0.0,
+
+        # Mantém compatibilidade com o IPM atual
+        "odd_atual": 0.0,
+        "odd_anterior": 0.0,
+        "odd_inicial": 0.0,
+
+        "variacao_desde_inicio": 0.0,
+        "variacao_recente": 0.0,
+
+        # ----------------------------------------------------
+        # OVER / UNDER
+        # ----------------------------------------------------
+
+        "over_linha": 0.0,
+        "odd_over": 0.0,
+
+        "under_linha": 0.0,
+        "odd_under": 0.0,
+
+        # ----------------------------------------------------
+        # AMBAS MARCAM
+        # ----------------------------------------------------
+
+        "odd_btts_sim": 0.0,
+        "odd_btts_nao": 0.0,
+
+        # ----------------------------------------------------
+        # ASIÁTICO / SPREAD
+        # ----------------------------------------------------
+
+        "handicap_linha": 0.0,
+        "odd_handicap_home": 0.0,
+        "odd_handicap_away": 0.0,
+
+        # ----------------------------------------------------
+        # DOUBLE CHANCE
+        # ----------------------------------------------------
+
+        "odd_1x": 0.0,
+        "odd_12": 0.0,
+        "odd_x2": 0.0,
+
+        # ----------------------------------------------------
+        # DNB
+        # ----------------------------------------------------
+
+        "odd_dnb_home": 0.0,
+        "odd_dnb_away": 0.0,
+
+        # ----------------------------------------------------
+        # STATUS
+        # ----------------------------------------------------
+
+        "mercados_encontrados": [],
+
+        "mercados_disponiveis": []
+
+    }
+
+    # ========================================================
+    # 1️⃣ MERCADO ML / 1X2
+    # ========================================================
+
+    mercado_ml = _encontrar_mercado(
+        mercados,
+        (
+            "ML",
+            "Moneyline",
+            "1X2"
+        )
+    )
+
+    if mercado_ml:
+
+        linha = _primeiro_odds(
+            mercado_ml
+        )
+
+        if isinstance(linha, dict):
+
+            resultado["odd_home"] = _numero(
+                linha.get("home")
+            )
+
+            resultado["odd_draw"] = _numero(
+                linha.get("draw")
+            )
+
+            resultado["odd_away"] = _numero(
+                linha.get("away")
+            )
+
+            # A odd principal do IPM continua sendo
+            # a odd do EMPATE.
+
+            resultado["odd_atual"] = (
+                resultado["odd_draw"]
+            )
+
+            resultado[
+                "mercados_encontrados"
+            ].append("ML")
+
+    # ========================================================
+    # 2️⃣ OVER / UNDER
+    # ========================================================
+
+    mercado_totals = _encontrar_mercado(
+        mercados,
+        (
+            "Totals",
+            "Total",
+            "Over/Under",
+            "Over Under",
+            "O/U"
+        )
+    )
+
+    if mercado_totals:
+
+        linha = _primeiro_odds(
+            mercado_totals
+        )
+
+        if isinstance(linha, dict):
+
+            resultado["over_linha"] = _numero(
+                linha.get("hdp"),
+                0.0
+            )
+
+            resultado["under_linha"] = (
+                resultado["over_linha"]
+            )
+
+            resultado["odd_over"] = _numero(
+                linha.get("over")
+            )
+
+            resultado["odd_under"] = _numero(
+                linha.get("under")
+            )
+
+            resultado[
+                "mercados_encontrados"
+            ].append("TOTALS")
+
+    # ========================================================
+    # 3️⃣ AMBAS MARCAM
+    # ========================================================
+
+    mercado_btts = _encontrar_mercado(
+        mercados,
+        (
+            "Both Teams To Score",
+            "Both Teams to Score",
+            "BTTS",
+            "Both Teams Score"
+        )
+    )
+
+    if mercado_btts:
+
+        linha = _primeiro_odds(
+            mercado_btts
+        )
+
+        if isinstance(linha, dict):
+
+            resultado["odd_btts_sim"] = _numero(
+                linha.get("yes")
+            )
+
+            if resultado["odd_btts_sim"] <= 0:
+
+                resultado["odd_btts_sim"] = _numero(
+                    linha.get("Yes")
+                )
+
+            resultado["odd_btts_nao"] = _numero(
+                linha.get("no")
+            )
+
+            if resultado["odd_btts_nao"] <= 0:
+
+                resultado["odd_btts_nao"] = _numero(
+                    linha.get("No")
+                )
+
+            resultado[
+                "mercados_encontrados"
+            ].append("BTTS")
+
+    # ========================================================
+    # 4️⃣ ASIAN HANDICAP / SPREAD
+    # ========================================================
+
+    mercado_handicap = _encontrar_mercado(
+        mercados,
+        (
+            "Spread",
+            "Asian Handicap",
+            "Handicap",
+            "Asian Handicap 3-Way"
+        )
+    )
+
+    if mercado_handicap:
+
+        linha = _primeiro_odds(
+            mercado_handicap
+        )
+
+        if isinstance(linha, dict):
+
+            resultado[
+                "handicap_linha"
+            ] = _numero(
+                linha.get("hdp")
+            )
+
+            resultado[
+                "odd_handicap_home"
+            ] = _numero(
+                linha.get("home")
+            )
+
+            resultado[
+                "odd_handicap_away"
+            ] = _numero(
+                linha.get("away")
+            )
+
+            resultado[
+                "mercados_encontrados"
+            ].append("HANDICAP")
+
+    # ========================================================
+    # 5️⃣ DOUBLE CHANCE
+    # ========================================================
+
+    mercado_dc = _encontrar_mercado(
+        mercados,
+        (
+            "Double Chance",
+            "DoubleChance",
+            "DC"
+        )
+    )
+
+    if mercado_dc:
+
+        linha = _primeiro_odds(
+            mercado_dc
+        )
+
+        if isinstance(linha, dict):
+
+            resultado["odd_1x"] = _numero(
+                linha.get("1X")
+            )
+
+            resultado["odd_12"] = _numero(
+                linha.get("12")
+            )
+
+            resultado["odd_x2"] = _numero(
+                linha.get("X2")
+            )
+
+            resultado[
+                "mercados_encontrados"
+            ].append("DOUBLE_CHANCE")
+
+    # ========================================================
+    # 6️⃣ DRAW NO BET
+    # ========================================================
+
+    mercado_dnb = _encontrar_mercado(
+        mercados,
+        (
+            "Draw No Bet",
+            "DrawNoBet",
+            "DNB"
+        )
+    )
+
+    if mercado_dnb:
+
+        linha = _primeiro_odds(
+            mercado_dnb
+        )
+
+        if isinstance(linha, dict):
+
+            resultado[
+                "odd_dnb_home"
+            ] = _numero(
+                linha.get("home")
+            )
+
+            resultado[
+                "odd_dnb_away"
+            ] = _numero(
+                linha.get("away")
+            )
+
+            resultado[
+                "mercados_encontrados"
+            ].append("DNB")
+
+    # ========================================================
+    # LISTA DE TODOS OS MERCADOS RECEBIDOS
+    # ========================================================
+
+    for mercado in mercados:
+
+        if not isinstance(
+            mercado,
+            dict
+        ):
+            continue
+
+        nome = mercado.get(
+            "name"
+        )
+
+        if nome:
+
+            resultado[
+                "mercados_disponiveis"
+            ].append(
+                str(nome)
+            )
+
+    # Remove duplicados mantendo ordem
+
+    resultado[
+        "mercados_disponiveis"
+    ] = list(
+        dict.fromkeys(
+            resultado[
+                "mercados_disponiveis"
+            ]
+        )
+    )
+
+    # ========================================================
+    # MEMÓRIA DAS ODDS DO EMPATE
+    # ========================================================
+
+    odd_atual = resultado[
+        "odd_atual"
+    ]
 
     odd_anterior = 0.0
 
@@ -1301,7 +1940,9 @@ def extrair_mercados(
             0.0
         )
 
-    # Primeira odd válida
+    # ========================================================
+    # PRIMEIRA ODD VÁLIDA
+    # ========================================================
 
     if (
         event_id is not None
@@ -1315,24 +1956,19 @@ def extrair_mercados(
             ] = odd_atual
 
     odd_inicial = _ODD_INICIAL.get(
-
         event_id,
-
         odd_atual
-
     )
 
     # ========================================================
-    # VARIAÇÕES
+    # VARIAÇÃO DESDE O INÍCIO
     # ========================================================
-
-    variacao_desde_inicio = 0.0
-
-    variacao_recente = 0.0
 
     if odd_inicial > 0:
 
-        variacao_desde_inicio = (
+        resultado[
+            "variacao_desde_inicio"
+        ] = (
 
             (
                 odd_atual
@@ -1342,6 +1978,130 @@ def extrair_mercados(
 
         ) * 100.0
 
+    # ========================================================
+    # VARIAÇÃO ENTRE CONSULTAS
+    # ========================================================
+
     if odd_anterior > 0:
 
-        variações 
+        resultado[
+            "variacao_recente"
+        ] = (
+
+            (
+                odd_atual
+                - odd_anterior
+            )
+            / odd_anterior
+
+        ) * 100.0
+
+    # ========================================================
+    # SALVA MEMÓRIA
+    # ========================================================
+
+    if (
+        event_id is not None
+        and odd_atual > 0
+    ):
+
+        _ODD_ANTERIOR[
+            event_id
+        ] = odd_atual
+
+    # ========================================================
+    # VALORES FINAIS
+    # ========================================================
+
+    resultado[
+        "odd_anterior"
+    ] = odd_anterior
+
+    resultado[
+        "odd_inicial"
+    ] = odd_inicial
+
+    # ========================================================
+    # LOG
+    # ========================================================
+
+    print()
+    print("=" * 60)
+    print("📊 MERCADOS EXTRAÍDOS")
+    print("=" * 60)
+
+    print(
+        "EVENT ID:",
+        event_id
+    )
+
+    print(
+        "1X2:",
+        resultado["odd_home"],
+        "|",
+        resultado["odd_draw"],
+        "|",
+        resultado["odd_away"]
+    )
+
+    print(
+        "OVER:",
+        resultado["over_linha"],
+        "|",
+        resultado["odd_over"]
+    )
+
+    print(
+        "UNDER:",
+        resultado["under_linha"],
+        "|",
+        resultado["odd_under"]
+    )
+
+    print(
+        "BTTS SIM:",
+        resultado["odd_btts_sim"],
+        "| NÃO:",
+        resultado["odd_btts_nao"]
+    )
+
+    print(
+        "HANDICAP:",
+        resultado["handicap_linha"],
+        "| CASA:",
+        resultado["odd_handicap_home"],
+        "| FORA:",
+        resultado["odd_handicap_away"]
+    )
+
+    print(
+        "DOUBLE CHANCE:",
+        resultado["odd_1x"],
+        "|",
+        resultado["odd_12"],
+        "|",
+        resultado["odd_x2"]
+    )
+
+    print(
+        "DNB:",
+        resultado["odd_dnb_home"],
+        "|",
+        resultado["odd_dnb_away"]
+    )
+
+    print(
+        "MERCADOS RECEBIDOS:",
+        resultado[
+            "mercados_disponiveis"
+        ]
+    )
+
+    print(
+        "VARIAÇÃO EMPATE:",
+        f"{resultado['variacao_recente']:.2f}%"
+    )
+
+    print("=" * 60)
+
+    return resultado
