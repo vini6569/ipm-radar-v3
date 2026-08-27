@@ -1083,40 +1083,42 @@ def extrair_mercados(
             dict
         ):
 
-            # Tentativa 1 - draw
-            odd_atual = _numero(
-                linha.get("draw")
-            )
+            # EXTRAIR ODD DO EMPATE
+odd_atual = 0.0
 
-            # Tentativa 2 - X
-            if odd_atual <= 0:
-                odd_atual = _numero(
-                    linha.get("X")
-                )
+if isinstance(linha, dict):
 
-            # Tentativa 3 - tie
-            if odd_atual <= 0:
-                odd_atual = _numero(
-                    linha.get("tie")
-                )
+    # Formato padrão: {"value": "Draw", "odd": "3.40"}
+    if str(linha.get("value", "")).strip().lower() in (
+        "draw",
+        "x",
+        "tie",
+        "empate"
+    ):
+        odd_atual = _numero(
+            linha.get("odd")
+        )
 
-            # Tentativa 4 - Draw
-            if odd_atual <= 0:
-                odd_atual = _numero(
-                    linha.get("Draw")
-                )
+    # Outros formatos possíveis
+    if odd_atual <= 0:
+        odd_atual = _numero(
+            linha.get("odd_draw")
+        )
 
-            # Tentativa 5 - drawOdd
-            if odd_atual <= 0:
-                odd_atual = _numero(
-                    linha.get("drawOdd")
-                )
+    if odd_atual <= 0:
+        odd_atual = _numero(
+            linha.get("drawOdd")
+        )
 
-            # Tentativa 6 - odd_draw
-            if odd_atual <= 0:
-                odd_atual = _numero(
-                    linha.get("odd_draw")
-                )
+    if odd_atual <= 0:
+        odd_atual = _numero(
+            linha.get("draw")
+        )
+
+    if odd_atual <= 0:
+        odd_atual = _numero(
+            linha.get("Draw")
+        )
 
         print()
         print(
