@@ -1248,7 +1248,7 @@ def extrair_mercados(
     ):
 
     # Tentativa 1 - draw
-    odd_atual = _numero(
+       odd_atual = _numero(
         linha.get("draw")
     )
 
