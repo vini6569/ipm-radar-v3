@@ -1,49 +1,377 @@
-import os, time, threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from config import INTERVALO_SEGUNDOS
-from odds_api import buscar_jogos_ao_vivo, buscar_odds_multiplos, extrair_mercados
-from motor_ipm import calcular_ipm
+# ============================================================
+# MAIN - IPM RADAR V4
+# ============================================================
 
-def processar_ciclo():
-    print("\n"+"="*70+"\n🚀 IPM RADAR V3 - CICLO\n"+"="*70)
-    jogos=buscar_jogos_ao_vivo()
-    if not jogos: return
-    odds=buscar_odds_multiplos(jogos)
-    if not odds: return
-    for jogo in jogos:
-        if not isinstance(jogo,dict) or jogo.get("id") is None: continue
-        d=extrair_mercados(jogo,odds)
-        if not d["todos"]: continue
-        movimentos=[x for x in d["todos"] if not x["primeira_consulta"]]
-        maior=max((abs(float(x["variacao"])) for x in movimentos),default=0)
-        gols=sum(int(d["placar"].get(k,0)) for k in ("home","away"))
-        ipm=calcular_ipm(maior,d["minuto"],gols=gols)
-        print(f"⚽ {jogo.get('home','Casa')} x {jogo.get('away','Fora')} | {d['minuto']}' | HT={len(d['HT'])} FT={len(d['FT'])} TOTAL={len(d['todos'])}")
-        print(f"🎯 IPM={ipm['ipm']:.2f} | maior movimento={maior:.2f}% | {ipm['forca']}")
-        fortes=sorted(movimentos,key=lambda x:abs(float(x["variacao"])),reverse=True)[:10]
-        for x in fortes:
-            print(f"  {x['periodo']} | {x['mercado']} | {x['linha'] or '-'} | {x['selecao']} | {x['odd_anterior']} -> {x['odd']} | {x['variacao']:.2f}%")
+import os
+import time
+import threading
 
-class Health(BaseHTTPRequestHandler):
+from http.server import (
+    HTTPServer,
+    BaseHTTPRequestHandler,
+)
+
+from config import (
+    NOME_BOT,
+    VERSAO,
+    INTERVALO_RADAR,
+    MAX_JOGOS_RADAR,
+    IPM_MINIMO_OBSERVACAO,
+    IPM_MINIMO_FORTE,
+    IPM_MINIMO_MUITO_FORTE,
+    VARIACAO_MINIMA_ODD,
+    horario_ativo,
+    horario_atual,
+)
+
+from odds_api import (
+    buscar_jogos_ao_vivo,
+    buscar_odds_multiplos,
+    extrair_mercados,
+)
+
+from motor_ipm import (
+    analisar_ipm_com_memoria,
+    formatar_radar,
+)
+
+PORTA_SAUDE = int(
+    os.environ.get(
+        "PORT",
+        "10000"
+    )
+)
+
+class HealthHandler(
+    BaseHTTPRequestHandler
+):
     def do_GET(self):
-        body=b"IPM RADAR V3 ONLINE\nHT + FT + TODOS OS MERCADOS\n"
-        self.send_response(200); self.send_header("Content-Type","text/plain; charset=utf-8")
-        self.send_header("Content-Length",str(len(body))); self.end_headers(); self.wfile.write(body)
-    def log_message(self,*args): pass
+        agora = horario_atual()
 
-def servidor():
-    porta=int(os.environ.get("PORT","10000"))
-    print(f"🌐 Health server: {porta}")
-    HTTPServer(("0.0.0.0",porta),Health).serve_forever()
+        corpo = (
+            f"{NOME_BOT} ONLINE | "
+            f"Brasil: "
+            f"{agora.strftime('%d/%m/%Y %H:%M:%S')}"
+        ).encode("utf-8")
 
-def main():
-    print("🤖 IPM RADAR V3 INICIADO | HT + FT + TODOS OS MERCADOS")
-    threading.Thread(target=servidor,daemon=True).start()
+        self.send_response(200)
+
+        self.send_header(
+            "Content-Type",
+            "text/plain; charset=utf-8"
+        )
+
+        self.send_header(
+            "Content-Length",
+            str(len(corpo))
+        )
+
+        self.end_headers()
+
+        self.wfile.write(
+            corpo
+        )
+
+    def log_message(
+        self,
+        format,
+        *args
+    ):
+        return
+
+def iniciar_servidor_saude():
+    try:
+        servidor = HTTPServer(
+            (
+                "0.0.0.0",
+                PORTA_SAUDE
+            ),
+            HealthHandler
+        )
+
+        print(
+            "Servidor de saúde iniciado "
+            f"na porta {PORTA_SAUDE}"
+        )
+
+        servidor.serve_forever()
+
+    except Exception as erro:
+        print(
+            "Erro no servidor de saúde:",
+            erro
+        )
+
+def classificar_sinal(ipm):
+    if ipm >= IPM_MINIMO_MUITO_FORTE:
+        return "SINAL MUITO FORTE"
+
+    if ipm >= IPM_MINIMO_FORTE:
+        return "SINAL FORTE"
+
+    if ipm >= IPM_MINIMO_OBSERVACAO:
+        return "OBSERVAR"
+
+    return "SEM SINAL"
+
+def _mostrar_mercados(mercados):
+    # Proteção explícita contra o erro que apareceu no Render:
+    # KeyError: 'todos'
+    todos = mercados.get(
+        "todos",
+        []
+    )
+
+    ht = mercados.get(
+        "odds_ht",
+        []
+    )
+
+    corners = mercados.get(
+        "odds_corners",
+        []
+    )
+
+    cards = mercados.get(
+        "odds_cards",
+        []
+    )
+
+    print(
+        "📦 TODOS OS MERCADOS RECEBIDOS:",
+        len(todos)
+    )
+
+    if ht:
+        print(
+            "⏱️ MERCADOS HT:"
+        )
+
+        for mercado in ht:
+            print(
+                "   ",
+                mercado.get("name"),
+                ":",
+                mercado.get("odds")
+            )
+
+    if corners:
+        print(
+            "🚩 MERCADOS ESCANTEIOS:"
+        )
+
+        for mercado in corners:
+            print(
+                "   ",
+                mercado.get("name"),
+                ":",
+                mercado.get("odds")
+            )
+
+    if cards:
+        print(
+            "🟨 MERCADOS CARTÕES:"
+        )
+
+        for mercado in cards:
+            print(
+                "   ",
+                mercado.get("name"),
+                ":",
+                mercado.get("odds")
+            )
+
+def executar_consulta():
+    agora = horario_atual()
+
+    print()
+    print("=" * 70)
+    print(
+        "📡 IPM RADAR V4 |",
+        agora.strftime(
+            "%d/%m/%Y %H:%M:%S"
+        )
+    )
+    print("=" * 70)
+
+    try:
+        jogos = (
+            buscar_jogos_ao_vivo()
+            or []
+        )
+
+        print(
+            "JOGOS AO VIVO ENCONTRADOS:",
+            len(jogos)
+        )
+
+        if not jogos:
+            return
+
+        jogos = jogos[
+            :MAX_JOGOS_RADAR
+        ]
+
+        odds = (
+            buscar_odds_multiplos(
+                jogos
+            )
+            or []
+        )
+
+        print(
+            "EVENTOS COM ODDS RECEBIDOS:",
+            len(odds)
+        )
+
+        for jogo in jogos:
+            try:
+                mercados = (
+                    extrair_mercados(
+                        jogo,
+                        odds
+                    )
+                    or {}
+                )
+
+                event_id = jogo.get(
+                    "id"
+                )
+
+                odd_atual = mercados.get(
+                    "odd_atual",
+                    0.0
+                )
+
+                resultado = (
+                    analisar_ipm_com_memoria(
+                        event_id,
+                        odd_atual,
+                        mercados.get(
+                            "minuto",
+                            0
+                        ),
+                        mercados.get(
+                            "gols",
+                            0
+                        ),
+                        mercados.get(
+                            "escanteios",
+                            0
+                        ),
+                        mercados.get(
+                            "finalizacoes",
+                            0
+                        ),
+                        mercados.get(
+                            "ataques_perigosos",
+                            0
+                        ),
+                    )
+                )
+
+                print(
+                    formatar_radar(
+                        jogo,
+                        resultado,
+                        mercados
+                    )
+                )
+
+                print(
+                    "SINAL:",
+                    classificar_sinal(
+                        resultado.get(
+                            "ipm",
+                            0
+                        )
+                    ),
+                    "| FILTRO ODD:",
+                    abs(
+                        resultado.get(
+                            "variacao_odd",
+                            0
+                        )
+                    ) >= VARIACAO_MINIMA_ODD,
+                )
+
+                _mostrar_mercados(
+                    mercados
+                )
+
+            except Exception as erro_jogo:
+                print(
+                    "❌ ERRO AO ANALISAR JOGO:",
+                    type(erro_jogo).__name__,
+                    erro_jogo
+                )
+
+    except Exception as erro:
+        print(
+            "❌ ERRO NO CICLO:",
+            type(erro).__name__,
+            erro
+        )
+
+def loop_consulta():
+    print("=" * 70)
+    print(
+        f"🚀 {NOME_BOT} | "
+        f"VERSÃO {VERSAO}"
+    )
+    print(
+        "Janela: 06:00 até 00:00 | "
+        f"Intervalo: {INTERVALO_RADAR}s"
+    )
+    print(
+        "Fluxo: jogos → odds → "
+        "TODOS/HT → IPM"
+    )
+    print(
+        "Proteção: acesso seguro "
+        "aos mercados com .get()"
+    )
+    print("=" * 70)
+
     while True:
-        inicio=time.time()
-        try: processar_ciclo()
-        except KeyboardInterrupt: break
-        except Exception as e: print(f"❌ CICLO: {type(e).__name__}: {e}")
-        time.sleep(max(1,INTERVALO_SEGUNDOS-int(time.time()-inicio)))
+        try:
+            agora = horario_atual()
 
-if __name__=="__main__": main()
+            print(
+                "\n🕒 Horário Brasil:",
+                agora.strftime(
+                    "%d/%m/%Y %H:%M:%S"
+                )
+            )
+
+            if horario_ativo():
+                executar_consulta()
+            else:
+                print(
+                    "⏸️ Radar em período de pausa."
+                )
+
+        except Exception as erro:
+            print(
+                "❌ ERRO NO LOOP:",
+                type(erro).__name__,
+                erro
+            )
+
+        print(
+            f"⏳ Nova consulta em "
+            f"{INTERVALO_RADAR} segundos..."
+        )
+
+        time.sleep(
+            INTERVALO_RADAR
+        )
+
+if __name__ == "__main__":
+    threading.Thread(
+        target=iniciar_servidor_saude,
+        daemon=True
+    ).start()
+
+    loop_consulta()
+    
