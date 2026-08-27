@@ -1511,32 +1511,132 @@ def extrair_mercados(
 
             resultado[
 
-# ============================================================
-# EXTRAIR MERCADOS
-# ============================================================
+    # ========================================================
+    # VARIAÇÃO DESDE O INÍCIO
+    # ========================================================
 
-def extrair_mercados(
-    jogo,
-    odds
-):
+    if odd_inicial > 0:
 
-    if not isinstance(jogo, dict):
-        return {}
+        resultado["variacao_desde_inicio"] = (
+            (
+                odd_atual
+                - odd_inicial
+            )
+            / odd_inicial
+        ) * 100.0
 
-    event_id = jogo.get("id")
+    # ========================================================
+    # VARIAÇÃO ENTRE CONSULTAS
+    # ========================================================
 
-    evento_odds = _evento_odds_por_id(
-        odds,
-        event_id
+    if odd_anterior > 0:
+
+        resultado["variacao_recente"] = (
+            (
+                odd_atual
+                - odd_anterior
+            )
+            / odd_anterior
+        ) * 100.0
+
+    # ========================================================
+    # SALVAR MEMÓRIA
+    # ========================================================
+
+    if (
+        event_id is not None
+        and odd_atual > 0
+    ):
+
+        _ODD_ANTERIOR[event_id] = odd_atual
+
+    # ========================================================
+    # VALORES FINAIS
+    # ========================================================
+
+    resultado["odd_anterior"] = odd_anterior
+
+    resultado["odd_inicial"] = odd_inicial
+
+    # ========================================================
+    # LOG FINAL
+    # ========================================================
+
+    print()
+    print("=" * 60)
+    print("📊 MERCADOS EXTRAÍDOS")
+    print("=" * 60)
+
+    print("EVENT ID:", event_id)
+
+    print(
+        "1X2:",
+        resultado["odd_home"],
+        "|",
+        resultado["odd_draw"],
+        "|",
+        resultado["odd_away"]
     )
 
-    # Caso o próprio evento já contenha bookmakers
-    if evento_odds is None:
-        evento_odds = jogo
-
-    mercados = _mercados_bet365(
-        evento_odds
+    print(
+        "OVER:",
+        resultado["over_linha"],
+        "|",
+        resultado["odd_over"]
     )
+
+    print(
+        "UNDER:",
+        resultado["under_linha"],
+        "|",
+        resultado["odd_under"]
+    )
+
+    print(
+        "BTTS:",
+        resultado["odd_btts_sim"],
+        "|",
+        resultado["odd_btts_nao"]
+    )
+
+    print(
+        "HANDICAP:",
+        resultado["handicap_linha"],
+        "|",
+        resultado["odd_handicap_home"],
+        "|",
+        resultado["odd_handicap_away"]
+    )
+
+    print(
+        "DOUBLE CHANCE:",
+        resultado["odd_1x"],
+        "|",
+        resultado["odd_12"],
+        "|",
+        resultado["odd_x2"]
+    )
+
+    print(
+        "DNB:",
+        resultado["odd_dnb_home"],
+        "|",
+        resultado["odd_dnb_away"]
+    )
+
+    print(
+        "MERCADOS RECEBIDOS:",
+        resultado["mercados_disponiveis"]
+    )
+
+    print(
+        "VARIAÇÃO EMPATE:",
+        f"{resultado['variacao_recente']:.2f}%"
+    )
+
+    print("=" * 60)
+
+    return resultado
 
     # ========================================================
     # FUNÇÃO AUXILIAR
