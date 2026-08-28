@@ -271,92 +271,185 @@ def _extrair_estatisticas(jogo):
     return 0, 0, 0
 
 def _copiar_mercado(mercado):
-    return {"name": mercado.get("name", ""), "updatedAt": mercado.get("updatedAt"), "odds": _linhas_odds(mercado)}
+    return {
+        "name": mercado.get("name", ""),
+        "updatedAt": mercado.get("updatedAt"),
+        "odds": _linhas_odds(mercado),
+    }
 
 def extrair_mercados(jogo, odds):
     if not isinstance(jogo, dict):
         return {}
+
     event_id = jogo.get("id")
     evento = _evento_odds_por_id(odds, event_id) or jogo
     mercados = _mercados_bet365(evento)
+
+    # ========================================================
+    # DEBUG TEMPORÁRIO - DIAGNÓSTICO DOS MERCADOS BET365
+    # Não altera nenhuma lógica do Radar.
+    # ========================================================
+    print(
+        "🔎 DEBUG MERCADOS |",
+        jogo.get("home"),
+        "x",
+        jogo.get("away"),
+        "| quantidade:",
+        len(mercados),
+        "| nomes:",
+        [
+            m.get("name")
+            for m in mercados
+            if isinstance(m, dict)
+        ],
+    )
+
     casa, fora = _extrair_placar(jogo)
     esc, fin, atq = _extrair_estatisticas(jogo)
 
     resultado = {
         "event_id": event_id,
-        "odd_home": 0.0, "odd_draw": 0.0, "odd_away": 0.0,
+        "odd_home": 0.0,
+        "odd_draw": 0.0,
+        "odd_away": 0.0,
         "odd_atual": 0.0,
         "odd_pre_live": 0.0,
         "minuto": _extrair_minuto(jogo),
         "gols": casa + fora,
-        "escanteios": esc, "finalizacoes": fin, "ataques_perigosos": atq,
-        "mercados_encontrados": [], "mercados_disponiveis": [],
-        "todos": [], "odds_ft": [], "odds_ht": [],
-        "odds_corners": [], "odds_cards": [],
+        "escanteios": esc,
+        "finalizacoes": fin,
+        "ataques_perigosos": atq,
+        "mercados_encontrados": [],
+        "mercados_disponiveis": [],
+        "todos": [],
+        "odds_ft": [],
+        "odds_ht": [],
+        "odds_corners": [],
+        "odds_cards": [],
     }
 
     for mercado in mercados:
         if not isinstance(mercado, dict):
             continue
+
         nome = str(mercado.get("name", "")).strip()
         if not nome:
             continue
+
         item = _copiar_mercado(mercado)
         item["categoria"] = _categoria_mercado(nome)
+
         resultado["todos"].append(item)
         resultado["mercados_disponiveis"].append(nome)
+
         destino = {
-            "HT": "odds_ht", "CORNERS": "odds_corners",
-            "CARDS": "odds_cards", "FT": "odds_ft"
+            "HT": "odds_ht",
+            "CORNERS": "odds_corners",
+            "CARDS": "odds_cards",
+            "FT": "odds_ft"
         }[item["categoria"]]
+
         resultado[destino].append(item)
 
-    resultado["mercados_disponiveis"] = list(dict.fromkeys(resultado["mercados_disponiveis"]))
+    resultado["mercados_disponiveis"] = list(
+        dict.fromkeys(resultado["mercados_disponiveis"])
+    )
 
-    mercado_ml = _encontrar_mercado(mercados, ("ML", "Moneyline", "1X2"))
+    mercado_ml = _encontrar_mercado(
+        mercados,
+        ("ML", "Moneyline", "1X2")
+    )
+
     if mercado_ml:
         linha = _primeiro_odds(mercado_ml)
+
         resultado["odd_home"] = _numero(linha.get("home"))
-        resultado["odd_draw"] = _numero(linha.get("draw"), _numero(linha.get("X"), _numero(linha.get("tie"))))
+
+        resultado["odd_draw"] = _numero(
+            linha.get("draw"),
+            _numero(
+                linha.get("X"),
+                _numero(linha.get("tie"))
+            )
+        )
+
         resultado["odd_away"] = _numero(linha.get("away"))
         resultado["odd_atual"] = resultado["odd_draw"]
         resultado["mercados_encontrados"].append("ML")
 
-    mercado_totals = _encontrar_mercado(mercados, ("Totals", "Total", "Over/Under", "Over Under", "O/U"))
+    mercado_totals = _encontrar_mercado(
+        mercados,
+        ("Totals", "Total", "Over/Under", "Over Under", "O/U")
+    )
+
     if mercado_totals:
         linha = _primeiro_odds(mercado_totals)
+
         resultado["over_linha"] = _numero(linha.get("hdp"))
         resultado["under_linha"] = resultado["over_linha"]
         resultado["odd_over"] = _numero(linha.get("over"))
         resultado["odd_under"] = _numero(linha.get("under"))
         resultado["mercados_encontrados"].append("TOTALS")
 
-    mercado_btts = _encontrar_mercado(mercados, ("Both Teams To Score", "BTTS", "Both Teams Score"))
+    mercado_btts = _encontrar_mercado(
+        mercados,
+        ("Both Teams To Score", "BTTS", "Both Teams Score")
+    )
+
     if mercado_btts:
         linha = _primeiro_odds(mercado_btts)
-        resultado["odd_btts_sim"] = _numero(linha.get("yes"), _numero(linha.get("Yes")))
-        resultado["odd_btts_nao"] = _numero(linha.get("no"), _numero(linha.get("No")))
+
+        resultado["odd_btts_sim"] = _numero(
+            linha.get("yes"),
+            _numero(linha.get("Yes"))
+        )
+
+        resultado["odd_btts_nao"] = _numero(
+            linha.get("no"),
+            _numero(linha.get("No"))
+        )
+
         resultado["mercados_encontrados"].append("BTTS")
 
-    mercado_handicap = _encontrar_mercado(mercados, ("Spread", "Asian Handicap", "Handicap", "Asian Handicap 3-Way"))
+    mercado_handicap = _encontrar_mercado(
+        mercados,
+        (
+            "Spread",
+            "Asian Handicap",
+            "Handicap",
+            "Asian Handicap 3-Way"
+        )
+    )
+
     if mercado_handicap:
         linha = _primeiro_odds(mercado_handicap)
+
         resultado["handicap_linha"] = _numero(linha.get("hdp"))
         resultado["odd_handicap_home"] = _numero(linha.get("home"))
         resultado["odd_handicap_away"] = _numero(linha.get("away"))
         resultado["mercados_encontrados"].append("HANDICAP")
 
-    mercado_dc = _encontrar_mercado(mercados, ("Double Chance", "DoubleChance", "DC"))
+    mercado_dc = _encontrar_mercado(
+        mercados,
+        ("Double Chance", "DoubleChance", "DC")
+    )
+
     if mercado_dc:
         linha = _primeiro_odds(mercado_dc)
+
         resultado["odd_1x"] = _numero(linha.get("1X"))
         resultado["odd_12"] = _numero(linha.get("12"))
         resultado["odd_x2"] = _numero(linha.get("X2"))
         resultado["mercados_encontrados"].append("DOUBLE_CHANCE")
 
-    mercado_dnb = _encontrar_mercado(mercados, ("Draw No Bet", "DrawNoBet", "DNB"))
+    mercado_dnb = _encontrar_mercado(
+        mercados,
+        ("Draw No Bet", "DrawNoBet", "DNB")
+    )
+
     if mercado_dnb:
         linha = _primeiro_odds(mercado_dnb)
+
         resultado["odd_dnb_home"] = _numero(linha.get("home"))
         resultado["odd_dnb_away"] = _numero(linha.get("away"))
         resultado["mercados_encontrados"].append("DNB")
