@@ -823,4 +823,5 @@ def extrair_mercados(jogo, odds):
             "HT": "odds_ht",
             "CORNERS": "odds_corners",
             "CARDS": "odds_cards",
-          
+                  "FT": "odds_ft",
+    }
