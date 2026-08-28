@@ -1,6 +1,8 @@
 # ============================================================
-# ODDS API - IPM RADAR V4.6
-# SELECAO FIXA + DIAGNOSTICO DE ODDS
+# V4.7: evita falso 0.0 no ML e registra a estrutura recebida.
+# ============================================================
+# ODDS API - IPM RADAR V4.7
+# SELECAO FIXA + ODDS ROBUSTAS + DIAGNOSTICO
 # ============================================================
 
 import json
@@ -30,7 +32,7 @@ def _request_json(endpoint, params):
     req = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "IPM-Radar/4.6",
+            "User-Agent": "IPM-Radar/4.7",
             "Accept": "application/json",
         },
     )
@@ -322,7 +324,7 @@ def buscar_odds_multiplos(eventos):
         return []
 
     print("=" * 70)
-    print("DIAGNOSTICO ODDS MULTI V4.6")
+    print("DIAGNOSTICO ODDS MULTI V4.7")
     print(f"EVENTOS SOLICITADOS: {len(ids)}")
     print(f"IDS SOLICITADOS: {ids}")
     print(f"LIMITE CONFIGURADO: {MAX_EVENTOS_POR_CONSULTA}")
@@ -478,6 +480,57 @@ def _primeiro_odds(mercado):
         return valores
 
     return {}
+
+
+def _preco_item(item):
+    """Extrai o preco em formatos price/value/odd/odds/decimal."""
+    if not isinstance(item, dict):
+        return 0.0
+    for chave in ("price", "value", "odd", "odds", "decimal"):
+        valor = item.get(chave)
+        if isinstance(valor, (int, float, str)):
+            numero = _numero(valor, 0.0)
+            if numero > 0:
+                return numero
+    return 0.0
+
+
+def _extrair_outcome(linha, nomes):
+    """Busca um outcome mesmo em estruturas alternativas da Odds-API.io."""
+    if not isinstance(linha, dict):
+        return 0.0
+
+    # Formato oficial: {home, draw, away}
+    for nome in nomes:
+        valor = linha.get(nome)
+        if valor not in (None, ""):
+            preco = _preco_item(valor) if isinstance(valor, dict) else _numero(valor, 0.0)
+            if preco > 0:
+                return preco
+
+    # Formato alternativo: outcomes/selections/items/options
+    candidatos = []
+    for chave in ("outcomes", "selections", "items", "options"):
+        valor = linha.get(chave)
+        if isinstance(valor, list):
+            candidatos.extend(x for x in valor if isinstance(x, dict))
+        elif isinstance(valor, dict):
+            candidatos.extend(x for x in valor.values() if isinstance(x, dict))
+
+    alvo = {str(x).strip().lower() for x in nomes}
+    for item in candidatos:
+        nome = str(item.get("name") or item.get("label") or item.get("selection") or "").strip().lower()
+        if nome in alvo:
+            preco = _preco_item(item)
+            if preco > 0:
+                return preco
+
+    # Formato achatado: {name: Home, price: 2.10}
+    nome = str(linha.get("name") or linha.get("label") or "").strip().lower()
+    if nome in alvo:
+        return _preco_item(linha)
+
+    return 0.0
 
 
 def _linhas_odds(mercado):
@@ -770,87 +823,4 @@ def extrair_mercados(jogo, odds):
             "HT": "odds_ht",
             "CORNERS": "odds_corners",
             "CARDS": "odds_cards",
-            "FT": "odds_ft",
-        }[item["categoria"]]
-
-        resultado[destino].append(item)
-
-    resultado["mercados_disponiveis"] = list(
-        dict.fromkeys(
-            resultado["mercados_disponiveis"]
-        )
-    )
-
-    try:
-        casa_nome = (
-            jogo.get("home")
-            or jogo.get("homeTeam")
-            or ""
-        )
-
-        fora_nome = (
-            jogo.get("away")
-            or jogo.get("awayTeam")
-            or ""
-        )
-
-        print(
-            f"DEBUG MERCADOS | {casa_nome} x {fora_nome} | "
-            f"quantidade: {len(mercados)} | "
-            f"nomes: {resultado['mercados_disponiveis']}"
-        )
-
-    except Exception:
-        pass
-
-    # ========================================================
-    # MONEYLINE / 1X2
-    # ========================================================
-    mercado_ml = _encontrar_mercado(
-        mercados,
-        (
-            "ML",
-            "Moneyline",
-            "1X2",
-            "Match Winner",
-            "Match Result",
-        ),
-    )
-
-    if mercado_ml:
-        linha = _primeiro_odds(mercado_ml)
-
-        resultado["odd_home"] = _valor_odds(
-            linha,
-            "home",
-            "1",
-        )
-
-        resultado["odd_draw"] = _valor_odds(
-            linha,
-            "draw",
-            "x",
-            "tie",
-        )
-
-        resultado["odd_away"] = _valor_odds(
-            linha,
-            "away",
-            "2",
-        )
-
-        resultado["odd_atual"] = resultado["odd_draw"]
-        resultado["mercados_encontrados"].append("ML")
-
-        print(
-            f"ML EXTRAIDO | ID={event_id} | "
-            f"HOME={resultado['odd_home']} | "
-            f"DRAW={resultado['odd_draw']} | "
-            f"AWAY={resultado['odd_away']} | "
-            f"ATUAL={resultado['odd_atual']}"
-        )
-
-    else:
-        print(f"ML NAO ENCONTRADO | ID={event_id}")
-
-    
+          
