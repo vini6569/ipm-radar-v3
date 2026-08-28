@@ -354,4 +354,5 @@ def formatar_radar(jogo, resultado, mercados=None):
             f"📊 FT: {len(mercados.get('odds_ft', []))} | HT: {len(mercados.get('odds_ht', []))}",
             "=" * 70,
         ]
-)
+                )
+    
