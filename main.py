@@ -576,4 +576,4 @@ if __name__ == "__main__":
     ).start()
 
     loop_consulta()
-    
+            
