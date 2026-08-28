@@ -818,10 +818,186 @@ def extrair_mercados(jogo, odds):
 
         resultado["todos"].append(item)
         resultado["mercados_disponiveis"].append(nome)
-
         destino = {
             "HT": "odds_ht",
             "CORNERS": "odds_corners",
             "CARDS": "odds_cards",
-                  "FT": "odds_ft",
-    }
+            "FT": "odds_ft",
+        }
+
+        campo_destino = destino.get(item["categoria"])
+
+        if campo_destino:
+            resultado[campo_destino].append(item)
+
+        resultado["mercados_encontrados"].append(nome)
+
+        # ====================================================
+        # EXTRAÇÃO DAS PRINCIPAIS ODDS
+        # ====================================================
+
+        linhas = _linhas_odds(mercado)
+
+        for linha in linhas:
+            if not isinstance(linha, dict):
+                continue
+
+            # Resultado FT
+            if item["categoria"] == "FT":
+                home = _extrair_outcome(
+                    linha,
+                    ("home", "casa"),
+                )
+
+                draw = _extrair_outcome(
+                    linha,
+                    ("draw", "empate", "x"),
+                )
+
+                away = _extrair_outcome(
+                    linha,
+                    ("away", "fora"),
+                )
+
+                if home > 0:
+                    resultado["odd_home"] = home
+
+                if draw > 0:
+                    resultado["odd_draw"] = draw
+
+                if away > 0:
+                    resultado["odd_away"] = away
+
+                if resultado["odd_draw"] > 0:
+                    resultado["odd_atual"] = resultado["odd_draw"]
+
+            # ------------------------------------------------
+            # Over / Under
+            # ------------------------------------------------
+            nome_mercado = _nome_normalizado(nome)
+
+            if "over" in nome_mercado or "under" in nome_mercado:
+                linha_total = _valor_odds(
+                    linha,
+                    "line",
+                    "linha",
+                    "total",
+                    "points",
+                    padrao=0.0,
+                )
+
+                over = _extrair_outcome(
+                    linha,
+                    ("over", "mais"),
+                )
+
+                under = _extrair_outcome(
+                    linha,
+                    ("under", "menos"),
+                )
+
+                if linha_total > 0:
+                    resultado["over_linha"] = linha_total
+                    resultado["under_linha"] = linha_total
+
+                if over > 0:
+                    resultado["odd_over"] = over
+
+                if under > 0:
+                    resultado["odd_under"] = under
+
+            # ------------------------------------------------
+            # BTTS
+            # ------------------------------------------------
+            if (
+                "btts" in nome_mercado
+                or "both teams to score" in nome_mercado
+            ):
+                sim = _extrair_outcome(
+                    linha,
+                    ("yes", "sim"),
+                )
+
+                nao = _extrair_outcome(
+                    linha,
+                    ("no", "nao", "não"),
+                )
+
+                if sim > 0:
+                    resultado["odd_btts_sim"] = sim
+
+                if nao > 0:
+                    resultado["odd_btts_nao"] = nao
+
+            # ------------------------------------------------
+            # Handicap
+            # ------------------------------------------------
+            if "handicap" in nome_mercado:
+                handicap = _valor_odds(
+                    linha,
+                    "handicap",
+                    "line",
+                    "linha",
+                    "points",
+                    padrao=0.0,
+                )
+
+                home = _extrair_outcome(
+                    linha,
+                    ("home", "casa"),
+                )
+
+                away = _extrair_outcome(
+                    linha,
+                    ("away", "fora"),
+                )
+
+                if handicap != 0:
+                    resultado["handicap_linha"] = handicap
+
+                if home > 0:
+                    resultado["odd_handicap_home"] = home
+
+                if away > 0:
+                    resultado["odd_handicap_away"] = away
+
+            # ------------------------------------------------
+            # Dupla chance
+            # ------------------------------------------------
+            if (
+                "double chance" in nome_mercado
+                or "dupla chance" in nome_mercado
+            ):
+                resultado["odd_1x"] = _extrair_outcome(
+                    linha,
+                    ("1x", "home or draw", "casa ou empate"),
+                )
+
+                resultado["odd_12"] = _extrair_outcome(
+                    linha,
+                    ("12", "home or away", "casa ou fora"),
+                )
+
+                resultado["odd_x2"] = _extrair_outcome(
+                    linha,
+                    ("x2", "draw or away", "empate ou fora"),
+                )
+
+            # ------------------------------------------------
+            # Draw No Bet
+            # ------------------------------------------------
+            if (
+                "draw no bet" in nome_mercado
+                or "dnb" in nome_mercado
+            ):
+                resultado["odd_dnb_home"] = _extrair_outcome(
+                    linha,
+                    ("home", "casa"),
+                )
+
+                resultado["odd_dnb_away"] = _extrair_outcome(
+                    linha,
+                    ("away", "fora"),
+                )
+
+            return resultado
