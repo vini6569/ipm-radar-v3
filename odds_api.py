@@ -1,5 +1,5 @@
 # ============================================================
-# ODDS API - IPM RADAR V4.4
+# ODDS API - IPM RADAR V4.5 DIAGNOSTICO
 # ============================================================
 
 import json
@@ -24,7 +24,7 @@ def _request_json(endpoint, params):
     req = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "IPM-Radar/4.4",
+            "User-Agent": "IPM-Radar/4.5-DIAGNOSTICO",
             "Accept": "application/json",
         },
     )
@@ -206,9 +206,13 @@ def buscar_jogos_pre_live():
 
 
 def buscar_odds_multiplos(eventos):
-    """Consulta odds somente dos jogos selecionados."""
+    """
+    Busca odds somente dos eventos recebidos.
+    V4.5 adiciona diagnóstico controlado para descobrir onde a odd se perde.
+    Não imprime o payload inteiro.
+    """
     if not eventos:
-        print("⚠️ NENHUM JOGO SELECIONADO PARA ODDS.")
+        print("⚠️ ODDS MULTI: nenhum evento recebido.")
         return []
 
     try:
@@ -218,21 +222,21 @@ def buscar_odds_multiplos(eventos):
         return []
 
     ids = []
+    for e in eventos:
+        if isinstance(e, dict) and e.get("id") is not None:
+            ids.append(str(e["id"]))
 
-    for evento in eventos[:MAX_EVENTOS_POR_CONSULTA]:
-        if isinstance(evento, dict) and evento.get("id") is not None:
-            ids.append(str(evento["id"]))
-
-    ids = list(dict.fromkeys(ids))
+    ids = list(dict.fromkeys(ids))[:MAX_EVENTOS_POR_CONSULTA]
 
     if not ids:
-        print("⚠️ NENHUM ID VÁLIDO PARA CONSULTA DE ODDS.")
+        print("⚠️ ODDS MULTI: nenhum ID válido.")
         return []
 
-    print(
-        f"🎯 CONSULTANDO ODDS DE {len(ids)} JOGOS: "
-        f"{','.join(ids)}"
-    )
+    print("=" * 70)
+    print("🧪 DIAGNÓSTICO ODDS MULTI V4.5")
+    print(f"📌 EVENTOS SOLICITADOS: {len(ids)}")
+    print(f"📌 IDS SOLICITADOS: {ids}")
+    print(f"📌 LIMITE CONFIGURADO: {MAX_EVENTOS_POR_CONSULTA}")
 
     resposta = _request_json(
         "/odds/multi",
@@ -245,13 +249,43 @@ def buscar_odds_multiplos(eventos):
 
     eventos_odds = _lista_eventos(resposta)
 
-    print(
-        "EVENTOS COM ODDS RECEBIDOS:",
-        len(eventos_odds),
-    )
+    print(f"📥 RESPOSTA ODDS MULTI: {type(resposta).__name__}")
+    print(f"📥 EVENTOS COM ODDS RECEBIDOS: {len(eventos_odds)}")
+
+    # Diagnóstico somente dos 2 primeiros IDs.
+    for event_id in ids[:2]:
+        item = _evento_odds_por_id(eventos_odds, event_id)
+
+        print("-" * 70)
+        print(f"🔍 TESTE EVENT_ID: {event_id}")
+
+        if item is None:
+            print("❌ EVENTO NÃO ENCONTRADO NA RESPOSTA DE ODDS.")
+            continue
+
+        print("✅ EVENTO ENCONTRADO NA RESPOSTA DE ODDS.")
+        print(f"   chaves do evento: {list(item.keys())[:20]}")
+
+        bookmakers = item.get("bookmakers")
+
+        if isinstance(bookmakers, dict):
+            print(f"   bookmakers: dict | chaves: {list(bookmakers.keys())[:20]}")
+        elif isinstance(bookmakers, list):
+            nomes = []
+            for bookmaker in bookmakers[:20]:
+                if isinstance(bookmaker, dict):
+                    nomes.append(
+                        bookmaker.get("name")
+                        or bookmaker.get("title")
+                        or bookmaker.get("key")
+                    )
+            print(f"   bookmakers: list | nomes: {nomes}")
+        else:
+            print(f"   bookmakers: {type(bookmakers).__name__} | valor: {bookmakers}")
+
+    print("=" * 70)
 
     return eventos_odds
-
 
 def _numero(valor, padrao=0.0):
     try:
@@ -557,6 +591,19 @@ def extrair_mercados(jogo, odds):
 
     mercados = _mercados_bet365(evento)
 
+    # Diagnóstico controlado do caminho:
+    # JOGO -> EVENTO ODDS -> BOOKMAKER -> MERCADO.
+    try:
+        nome_casa = jogo.get("home") or jogo.get("homeTeam") or ""
+        nome_fora = jogo.get("away") or jogo.get("awayTeam") or ""
+        print(
+            f"🧪 ODDS EVENTO | {nome_casa} x {nome_fora} | "
+            f"ID={event_id} | evento_odds={'SIM' if _evento_odds_por_id(odds, event_id) else 'NÃO'} | "
+            f"BOOKMAKER={BOOKMAKER} | mercados={len(mercados)}"
+        )
+    except Exception:
+        pass
+
     casa, fora = _extrair_placar(jogo)
     esc, fin, atq = _extrair_estatisticas(jogo)
 
@@ -671,6 +718,14 @@ def extrair_mercados(jogo, odds):
     if mercado_ml:
         linha = _primeiro_odds(mercado_ml)
 
+        print(
+            f"🧪 ML ENCONTRADO | ID={event_id} | "
+            f"nome={mercado_ml.get('name')} | "
+            f"linhas={len(_linhas_odds(mercado_ml))} | "
+            f"chaves_linha={list(linha.keys())[:20] if isinstance(linha, dict) else []}"
+        )
+        print(f"🧪 ML LINHA: {linha}")
+
         resultado["odd_home"] = _valor_odds(
             linha,
             "home",
@@ -693,6 +748,17 @@ def extrair_mercados(jogo, odds):
         resultado["odd_atual"] = resultado["odd_draw"]
 
         resultado["mercados_encontrados"].append("ML")
+
+        print(
+            f"🧪 ML EXTRAÍDO | ID={event_id} | "
+            f"HOME={resultado['odd_home']} | "
+            f"DRAW={resultado['odd_draw']} | "
+            f"AWAY={resultado['odd_away']} | "
+            f"ATUAL={resultado['odd_atual']}"
+        )
+
+    else:
+        print(f"❌ ML NÃO ENCONTRADO | ID={event_id}")
 
     # ========================================================
     # TOTALS
@@ -742,120 +808,4 @@ def extrair_mercados(jogo, odds):
         (
             "Both Teams To Score",
             "BTTS",
-            "Both Teams Score",
-        ),
-    )
-
-    if mercado_btts:
-        linha = _primeiro_odds(mercado_btts)
-
-        resultado["odd_btts_sim"] = _valor_odds(
-            linha,
-            "yes",
-            "sim",
-        )
-
-        resultado["odd_btts_nao"] = _valor_odds(
-            linha,
-            "no",
-            "nao",
-            "não",
-        )
-
-        resultado["mercados_encontrados"].append("BTTS")
-
-    # ========================================================
-    # HANDICAP
-    # ========================================================
-    mercado_handicap = _encontrar_mercado(
-        mercados,
-        (
-            "Spread",
-            "Asian Handicap",
-            "Handicap",
-            "Asian Handicap 3-Way",
-            "Alternative Asian Handicap",
-        ),
-    )
-
-    if mercado_handicap:
-        linha = _primeiro_odds(mercado_handicap)
-
-        resultado["handicap_linha"] = _valor_odds(
-            linha,
-            "hdp",
-            "line",
-            "points",
-        )
-
-        resultado["odd_handicap_home"] = _valor_odds(
-            linha,
-            "home",
-            "1",
-        )
-
-        resultado["odd_handicap_away"] = _valor_odds(
-            linha,
-            "away",
-            "2",
-        )
-
-        resultado["mercados_encontrados"].append("HANDICAP")
-
-    # ========================================================
-    # DOUBLE CHANCE
-    # ========================================================
-    mercado_dc = _encontrar_mercado(
-        mercados,
-        (
-            "Double Chance",
-            "DoubleChance",
-            "DC",
-            "Double Chance HT",
-        ),
-    )
-
-    if mercado_dc:
-        linha = _primeiro_odds(mercado_dc)
-
-        resultado["odd_1x"] = _valor_odds(
-            linha,
-            "1X",
-        )
-
-        resultado["odd_12"] = _valor_odds(
-            linha,
-            "12",
-        )
-
-        resultado["odd_x2"] = _valor_odds(
-            linha,
-            "X2",
-        )
-
-        resultado["mercados_encontrados"].append(
-            "DOUBLE_CHANCE"
-        )
-
-    # ========================================================
-    # DRAW NO BET
-    # ========================================================
-    mercado_dnb = _encontrar_mercado(
-        mercados,
-        (
-            "Draw No Bet",
-            "DrawNoBet",
-            "DNB",
-        ),
-    )
-
-    if mercado_dnb:
-        linha = _primeiro_odds(mercado_dnb)
-
-        resultado["odd_dnb_home"] = _valor_odds(
-            linha,
-            "home",
-            "1",
-        )
-
-        resultado["odd_dnb_away"]
+           
