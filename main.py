@@ -805,11 +805,6 @@ def executar_consulta():
 
 
 def loop_consulta():
-    print("[BOOT 7] loop_consulta iniciado", flush=True)
-    carregar_controle()
-
-    print(
-def loop_consulta():
     carregar_controle()
 
     print(
@@ -836,6 +831,7 @@ def loop_consulta():
             )
 
         tempo_decorrido = time.time() - inicio
+
         espera = max(
             1,
             INTERVALO_RADAR - tempo_decorrido,
