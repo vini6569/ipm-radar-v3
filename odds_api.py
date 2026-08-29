@@ -6,7 +6,7 @@
 # 2) leitura de scores.home/away
 # 3) odds/multi em blocos de no máximo 10 IDs
 # 4) mantém FT no destino
-# 5) estatísticas só quando realmente existirem na resposta
+# 5) estatísticas só quando realmente existirem
 # ============================================================
 
 import json
@@ -25,7 +25,6 @@ from config import (
     PRE_LIVE_JANELA_MINUTOS,
 )
 
-
 _IDS_LIVE_SELECIONADOS = []
 
 
@@ -34,7 +33,10 @@ _IDS_LIVE_SELECIONADOS = []
 # ============================================================
 
 def _request_json(endpoint, params):
-    url = f"{BASE_URL}/{endpoint.lstrip('/')}?{urllib.parse.urlencode(params)}"
+    url = (
+        f"{BASE_URL}/{endpoint.lstrip('/')}"
+        f"?{urllib.parse.urlencode(params)}"
+    )
 
     req = urllib.request.Request(
         url,
@@ -52,28 +54,41 @@ def _request_json(endpoint, params):
 
             body = resp.read().decode("utf-8")
 
-            print("HTTP STATUS ODDS API:", resp.status)
+            print(
+                "HTTP STATUS ODDS API:",
+                resp.status
+            )
 
         return json.loads(body) if body else []
 
     except urllib.error.HTTPError as e:
+
         try:
             detalhe = e.read().decode("utf-8")
         except Exception:
             detalhe = ""
 
         print(
-            f"ERRO HTTP ODDS API: {e.code} | "
-            f"{detalhe[:500]}"
+            f"ERRO HTTP ODDS API: "
+            f"{e.code} | {detalhe[:500]}"
         )
 
         return []
 
-    except (urllib.error.URLError, TimeoutError) as e:
-        print("ERRO DE CONEXAO ODDS API:", e)
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+    ) as e:
+
+        print(
+            "ERRO DE CONEXAO ODDS API:",
+            e
+        )
+
         return []
 
     except Exception as e:
+
         print(
             f"ERRO ODDS API: "
             f"{type(e).__name__}: {e}"
@@ -115,7 +130,8 @@ def _lista_eventos(resposta):
         return [resposta]
 
     return [
-        v for v in resposta.values()
+        v
+        for v in resposta.values()
         if isinstance(v, dict)
         and v.get("id") is not None
     ]
@@ -134,7 +150,11 @@ def _numero(valor, padrao=0.0):
             else float(valor)
         )
 
-    except (TypeError, ValueError):
+    except (
+        TypeError,
+        ValueError,
+    ):
+
         return padrao
 
 
@@ -147,7 +167,11 @@ def _inteiro(valor, padrao=0):
             else int(float(valor))
         )
 
-    except (TypeError, ValueError):
+    except (
+        TypeError,
+        ValueError,
+    ):
+
         return padrao
 
 
@@ -160,8 +184,7 @@ def _extrair_minuto(jogo):
     if not isinstance(jogo, dict):
         return 0
 
-    # V4.7:
-    # leitura prioritária de clock.minute
+    # Prioridade: clock.minute
     clock = jogo.get("clock")
 
     if isinstance(clock, dict):
@@ -220,7 +243,12 @@ def buscar_jogos_ao_vivo():
         key = obter_api_key()
 
     except Exception as e:
-        print("ERRO API KEY:", e)
+
+        print(
+            "ERRO API KEY:",
+            e
+        )
+
         return []
 
     resposta = _request_json(
@@ -235,7 +263,9 @@ def buscar_jogos_ao_vivo():
 
     if not eventos:
 
-        print("JOGOS AO VIVO ENCONTRADOS: 0")
+        print(
+            "JOGOS AO VIVO ENCONTRADOS: 0"
+        )
 
         return []
 
@@ -247,9 +277,10 @@ def buscar_jogos_ao_vivo():
 
         if event_id is not None:
 
-            mapa_eventos[str(event_id)] = evento
+            mapa_eventos[
+                str(event_id)
+            ] = evento
 
-    # Mantém os jogos já selecionados enquanto continuarem ao vivo.
     ids_mantidos = [
         str(event_id)
         for event_id in _IDS_LIVE_SELECIONADOS
@@ -275,13 +306,14 @@ def buscar_jogos_ao_vivo():
     for evento in restantes[:vagas]:
 
         if evento.get("id") is not None:
-
             ids_mantidos.append(
                 str(evento["id"])
             )
 
     _IDS_LIVE_SELECIONADOS = (
-        ids_mantidos[:MAX_EVENTOS_POR_CONSULTA]
+        ids_mantidos[
+            :MAX_EVENTOS_POR_CONSULTA
+        ]
     )
 
     selecionados = [
@@ -351,7 +383,6 @@ def _parse_data_evento(evento):
         )
 
         if dt.tzinfo is None:
-
             dt = dt.replace(
                 tzinfo=timezone.utc
             )
@@ -365,7 +396,7 @@ def _parse_data_evento(evento):
 
 
 # ============================================================
-# PRÉ-LIVE
+# JOGOS PRÉ-LIVE
 # ============================================================
 
 def buscar_jogos_pre_live():
@@ -374,7 +405,12 @@ def buscar_jogos_pre_live():
         key = obter_api_key()
 
     except Exception as e:
-        print("ERRO API KEY:", e)
+
+        print(
+            "ERRO API KEY:",
+            e
+        )
+
         return []
 
     resposta = _request_json(
@@ -388,9 +424,13 @@ def buscar_jogos_pre_live():
         },
     )
 
-    eventos = _lista_eventos(resposta)
+    eventos = _lista_eventos(
+        resposta
+    )
 
-    agora = datetime.now(timezone.utc)
+    agora = datetime.now(
+        timezone.utc
+    )
 
     agora_ts = agora.timestamp()
 
@@ -403,16 +443,24 @@ def buscar_jogos_pre_live():
 
     for evento in eventos:
 
-        dt = _parse_data_evento(evento)
+        dt = _parse_data_evento(
+            evento
+        )
 
         if dt is None:
             continue
 
         ts = dt.timestamp()
 
-        if agora_ts <= ts <= limite:
+        if (
+            agora_ts
+            <= ts
+            <= limite
+        ):
 
-            proximos.append(evento)
+            proximos.append(
+                evento
+            )
 
     proximos.sort(
         key=lambda e: (
@@ -436,14 +484,6 @@ def buscar_jogos_pre_live():
 # ============================================================
 # ODDS MULTI
 # ============================================================
-# V4.7:
-# Mesmo trabalhando com até 30 jogos,
-# a consulta é obrigatoriamente dividida:
-#
-# 30 jogos = 10 + 10 + 10
-#
-# Nunca envia mais de 10 IDs por chamada.
-# ============================================================
 
 def buscar_odds_multiplos(eventos):
 
@@ -459,7 +499,12 @@ def buscar_odds_multiplos(eventos):
         key = obter_api_key()
 
     except Exception as e:
-        print("ERRO API KEY:", e)
+
+        print(
+            "ERRO API KEY:",
+            e
+        )
+
         return []
 
     ids = [
@@ -471,13 +516,9 @@ def buscar_odds_multiplos(eventos):
         )
     ]
 
-    # Remove duplicados.
-    ids = list(dict.fromkeys(ids))
-
-    # Limite máximo total permanece 30.
-    ids = ids[
-        :MAX_EVENTOS_POR_CONSULTA
-    ]
+    ids = list(
+        dict.fromkeys(ids)
+    )[:MAX_EVENTOS_POR_CONSULTA]
 
     if not ids:
 
@@ -502,10 +543,7 @@ def buscar_odds_multiplos(eventos):
 
     resultados = []
 
-    # ========================================================
-    # BLOCO MÁXIMO DE 10 IDS
-    # ========================================================
-
+    # API consulta no máximo 10 IDs por bloco
     for inicio in range(
         0,
         len(ids),
@@ -543,19 +581,18 @@ def buscar_odds_multiplos(eventos):
 
         print(
             "RESPOSTA ODDS MULTI:",
-            type(resposta).__name__
+            type(resposta).__name__,
         )
 
         print(
             "EVENTOS COM ODDS RECEBIDOS:",
-            len(eventos_odds)
+            len(eventos_odds),
         )
 
         resultados.extend(
             eventos_odds
         )
 
-        # Diagnóstico dos dois primeiros IDs
         for event_id in bloco[:2]:
 
             item = _evento_odds_por_id(
@@ -599,8 +636,7 @@ def buscar_odds_multiplos(eventos):
             ):
 
                 print(
-                    "BOOKMAKERS: dict | "
-                    "CHAVES:",
+                    "BOOKMAKERS: dict | CHAVES:",
                     list(bookmakers.keys())[:20]
                 )
 
@@ -625,8 +661,7 @@ def buscar_odds_multiplos(eventos):
                         )
 
                 print(
-                    "BOOKMAKERS: list | "
-                    "NOMES:",
+                    "BOOKMAKERS: list | NOMES:",
                     nomes
                 )
 
@@ -643,7 +678,7 @@ def buscar_odds_multiplos(eventos):
 
 
 # ============================================================
-# LOCALIZAR EVENTO NAS ODDS
+# LOCALIZA EVENTO NAS ODDS
 # ============================================================
 
 def _evento_odds_por_id(
@@ -677,9 +712,14 @@ def _evento_odds_por_id(
 
             return odds
 
-        item = odds.get(alvo)
+        item = odds.get(
+            alvo
+        )
 
-        if isinstance(item, dict):
+        if isinstance(
+            item,
+            dict
+        ):
 
             return item
 
@@ -692,7 +732,11 @@ def _evento_odds_por_id(
 
 def _mercados_bet365(evento):
 
-    if not isinstance(evento, dict):
+    if not isinstance(
+        evento,
+        dict
+    ):
+
         return []
 
     bookmakers = evento.get(
@@ -700,7 +744,10 @@ def _mercados_bet365(evento):
         {}
     )
 
-    if isinstance(bookmakers, dict):
+    if isinstance(
+        bookmakers,
+        dict
+    ):
 
         mercados = bookmakers.get(
             BOOKMAKER
@@ -726,7 +773,6 @@ def _mercados_bet365(evento):
                 ):
 
                     mercados = valor
-
                     break
 
         if isinstance(
@@ -759,6 +805,7 @@ def _mercados_bet365(evento):
                 bookmaker,
                 dict
             ):
+
                 continue
 
             nome = str(
@@ -796,7 +843,11 @@ def _mercados_bet365(evento):
 
 def _preco_item(item):
 
-    if not isinstance(item, dict):
+    if not isinstance(
+        item,
+        dict
+    ):
+
         return 0.0
 
     for chave in (
@@ -807,11 +858,17 @@ def _preco_item(item):
         "decimal",
     ):
 
-        valor = item.get(chave)
+        valor = item.get(
+            chave
+        )
 
         if isinstance(
             valor,
-            (int, float, str)
+            (
+                int,
+                float,
+                str,
+            )
         ):
 
             numero = _numero(
@@ -838,15 +895,18 @@ def _extrair_outcome(
         linha,
         dict
     ):
+
         return 0.0
 
     for nome in nomes:
 
-        valor = linha.get(nome)
+        valor = linha.get(
+            nome
+        )
 
         if valor not in (
             None,
-            ""
+            "",
         ):
 
             preco = (
@@ -873,7 +933,9 @@ def _extrair_outcome(
         "options",
     ):
 
-        valor = linha.get(chave)
+        valor = linha.get(
+            chave
+        )
 
         if isinstance(
             valor,
@@ -883,7 +945,10 @@ def _extrair_outcome(
             candidatos.extend(
                 x
                 for x in valor
-                if isinstance(x, dict)
+                if isinstance(
+                    x,
+                    dict
+                )
             )
 
         elif isinstance(
@@ -894,7 +959,10 @@ def _extrair_outcome(
             candidatos.extend(
                 x
                 for x in valor.values()
-                if isinstance(x, dict)
+                if isinstance(
+                    x,
+                    dict
+                )
             )
 
     alvo = {
@@ -927,7 +995,6 @@ def _extrair_outcome(
     ).strip().lower()
 
     if nome in alvo:
-
         return _preco_item(
             linha
         )
@@ -945,6 +1012,7 @@ def _linhas_odds(mercado):
         mercado,
         dict
     ):
+
         return []
 
     valores = mercado.get(
@@ -959,7 +1027,10 @@ def _linhas_odds(mercado):
         return [
             item
             for item in valores
-            if isinstance(item, dict)
+            if isinstance(
+                item,
+                dict
+            )
         ]
 
     if isinstance(
@@ -973,7 +1044,7 @@ def _linhas_odds(mercado):
 
 
 # ============================================================
-# NORMALIZAÇÃO DO NOME DO MERCADO
+# NORMALIZAÇÃO DE NOMES
 # ============================================================
 
 def _nome_normalizado(nome):
@@ -988,7 +1059,7 @@ def _nome_normalizado(nome):
 
 
 # ============================================================
-# IDENTIFICAÇÃO HT
+# IDENTIFICA HT
 # ============================================================
 
 def _eh_ht(nome):
@@ -1005,18 +1076,4 @@ def _eh_ht(nome):
             "1st half",
             "first half",
             "1h",
-            "ht result",
-            "ht totals",
-            "half time result",
-        )
-    )
-
-
-# ============================================================
-# CATEGORIA DO MERCADO
-# ============================================================
-
-def _categoria_mercado(nome):
-
-    n = _nome_normalizado(
-        no
+            "ht 
