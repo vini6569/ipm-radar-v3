@@ -1,7 +1,7 @@
 # ============================================================
-# MOTOR IPM - RADAR V5.0
+# MOTOR IPM - RADAR V5.1
 # CASA + EMPATE + VISITANTE
-# TRAJETÓRIA + REFERÊNCIA 45' + MEMÓRIA
+# PRE-LIVE COMPLETO + TRAJETÓRIA + REFERÊNCIA 45' + MEMÓRIA
 # ============================================================
 
 from datetime import datetime
@@ -156,6 +156,8 @@ def analisar_ipm_com_memoria(
     odd_pre_live=None,
     odd_casa=None,
     odd_visitante=None,
+    odd_casa_pre_live=None,
+    odd_visitante_pre_live=None,
     **kwargs,
 ):
     if chave_jogo is None:
@@ -169,10 +171,18 @@ def analisar_ipm_com_memoria(
     odd_empate = _numero(odd_atual)
     odd_casa = _numero(odd_casa)
     odd_visitante = _numero(odd_visitante)
-    pre_live = _numero(odd_pre_live)
 
-    if memoria["odd_casa_inicial"] is None and odd_casa > 0:
-        memoria["odd_casa_inicial"] = odd_casa
+    pre_live = _numero(odd_pre_live)
+    pre_live_casa = _numero(odd_casa_pre_live)
+    pre_live_visitante = _numero(odd_visitante_pre_live)
+
+    # A referência inicial agora prioriza as odds pré-live dos
+    # três mercados. Se não houver pré-live, usa o primeiro valor live.
+    if memoria["odd_casa_inicial"] is None:
+        if pre_live_casa > 0:
+            memoria["odd_casa_inicial"] = pre_live_casa
+        elif odd_casa > 0:
+            memoria["odd_casa_inicial"] = odd_casa
 
     if memoria["odd_empate_inicial"] is None:
         if pre_live > 0:
@@ -180,26 +190,18 @@ def analisar_ipm_com_memoria(
         elif odd_empate > 0:
             memoria["odd_empate_inicial"] = odd_empate
 
-    if (
-        memoria["odd_visitante_inicial"] is None
-        and odd_visitante > 0
-    ):
-        memoria["odd_visitante_inicial"] = odd_visitante
+    if memoria["odd_visitante_inicial"] is None:
+        if pre_live_visitante > 0:
+            memoria["odd_visitante_inicial"] = pre_live_visitante
+        elif odd_visitante > 0:
+            memoria["odd_visitante_inicial"] = odd_visitante
 
     odd_casa_ini = _numero(memoria["odd_casa_inicial"])
     odd_empate_ini = _numero(memoria["odd_empate_inicial"])
-    odd_visitante_ini = _numero(
-        memoria["odd_visitante_inicial"]
-    )
+    odd_visitante_ini = _numero(memoria["odd_visitante_inicial"])
 
-    var_casa = _variacao_percentual(
-        odd_casa_ini,
-        odd_casa,
-    )
-    var_empate = _variacao_percentual(
-        odd_empate_ini,
-        odd_empate,
-    )
+    var_casa = _variacao_percentual(odd_casa_ini, odd_casa)
+    var_empate = _variacao_percentual(odd_empate_ini, odd_empate)
     var_visitante = _variacao_percentual(
         odd_visitante_ini,
         odd_visitante,
@@ -273,6 +275,15 @@ def analisar_ipm_com_memoria(
         "odd_visitante": odd_visitante,
 
         "odd_pre_live": referencia_pre,
+        "odd_casa_pre_live": (
+            pre_live_casa if pre_live_casa > 0 else odd_casa_ini
+        ),
+        "odd_visitante_pre_live": (
+            pre_live_visitante
+            if pre_live_visitante > 0
+            else odd_visitante_ini
+        ),
+
         "odd_casa_inicial": odd_casa_ini,
         "odd_empate_inicial": odd_empate_ini,
         "odd_visitante_inicial": odd_visitante_ini,
@@ -308,9 +319,7 @@ def avaliar_entrada(
         return False
 
     ipm = _numero(resultado.get("ipm"))
-    variacao = abs(
-        _numero(resultado.get("variacao_pre_live"))
-    )
+    variacao = abs(_numero(resultado.get("variacao_pre_live")))
 
     if ipm < _numero(ipm_minimo):
         return False
@@ -356,14 +365,8 @@ def resultado_empate(jogo, mercados=None):
         valor = jogo.get(chave)
 
         if isinstance(valor, dict):
-            casa = valor.get(
-                "home",
-                valor.get("homeScore"),
-            )
-            fora = valor.get(
-                "away",
-                valor.get("awayScore"),
-            )
+            casa = valor.get("home", valor.get("homeScore"))
+            fora = valor.get("away", valor.get("awayScore"))
 
             if casa is not None and fora is not None:
                 return _inteiro(casa) == _inteiro(fora)
@@ -387,16 +390,8 @@ def formatar_radar(jogo, resultado, mercados=None):
     if not isinstance(resultado, dict):
         resultado = {}
 
-    casa = (
-        jogo.get("home")
-        or jogo.get("homeTeam")
-        or "Casa"
-    )
-    fora = (
-        jogo.get("away")
-        or jogo.get("awayTeam")
-        or "Fora"
-    )
+    casa = jogo.get("home") or jogo.get("homeTeam") or "Casa"
+    fora = jogo.get("away") or jogo.get("awayTeam") or "Fora"
 
     minuto = _inteiro(resultado.get("minuto"))
     placar_casa = 0
@@ -427,7 +422,8 @@ def formatar_radar(jogo, resultado, mercados=None):
         "\n"
         "🎯 REFERÊNCIA 45'\n"
         f"🤝 Odd projetada: {_numero(resultado.get('odd_45')):.2f}\n"
-        f"📐 Diferença atual: {_numero(resultado.get('diferenca_45')):+.2f}%\n"
+        f"📐 Diferença atual: "
+        f"{_numero(resultado.get('diferenca_45')):+.2f}%\n"
         "\n"
         f"📈 IPM: {_numero(resultado.get('ipm')):.2f}\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
