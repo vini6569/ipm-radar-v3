@@ -43,6 +43,11 @@ from motor_ipm import (
     resultado_empate,
 )
 
+print("[BOOT 5] módulos locais carregados", flush=True)
+
+
+# ===== IPM RADAR V5.1 DIAGNOSTICO =====
+print("[BOOT 1] Python iniciou o main.py", flush=True)
 
 PORTA_SAUDE = int(
     os.environ.get("PORT", "10000")
@@ -70,6 +75,7 @@ _controle_jogos = {}
 
 
 def enviar_telegram(texto):
+    print("[DIAG] função Telegram carregada", flush=True)
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
         print(
             "INFO: Telegram nao configurado; "
@@ -268,6 +274,7 @@ class HealthHandler(BaseHTTPRequestHandler):
 
 
 def iniciar_servidor_saude():
+    print("[BOOT 6] iniciando servidor de saúde", flush=True)
     try:
         servidor = HTTPServer(
             ("0.0.0.0", PORTA_SAUDE),
@@ -290,6 +297,7 @@ def iniciar_servidor_saude():
 
 
 def capturar_referencia_pre_live():
+    print("[DIAG] iniciando captura PRE-LIVE", flush=True)
     try:
         jogos = buscar_jogos_pre_live() or []
         if not jogos:
@@ -605,6 +613,7 @@ def processar_jogo(jogo, mercados, resultado):
 
 
 def executar_consulta():
+    print("[BOOT 8] executar_consulta chamado", flush=True)
     print()
     print("=" * 72)
     print(
@@ -796,28 +805,8 @@ def executar_consulta():
 
 
 def loop_consulta():
+    print("[BOOT 7] loop_consulta iniciado", flush=True)
     carregar_controle()
 
     print(
-        f"ROBO INICIADO | {NOME_BOT} | "
-        f"VERSAO {VERSAO}"
-    )
-
-    while True:
-        inicio = time.time()
-
-        try:
-            if horario_ativo():
-                executar_consulta()
-            else:
-                print(
-                    "Radar em periodo de pausa."
-                )
-
-        except Exception as erro:
-            print(
-                "ERRO NO LOOP:",
-                type(erro).__name__,
-                erro,
-        )
-    
+        f"ROBO INICI
