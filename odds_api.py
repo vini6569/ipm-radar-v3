@@ -69,16 +69,13 @@ def _request_json(endpoint, params):
             detalhe = ""
 
         print(
-            f"ERRO HTTP ODDS API: "
-            f"{e.code} | {detalhe[:500]}"
+            f"ERRO HTTP ODDS API: {e.code} | "
+            f"{detalhe[:500]}"
         )
 
         return []
 
-    except (
-        urllib.error.URLError,
-        TimeoutError,
-    ) as e:
+    except (urllib.error.URLError, TimeoutError) as e:
 
         print(
             "ERRO DE CONEXAO ODDS API:",
@@ -90,15 +87,14 @@ def _request_json(endpoint, params):
     except Exception as e:
 
         print(
-            f"ERRO ODDS API: "
-            f"{type(e).__name__}: {e}"
+            f"ERRO ODDS API: {type(e).__name__}: {e}"
         )
 
         return []
 
 
 # ============================================================
-# NORMALIZAÇÃO DA RESPOSTA
+# NORMALIZAÇÃO DE EVENTOS
 # ============================================================
 
 def _lista_eventos(resposta):
@@ -121,6 +117,7 @@ def _lista_eventos(resposta):
         valor = resposta.get(chave)
 
         if isinstance(valor, list):
+
             return [
                 x for x in valor
                 if isinstance(x, dict)
@@ -130,8 +127,7 @@ def _lista_eventos(resposta):
         return [resposta]
 
     return [
-        v
-        for v in resposta.values()
+        v for v in resposta.values()
         if isinstance(v, dict)
         and v.get("id") is not None
     ]
@@ -144,16 +140,13 @@ def _lista_eventos(resposta):
 def _numero(valor, padrao=0.0):
 
     try:
-        return (
-            padrao
-            if valor in (None, "")
-            else float(valor)
-        )
 
-    except (
-        TypeError,
-        ValueError,
-    ):
+        if valor in (None, ""):
+            return padrao
+
+        return float(valor)
+
+    except (TypeError, ValueError):
 
         return padrao
 
@@ -161,16 +154,13 @@ def _numero(valor, padrao=0.0):
 def _inteiro(valor, padrao=0):
 
     try:
-        return (
-            padrao
-            if valor in (None, "")
-            else int(float(valor))
-        )
 
-    except (
-        TypeError,
-        ValueError,
-    ):
+        if valor in (None, ""):
+            return padrao
+
+        return int(float(valor))
+
+    except (TypeError, ValueError):
 
         return padrao
 
@@ -184,7 +174,6 @@ def _extrair_minuto(jogo):
     if not isinstance(jogo, dict):
         return 0
 
-    # Prioridade: clock.minute
     clock = jogo.get("clock")
 
     if isinstance(clock, dict):
@@ -197,7 +186,6 @@ def _extrair_minuto(jogo):
         if minuto >= 0:
             return minuto
 
-    # Compatibilidade com outras estruturas
     for valor in (
         jogo.get("minute"),
         jogo.get("elapsed"),
@@ -240,6 +228,7 @@ def buscar_jogos_ao_vivo():
     global _IDS_LIVE_SELECIONADOS
 
     try:
+
         key = obter_api_key()
 
     except Exception as e:
@@ -259,7 +248,9 @@ def buscar_jogos_ao_vivo():
         },
     )
 
-    eventos = _lista_eventos(resposta)
+    eventos = _lista_eventos(
+        resposta
+    )
 
     if not eventos:
 
@@ -289,7 +280,8 @@ def buscar_jogos_ao_vivo():
 
     restantes = [
         evento
-        for event_id, evento in mapa_eventos.items()
+        for event_id, evento
+        in mapa_eventos.items()
         if event_id not in ids_mantidos
     ]
 
@@ -300,12 +292,13 @@ def buscar_jogos_ao_vivo():
     vagas = max(
         0,
         MAX_EVENTOS_POR_CONSULTA
-        - len(ids_mantidos)
+        - len(ids_mantidos),
     )
 
     for evento in restantes[:vagas]:
 
         if evento.get("id") is not None:
+
             ids_mantidos.append(
                 str(evento["id"])
             )
@@ -318,7 +311,8 @@ def buscar_jogos_ao_vivo():
 
     selecionados = [
         mapa_eventos[event_id]
-        for event_id in _IDS_LIVE_SELECIONADOS
+        for event_id
+        in _IDS_LIVE_SELECIONADOS
         if event_id in mapa_eventos
     ]
 
@@ -331,7 +325,7 @@ def buscar_jogos_ao_vivo():
 
     print(
         "IDS FIXADOS PARA O CICLO:",
-        _IDS_LIVE_SELECIONADOS
+        _IDS_LIVE_SELECIONADOS,
     )
 
     for evento in selecionados:
@@ -383,6 +377,7 @@ def _parse_data_evento(evento):
         )
 
         if dt.tzinfo is None:
+
             dt = dt.replace(
                 tzinfo=timezone.utc
             )
@@ -392,16 +387,18 @@ def _parse_data_evento(evento):
         )
 
     except Exception:
+
         return None
 
 
 # ============================================================
-# JOGOS PRÉ-LIVE
+# PRÉ-LIVE
 # ============================================================
 
 def buscar_jogos_pre_live():
 
     try:
+
         key = obter_api_key()
 
     except Exception as e:
@@ -452,11 +449,7 @@ def buscar_jogos_pre_live():
 
         ts = dt.timestamp()
 
-        if (
-            agora_ts
-            <= ts
-            <= limite
-        ):
+        if agora_ts <= ts <= limite:
 
             proximos.append(
                 evento
@@ -482,7 +475,7 @@ def buscar_jogos_pre_live():
 
 
 # ============================================================
-# ODDS MULTI
+# BUSCAR ODDS EM BLOCOS DE 10
 # ============================================================
 
 def buscar_odds_multiplos(eventos):
@@ -496,6 +489,7 @@ def buscar_odds_multiplos(eventos):
         return []
 
     try:
+
         key = obter_api_key()
 
     except Exception as e:
@@ -510,15 +504,15 @@ def buscar_odds_multiplos(eventos):
     ids = [
         str(evento["id"])
         for evento in eventos
-        if (
-            isinstance(evento, dict)
-            and evento.get("id") is not None
-        )
+        if isinstance(evento, dict)
+        and evento.get("id") is not None
     ]
 
     ids = list(
         dict.fromkeys(ids)
-    )[:MAX_EVENTOS_POR_CONSULTA]
+    )[
+        :MAX_EVENTOS_POR_CONSULTA
+    ]
 
     if not ids:
 
@@ -529,13 +523,18 @@ def buscar_odds_multiplos(eventos):
         return []
 
     print("=" * 70)
-    print("DIAGNOSTICO ODDS MULTI V4.7")
+    print(
+        "DIAGNOSTICO ODDS MULTI V4.7"
+    )
+
     print(
         f"EVENTOS SOLICITADOS: {len(ids)}"
     )
+
     print(
         f"IDS SOLICITADOS: {ids}"
     )
+
     print(
         f"LIMITE CONFIGURADO: "
         f"{MAX_EVENTOS_POR_CONSULTA}"
@@ -543,7 +542,6 @@ def buscar_odds_multiplos(eventos):
 
     resultados = []
 
-    # API consulta no máximo 10 IDs por bloco
     for inicio in range(
         0,
         len(ids),
@@ -581,12 +579,12 @@ def buscar_odds_multiplos(eventos):
 
         print(
             "RESPOSTA ODDS MULTI:",
-            type(resposta).__name__,
+            type(resposta).__name__
         )
 
         print(
             "EVENTOS COM ODDS RECEBIDOS:",
-            len(eventos_odds),
+            len(eventos_odds)
         )
 
         resultados.extend(
@@ -603,8 +601,7 @@ def buscar_odds_multiplos(eventos):
             print("-" * 70)
 
             print(
-                f"TESTE EVENT_ID: "
-                f"{event_id}"
+                f"TESTE EVENT_ID: {event_id}"
             )
 
             if item is None:
@@ -636,7 +633,8 @@ def buscar_odds_multiplos(eventos):
             ):
 
                 print(
-                    "BOOKMAKERS: dict | CHAVES:",
+                    "BOOKMAKERS: dict | "
+                    "CHAVES:",
                     list(bookmakers.keys())[:20]
                 )
 
@@ -661,7 +659,8 @@ def buscar_odds_multiplos(eventos):
                         )
 
                 print(
-                    "BOOKMAKERS: list | NOMES:",
+                    "BOOKMAKERS: list | "
+                    "NOMES:",
                     nomes
                 )
 
@@ -678,7 +677,7 @@ def buscar_odds_multiplos(eventos):
 
 
 # ============================================================
-# LOCALIZA EVENTO NAS ODDS
+# LOCALIZAR EVENTO NAS ODDS
 # ============================================================
 
 def _evento_odds_por_id(
@@ -697,18 +696,16 @@ def _evento_odds_por_id(
 
             if (
                 isinstance(item, dict)
-                and str(item.get("id"))
-                == alvo
+                and str(item.get("id")) == alvo
             ):
 
                 return item
 
     if isinstance(odds, dict):
 
-        if (
-            str(odds.get("id"))
-            == alvo
-        ):
+        if str(
+            odds.get("id")
+        ) == alvo:
 
             return odds
 
@@ -768,8 +765,13 @@ def _mercados_bet365(evento):
             for nome, valor in bookmakers.items():
 
                 if (
-                    str(nome).strip().lower()
-                    == BOOKMAKER.strip().lower()
+                    str(nome)
+                    .strip()
+                    .lower()
+                    ==
+                    BOOKMAKER
+                    .strip()
+                    .lower()
                 ):
 
                     mercados = valor
@@ -817,7 +819,8 @@ def _mercados_bet365(evento):
 
             if (
                 nome
-                == BOOKMAKER.strip().lower()
+                ==
+                BOOKMAKER.strip().lower()
             ):
 
                 mercados = bookmaker.get(
@@ -864,11 +867,7 @@ def _preco_item(item):
 
         if isinstance(
             valor,
-            (
-                int,
-                float,
-                str,
-            )
+            (int, float, str)
         ):
 
             numero = _numero(
@@ -906,7 +905,7 @@ def _extrair_outcome(
 
         if valor not in (
             None,
-            "",
+            ""
         ):
 
             preco = (
@@ -943,8 +942,7 @@ def _extrair_outcome(
         ):
 
             candidatos.extend(
-                x
-                for x in valor
+                x for x in valor
                 if isinstance(
                     x,
                     dict
@@ -957,8 +955,7 @@ def _extrair_outcome(
         ):
 
             candidatos.extend(
-                x
-                for x in valor.values()
+                x for x in valor.values()
                 if isinstance(
                     x,
                     dict
@@ -966,7 +963,9 @@ def _extrair_outcome(
             )
 
     alvo = {
-        str(x).strip().lower()
+        str(x)
+        .strip()
+        .lower()
         for x in nomes
     }
 
@@ -995,6 +994,7 @@ def _extrair_outcome(
     ).strip().lower()
 
     if nome in alvo:
+
         return _preco_item(
             linha
         )
@@ -1044,7 +1044,7 @@ def _linhas_odds(mercado):
 
 
 # ============================================================
-# NORMALIZAÇÃO DE NOMES
+# NORMALIZAÇÃO DO NOME DO MERCADO
 # ============================================================
 
 def _nome_normalizado(nome):
@@ -1059,7 +1059,7 @@ def _nome_normalizado(nome):
 
 
 # ============================================================
-# IDENTIFICA HT
+# IDENTIFICAR HT
 # ============================================================
 
 def _eh_ht(nome):
@@ -1076,4 +1076,13 @@ def _eh_ht(nome):
             "1st half",
             "first half",
             "1h",
-            "ht 
+            "ht result",
+            "ht totals",
+            "half time result",
+        )
+    )
+
+
+# ============================================================
+# CATEGORIA DO MERCADO
+# ===================================
