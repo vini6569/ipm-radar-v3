@@ -14,9 +14,7 @@ def _numero(valor, padrao=0.0):
     try:
         if valor in (None, ""):
             return padrao
-
         return float(valor)
-
     except (TypeError, ValueError):
         return padrao
 
@@ -25,9 +23,7 @@ def _inteiro(valor, padrao=0):
     try:
         if valor in (None, ""):
             return padrao
-
         return int(float(valor))
-
     except (TypeError, ValueError):
         return padrao
 
@@ -50,10 +46,7 @@ def _obter_memoria(event_id):
     return _MEMORIA[chave]
 
 
-def _variacao_percentual(
-    inicial,
-    atual,
-):
+def _variacao_percentual(inicial, atual):
     inicial = _numero(inicial)
     atual = _numero(atual)
 
@@ -66,10 +59,7 @@ def _variacao_percentual(
     ) * 100.0
 
 
-def _movimento_odd(
-    anterior,
-    atual,
-):
+def _movimento_odd(anterior, atual):
     anterior = _numero(anterior)
     atual = _numero(atual)
 
@@ -82,55 +72,6 @@ def _movimento_odd(
     ) * 100.0
 
 
-def _probabilidade_implicita(
-    odd,
-):
-    odd = _numero(odd)
-
-    if odd <= 0:
-        return 0.0
-
-    return (
-        1.0 / odd
-    ) * 100.0
-
-
-def _probabilidade_normalizada(
-    odd_casa,
-    odd_empate,
-    odd_visitante,
-):
-    odd_casa = _numero(odd_casa)
-    odd_empate = _numero(odd_empate)
-    odd_visitante = _numero(
-        odd_visitante
-    )
-
-    if (
-        odd_casa <= 0
-        or odd_empate <= 0
-        or odd_visitante <= 0
-    ):
-        return 0.0
-
-    p_casa = 1.0 / odd_casa
-    p_empate = 1.0 / odd_empate
-    p_visitante = 1.0 / odd_visitante
-
-    soma = (
-        p_casa
-        + p_empate
-        + p_visitante
-    )
-
-    if soma <= 0:
-        return 0.0
-
-    return (
-        p_empate / soma
-    ) * 100.0
-
-
 def _calcular_referencia_45(
     odd_casa,
     odd_empate,
@@ -139,17 +80,12 @@ def _calcular_referencia_45(
 ):
     odd_casa = _numero(odd_casa)
     odd_empate = _numero(odd_empate)
-    odd_visitante = _numero(
-        odd_visitante
-    )
-
+    odd_visitante = _numero(odd_visitante)
     minuto = _numero(minuto)
 
     if odd_empate <= 0:
         return 0.0
 
-    # Sem as três odds, não há referência
-    # matemática completa.
     if (
         odd_casa <= 0
         or odd_visitante <= 0
@@ -174,15 +110,10 @@ def _calcular_referencia_45(
     )
 
     fator_tempo = min(
-        max(
-            minuto / 45.0,
-            0.0,
-        ),
+        max(minuto / 45.0, 0.0),
         1.0,
     )
 
-    # A referência acompanha a probabilidade
-    # de mercado ao longo do primeiro tempo.
     alvo = (
         p_empate_normalizada
         * (1.0 - fator_tempo)
@@ -226,13 +157,11 @@ def _calcular_ipm(
         odd_visitante,
     )
 
-    # Movimento dos dois lados.
     movimento_lados = (
         abs(var_casa) * 0.40
         + abs(var_visitante) * 0.40
     )
 
-    # Movimento da odd do empate.
     movimento_empate = (
         abs(var_empate) * 0.20
     )
@@ -257,10 +186,7 @@ def _calcular_ipm(
 
     return max(
         0.0,
-        min(
-            ipm,
-            100.0,
-        ),
+        min(ipm, 100.0),
     )
 
 
@@ -306,65 +232,45 @@ def analisar_ipm_com_memoria(
         odd_pre_live
     )
 
-    # --------------------------------------------------------
-    # ODDS INICIAIS
-    # --------------------------------------------------------
-
     if (
-        memoria["odd_casa_inicial"]
-        is None
+        memoria["odd_casa_inicial"] is None
         and odd_casa > 0
     ):
-        memoria[
-            "odd_casa_inicial"
-        ] = odd_casa
+        memoria["odd_casa_inicial"] = (
+            odd_casa
+        )
 
-    if (
-        memoria["odd_empate_inicial"]
-        is None
-    ):
+    if memoria["odd_empate_inicial"] is None:
+
         if pre_live > 0:
-            memoria[
-                "odd_empate_inicial"
-            ] = pre_live
+            memoria["odd_empate_inicial"] = (
+                pre_live
+            )
 
         elif odd_empate > 0:
-            memoria[
-                "odd_empate_inicial"
-            ] = odd_empate
+            memoria["odd_empate_inicial"] = (
+                odd_empate
+            )
 
     if (
-        memoria[
-            "odd_visitante_inicial"
-        ]
-        is None
+        memoria["odd_visitante_inicial"] is None
         and odd_visitante > 0
     ):
-        memoria[
-            "odd_visitante_inicial"
-        ] = odd_visitante
+        memoria["odd_visitante_inicial"] = (
+            odd_visitante
+        )
 
     odd_casa_ini = _numero(
-        memoria[
-            "odd_casa_inicial"
-        ]
+        memoria["odd_casa_inicial"]
     )
 
     odd_empate_ini = _numero(
-        memoria[
-            "odd_empate_inicial"
-        ]
+        memoria["odd_empate_inicial"]
     )
 
     odd_visitante_ini = _numero(
-        memoria[
-            "odd_visitante_inicial"
-        ]
+        memoria["odd_visitante_inicial"]
     )
-
-    # --------------------------------------------------------
-    # VARIAÇÕES
-    # --------------------------------------------------------
 
     var_casa = _variacao_percentual(
         odd_casa_ini,
@@ -382,33 +288,9 @@ def analisar_ipm_com_memoria(
     )
 
     var_ciclo = _movimento_odd(
-        memoria[
-            "ultima_odd_empate"
-        ],
+        memoria["ultima_odd_empate"],
         odd_empate,
     )
-
-    # --------------------------------------------------------
-    # PROBABILIDADE DO EMPATE
-    # --------------------------------------------------------
-
-    probabilidade_empate = (
-        _probabilidade_implicita(
-            odd_empate
-        )
-    )
-
-    probabilidade_empate_normalizada = (
-        _probabilidade_normalizada(
-            odd_casa,
-            odd_empate,
-            odd_visitante,
-        )
-    )
-
-    # --------------------------------------------------------
-    # REFERÊNCIA 45'
-    # --------------------------------------------------------
 
     odd_45 = _calcular_referencia_45(
         odd_casa,
@@ -428,10 +310,6 @@ def analisar_ipm_com_memoria(
             / odd_45
         ) * 100.0
 
-    # --------------------------------------------------------
-    # IPM
-    # --------------------------------------------------------
-
     ipm = _calcular_ipm(
         odd_casa_ini,
         odd_empate_ini,
@@ -441,10 +319,6 @@ def analisar_ipm_com_memoria(
         odd_visitante,
         minuto,
     )
-
-    # --------------------------------------------------------
-    # HISTÓRICO
-    # --------------------------------------------------------
 
     registro = {
         "hora": datetime.now().strftime(
@@ -459,10 +333,6 @@ def analisar_ipm_com_memoria(
         "variacao_visitante": var_visitante,
         "odd_45": odd_45,
         "diferenca_45": diferenca_45,
-        "probabilidade_empate":
-            probabilidade_empate,
-        "probabilidade_empate_normalizada":
-            probabilidade_empate_normalizada,
         "ipm": ipm,
         "gols": gols,
     }
@@ -475,21 +345,19 @@ def analisar_ipm_com_memoria(
         memoria["historico"][-100:]
     )
 
-    memoria[
-        "ultima_odd_casa"
-    ] = odd_casa
+    memoria["ultima_odd_casa"] = (
+        odd_casa
+    )
 
-    memoria[
-        "ultima_odd_empate"
-    ] = odd_empate
+    memoria["ultima_odd_empate"] = (
+        odd_empate
+    )
 
-    memoria[
-        "ultima_odd_visitante"
-    ] = odd_visitante
+    memoria["ultima_odd_visitante"] = (
+        odd_visitante
+    )
 
-    memoria[
-        "ultimo_minuto"
-    ] = minuto
+    memoria["ultimo_minuto"] = minuto
 
     referencia_pre = (
         pre_live
@@ -497,75 +365,47 @@ def analisar_ipm_com_memoria(
         else odd_empate_ini
     )
 
-    # --------------------------------------------------------
-    # RETORNO
-    # --------------------------------------------------------
-
     return {
         "event_id": chave_jogo,
         "minuto": minuto,
         "gols": gols,
-
+        "escanteios": _inteiro(
+            escanteios
+        ),
+        "cartoes": _inteiro(
+            cartoes
+        ),
+        "finalizacoes": _inteiro(
+            finalizacoes
+        ),
+        "ataques_perigosos": _inteiro(
+            ataques_perigosos
+        ),
         "odd_casa": odd_casa,
         "odd_atual": odd_empate,
         "odd_empate": odd_empate,
         "odd_visitante": odd_visitante,
-
         "odd_pre_live": referencia_pre,
-
-        "odd_casa_inicial":
-            odd_casa_ini,
-
-        "odd_empate_inicial":
-            odd_empate_ini,
-
-        "odd_visitante_inicial":
-            odd_visitante_ini,
-
-        "variacao_casa":
-            var_casa,
-
-        "variacao_pre_live":
-            _variacao_percentual(
-                referencia_pre,
-                odd_empate,
-            ),
-
-        "variacao_empate":
-            var_empate,
-
-        "variacao_visitante":
-            var_visitante,
-
-        "variacao_odd":
-            var_ciclo,
-
-        "variacao_ciclo":
-            var_ciclo,
-
-        "probabilidade_empate":
-            probabilidade_empate,
-
-        "probabilidade_empate_normalizada":
-            probabilidade_empate_normalizada,
-
-        "odd_45":
-            odd_45,
-
-        "diferenca_45":
-            diferenca_45,
-
-        "ipm":
-            ipm,
-
-        "historico_odds":
-            memoria["historico"],
+        "odd_casa_inicial": odd_casa_ini,
+        "odd_empate_inicial": odd_empate_ini,
+        "odd_visitante_inicial": odd_visitante_ini,
+        "variacao_casa": var_casa,
+        "variacao_pre_live": _variacao_percentual(
+            referencia_pre,
+            odd_empate,
+        ),
+        "variacao_empate": var_empate,
+        "variacao_visitante": var_visitante,
+        "variacao_odd": var_ciclo,
+        "variacao_ciclo": var_ciclo,
+        "odd_45": odd_45,
+        "diferenca_45": diferenca_45,
+        "ipm": ipm,
+        "historico_odds": memoria[
+            "historico"
+        ],
     }
 
-
-# ============================================================
-# ENTRADA
-# ============================================================
 
 def avaliar_entrada(
     resultado,
@@ -610,10 +450,6 @@ def avaliar_entrada(
 
     return True
 
-
-# ============================================================
-# FINALIZAÇÃO
-# ============================================================
 
 def jogo_finalizado(jogo):
     if not isinstance(
@@ -696,20 +532,12 @@ def resultado_empate(
                 )
 
         elif (
-            isinstance(
-                valor,
-                list,
-            )
+            isinstance(valor, list)
             and len(valor) >= 2
         ):
             return (
-                _inteiro(
-                    valor[0]
-                )
-                ==
-                _inteiro(
-                    valor[1]
-                )
+                _inteiro(valor[0])
+                == _inteiro(valor[1])
             )
 
     casa = jogo.get(
@@ -731,10 +559,6 @@ def resultado_empate(
 
     return None
 
-
-# ============================================================
-# FORMATAÇÃO
-# ============================================================
 
 def formatar_radar(
     jogo,
@@ -766,9 +590,7 @@ def formatar_radar(
     )
 
     minuto = _inteiro(
-        resultado.get(
-            "minuto"
-        )
+        resultado.get("minuto")
     )
 
     placar_casa = 0
@@ -805,7 +627,8 @@ def formatar_radar(
         f"⚽ {casa} x {fora}\n"
         f"⏱️ Minuto: {minuto}'\n"
         f"📊 Placar: "
-        f"{placar_casa} x {placar_fora}\n"
+        f"{placar_casa} x "
+        f"{placar_fora}\n"
         "\n"
         "💰 ODDS\n"
         f"🏠 Casa:      "
@@ -818,12 +641,6 @@ def formatar_radar(
         f"{_numero(resultado.get('odd_visitante')):.2f} "
         f"({_numero(resultado.get('variacao_visitante')):+.2f}%)\n"
         "\n"
-        "🎯 EMPATE\n"
-        f"📌 Prob. implícita: "
-        f"{_numero(resultado.get('probabilidade_empate')):.2f}%\n"
-        f"📌 Prob. normalizada: "
-        f"{_numero(resultado.get('probabilidade_empate_normalizada')):.2f}%\n"
-        "\n"
         "🎯 REFERÊNCIA 45'\n"
         f"🤝 Odd projetada: "
         f"{_numero(resultado.get('odd_45')):.2f}\n"
@@ -835,10 +652,6 @@ def formatar_radar(
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
 
-
-# ============================================================
-# LIMPAR MEMÓRIA
-# ============================================================
 
 def limpar_memoria():
     _MEMORIA.clear()
