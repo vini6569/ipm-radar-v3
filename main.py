@@ -809,4 +809,52 @@ def loop_consulta():
     carregar_controle()
 
     print(
-        f"ROBO INICI
+def loop_consulta():
+    carregar_controle()
+
+    print(
+        f"ROBO INICIADO | {NOME_BOT} | "
+        f"VERSAO {VERSAO}"
+    )
+
+    while True:
+        inicio = time.time()
+
+        try:
+            if horario_ativo():
+                executar_consulta()
+            else:
+                print(
+                    "Radar em periodo de pausa."
+                )
+
+        except Exception as erro:
+            print(
+                "ERRO NO LOOP:",
+                type(erro).__name__,
+                erro,
+            )
+
+        tempo_decorrido = time.time() - inicio
+        espera = max(
+            1,
+            INTERVALO_RADAR - tempo_decorrido,
+        )
+
+        print(
+            f"Proxima consulta em "
+            f"{espera:.0f} segundos."
+        )
+
+        time.sleep(espera)
+
+
+if __name__ == "__main__":
+    servidor_thread = threading.Thread(
+        target=iniciar_servidor_saude,
+        daemon=True,
+    )
+
+    servidor_thread.start()
+
+    loop_consulta()
