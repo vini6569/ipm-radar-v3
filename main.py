@@ -935,8 +935,21 @@ def loop_consulta():
                     "⏸️ Radar em período de pausa."
                 )
 
-        except Exception as erro:
-
+                except Exception as erro:
             print(
                 "❌ ERRO NO LOOP:",
+                type(erro).__name__,
+                erro
+            )
+
+        espera = max(
+            1,
+            int(INTERVALO_RADAR - (time.time() - inicio))
+        )
+
+        print(
+            f"⏳ Nova consulta em {espera} segundos..."
+        )
+
+        time.sleep(espera)
        
