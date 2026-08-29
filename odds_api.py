@@ -1,900 +1,786 @@
+# ============================================================
+# MOTOR IPM - V5
+# BASE: CASA + EMPATE + VISITANTE
+# ============================================================
+
 import json
-import urllib.error
-import urllib.parse
-import urllib.request
-from datetime import datetime, timezone
-
-from config import (
-    BASE_URL,
-    BOOKMAKER,
-    SPORT,
-    MAX_EVENTOS_POR_CONSULTA,
-    TIMEOUT_REQUISICAO,
-    obter_api_key,
-    PRE_LIVE_JANELA_MINUTOS,
-)
-
-_IDS_LIVE_SELECIONADOS = []
+import math
+from pathlib import Path
 
 
-def _request_json(endpoint, params):
-    url = f"{BASE_URL}/{endpoint.lstrip('/')}?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": "IPM-Radar/4.7",
-            "Accept": "application/json",
-        },
-    )
+ARQUIVO_MEMORIA = Path("ipm_memoria.json")
+
+_memoria = {}
+
+
+# ============================================================
+# UTILITÁRIOS
+# ============================================================
+
+def _float(valor, padrao=0.0):
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT_REQUISICAO) as resp:
-            body = resp.read().decode("utf-8")
-            print("HTTP STATUS ODDS API:", resp.status)
-            return json.loads(body) if body else []
-    except urllib.error.HTTPError as e:
-        try:
-            detalhe = e.read().decode("utf-8")
-        except Exception:
-            detalhe = ""
-        print(f"ERRO HTTP ODDS API: {e.code} | {detalhe[:500]}")
-        return []
-    except (urllib.error.URLError, TimeoutError) as e:
-        print("ERRO DE CONEXAO ODDS API:", e)
-        return []
-    except Exception as e:
-        print(f"ERRO ODDS API: {type(e).__name__}: {e}")
-        return []
-
-
-def _lista_eventos(resposta):
-    if isinstance(resposta, list):
-        return [x for x in resposta if isinstance(x, dict)]
-
-    if not isinstance(resposta, dict):
-        return []
-
-    for chave in ("events", "data", "results"):
-        valor = resposta.get(chave)
-        if isinstance(valor, list):
-            return [x for x in valor if isinstance(x, dict)]
-
-    if resposta.get("id") is not None:
-        return [resposta]
-
-    return [
-        v for v in resposta.values()
-        if isinstance(v, dict) and v.get("id") is not None
-    ]
-
-
-def _numero(valor, padrao=0.0):
-    try:
-        return padrao if valor in (None, "") else float(valor)
+        if valor in (None, ""):
+            return padrao
+        return float(valor)
     except (TypeError, ValueError):
         return padrao
 
 
-def _inteiro(valor, padrao=0):
+def _int(valor, padrao=0):
     try:
-        return padrao if valor in (None, "") else int(float(valor))
+        if valor in (None, ""):
+            return padrao
+        return int(float(valor))
     except (TypeError, ValueError):
         return padrao
 
 
-def _extrair_minuto(jogo):
-    if not isinstance(jogo, dict):
-        return 0
+def _limitar(valor, minimo=0.0, maximo=100.0):
+    return max(minimo, min(maximo, float(valor)))
 
-    clock = jogo.get("clock")
-    if isinstance(clock, dict):
-        minuto = _inteiro(clock.get("minute"), -1)
-        if minuto >= 0:
-            return minuto
 
-    for valor in (
-        jogo.get("minute"),
-        jogo.get("elapsed"),
-        jogo.get("timer"),
-    ):
-        if isinstance(valor, dict):
-            valor = valor.get("minute", valor.get("elapsed"))
+def _variacao_percentual(inicial, atual):
+    inicial = _float(inicial)
+    atual = _float(atual)
 
-        if isinstance(valor, str):
-            valor = (
-                valor.replace("'", "")
-                .replace("min", "")
-                .strip()
-            )
-
-        minuto = _inteiro(valor, -1)
-        if minuto >= 0:
-            return minuto
-
-    return 0
-
-
-def buscar_jogos_ao_vivo():
-    global _IDS_LIVE_SELECIONADOS
-
-    try:
-        key = obter_api_key()
-    except Exception as e:
-        print("ERRO API KEY:", e)
-        return []
-
-    resposta = _request_json(
-        "/events/live",
-        {
-            "apiKey": key,
-            "sport": SPORT,
-        },
-    )
-
-    eventos = _lista_eventos(resposta)
-
-    if not eventos:
-        print("JOGOS AO VIVO ENCONTRADOS: 0")
-        return []
-
-    mapa_eventos = {}
-
-    for evento in eventos:
-        event_id = evento.get("id")
-        if event_id is not None:
-            mapa_eventos[str(event_id)] = evento
-
-    ids_mantidos = [
-        str(event_id)
-        for event_id in _IDS_LIVE_SELECIONADOS
-        if str(event_id) in mapa_eventos
-    ]
-
-    restantes = [
-        evento
-        for event_id, evento in mapa_eventos.items()
-        if event_id not in ids_mantidos
-    ]
-
-    restantes.sort(key=_extrair_minuto)
-
-    vagas = max(
-        0,
-        MAX_EVENTOS_POR_CONSULTA - len(ids_mantidos),
-    )
-
-    for evento in restantes[:vagas]:
-        if evento.get("id") is not None:
-            ids_mantidos.append(str(evento["id"]))
-
-    _IDS_LIVE_SELECIONADOS = ids_mantidos[
-        :MAX_EVENTOS_POR_CONSULTA
-    ]
-
-    selecionados = [
-        mapa_eventos[event_id]
-        for event_id in _IDS_LIVE_SELECIONADOS
-        if event_id in mapa_eventos
-    ]
-
-    print(
-        "JOGOS AO VIVO ENCONTRADOS:",
-        len(eventos),
-        "| JOGOS SELECIONADOS:",
-        len(selecionados),
-    )
-
-    print(
-        "IDS FIXADOS PARA O CICLO:",
-        _IDS_LIVE_SELECIONADOS,
-    )
-
-    for evento in selecionados:
-        nome_casa = (
-            evento.get("home")
-            or evento.get("homeTeam")
-            or ""
-        )
-        nome_fora = (
-            evento.get("away")
-            or evento.get("awayTeam")
-            or ""
-        )
-
-        print(
-            f"SELECIONADO | {_extrair_minuto(evento)}' | "
-            f"{nome_casa} x {nome_fora} | ID={evento.get('id')}"
-        )
-
-    return selecionados
-
-
-def _parse_data_evento(evento):
-    valor = (
-        evento.get("date")
-        or evento.get("startTime")
-        or evento.get("start_time")
-    )
-
-    if not valor:
-        return None
-
-    try:
-        dt = datetime.fromisoformat(
-            str(valor).replace("Z", "+00:00")
-        )
-
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-
-        return dt.astimezone(timezone.utc)
-
-    except Exception:
-        return None
-
-
-def buscar_jogos_pre_live():
-    try:
-        key = obter_api_key()
-    except Exception as e:
-        print("ERRO API KEY:", e)
-        return []
-
-    resposta = _request_json(
-        "/events",
-        {
-            "apiKey": key,
-            "sport": SPORT,
-            "status": "pending",
-            "limit": 100,
-            "bookmaker": BOOKMAKER,
-        },
-    )
-
-    eventos = _lista_eventos(resposta)
-
-    agora = datetime.now(timezone.utc)
-    agora_ts = agora.timestamp()
-    limite = (
-        agora_ts
-        + PRE_LIVE_JANELA_MINUTOS * 60
-    )
-
-    proximos = []
-
-    for evento in eventos:
-        dt = _parse_data_evento(evento)
-
-        if dt is None:
-            continue
-
-        ts = dt.timestamp()
-
-        if agora_ts <= ts <= limite:
-            proximos.append(evento)
-
-    proximos.sort(
-        key=lambda e: (
-            _parse_data_evento(e) or agora
-        )
-    )
-
-    proximos = proximos[
-        :MAX_EVENTOS_POR_CONSULTA
-    ]
-
-    print(
-        "JOGOS PRE-LIVE PROXIMOS:",
-        len(proximos),
-    )
-
-    return proximos
-
-
-def buscar_odds_multiplos(eventos):
-    if not eventos:
-        print("ODDS MULTI: nenhum evento recebido.")
-        return []
-
-    try:
-        key = obter_api_key()
-    except Exception as e:
-        print("ERRO API KEY:", e)
-        return []
-
-    ids = [
-        str(evento["id"])
-        for evento in eventos
-        if isinstance(evento, dict)
-        and evento.get("id") is not None
-    ]
-
-    ids = list(dict.fromkeys(ids))[
-        :MAX_EVENTOS_POR_CONSULTA
-    ]
-
-    if not ids:
-        print("ODDS MULTI: nenhum ID valido.")
-        return []
-
-    print("=" * 70)
-    print("DIAGNOSTICO ODDS MULTI V4.7")
-    print(f"EVENTOS SOLICITADOS: {len(ids)}")
-    print(f"IDS SOLICITADOS: {ids}")
-    print(
-        f"LIMITE CONFIGURADO: "
-        f"{MAX_EVENTOS_POR_CONSULTA}"
-    )
-
-    resultados = []
-
-    for inicio in range(0, len(ids), 10):
-        bloco = ids[inicio:inicio + 10]
-
-        print("-" * 70)
-        print(
-            f"CONSULTA ODDS {inicio // 10 + 1}: "
-            f"{len(bloco)} eventos"
-        )
-        print(f"IDS: {bloco}")
-
-        resposta = _request_json(
-            "/odds/multi",
-            {
-                "apiKey": key,
-                "eventIds": ",".join(bloco),
-                "bookmakers": BOOKMAKER,
-            },
-        )
-
-        eventos_odds = _lista_eventos(resposta)
-
-        print(
-            "RESPOSTA ODDS MULTI:",
-            type(resposta).__name__,
-        )
-
-        print(
-            "EVENTOS COM ODDS RECEBIDOS:",
-            len(eventos_odds),
-        )
-
-        resultados.extend(eventos_odds)
-
-        for event_id in bloco[:2]:
-            item = _evento_odds_por_id(
-                eventos_odds,
-                event_id,
-            )
-
-            print("-" * 70)
-            print(f"TESTE EVENT_ID: {event_id}")
-
-            if item is None:
-                print(
-                    "EVENTO NAO ENCONTRADO "
-                    "NA RESPOSTA DE ODDS."
-                )
-                continue
-
-            print(
-                "EVENTO ENCONTRADO "
-                "NA RESPOSTA DE ODDS."
-            )
-
-            print(
-                "CHAVES DO EVENTO:",
-                list(item.keys())[:20],
-            )
-
-            bookmakers = item.get("bookmakers")
-
-            if isinstance(bookmakers, dict):
-                print(
-                    "BOOKMAKERS: dict | CHAVES:",
-                    list(bookmakers.keys())[:20],
-                )
-
-            elif isinstance(bookmakers, list):
-                nomes = []
-
-                for bookmaker in bookmakers[:20]:
-                    if isinstance(bookmaker, dict):
-                        nomes.append(
-                            bookmaker.get("name")
-                            or bookmaker.get("title")
-                            or bookmaker.get("key")
-                        )
-
-                print(
-                    "BOOKMAKERS: list | NOMES:",
-                    nomes,
-                )
-
-            else:
-                print(
-                    "BOOKMAKERS:",
-                    type(bookmakers).__name__,
-                )
-
-    print("=" * 70)
-
-    return resultados
-
-
-def _evento_odds_por_id(odds, event_id):
-    if event_id is None:
-        return None
-
-    alvo = str(event_id)
-
-    if isinstance(odds, list):
-        for item in odds:
-            if (
-                isinstance(item, dict)
-                and str(item.get("id")) == alvo
-            ):
-                return item
-
-    if isinstance(odds, dict):
-        if str(odds.get("id")) == alvo:
-            return odds
-
-        item = odds.get(alvo)
-
-        if isinstance(item, dict):
-            return item
-
-    return None
-
-
-def _mercados_bet365(evento):
-    if not isinstance(evento, dict):
-        return []
-
-    bookmakers = evento.get("bookmakers", {})
-
-    if isinstance(bookmakers, dict):
-        mercados = bookmakers.get(BOOKMAKER)
-
-        if isinstance(mercados, dict):
-            mercados = mercados.get("markets", [])
-
-        if mercados is None:
-            for nome, valor in bookmakers.items():
-                if (
-                    str(nome).strip().lower()
-                    == BOOKMAKER.strip().lower()
-                ):
-                    mercados = valor
-                    break
-
-        if isinstance(mercados, dict):
-            mercados = mercados.get("markets", [])
-
-        return (
-            mercados
-            if isinstance(mercados, list)
-            else []
-        )
-
-    if isinstance(bookmakers, list):
-        for bookmaker in bookmakers:
-            if not isinstance(bookmaker, dict):
-                continue
-
-            nome = str(
-                bookmaker.get("name")
-                or bookmaker.get("title")
-                or bookmaker.get("key")
-                or ""
-            ).strip().lower()
-
-            if nome == BOOKMAKER.strip().lower():
-                mercados = bookmaker.get(
-                    "markets",
-                    [],
-                )
-
-                return (
-                    mercados
-                    if isinstance(mercados, list)
-                    else []
-                )
-
-    return []
-
-
-def _preco_item(item):
-    if not isinstance(item, dict):
+    if inicial <= 0 or atual <= 0:
         return 0.0
 
-    for chave in (
-        "price",
-        "value",
-        "odd",
-        "odds",
-        "decimal",
-    ):
-        valor = item.get(chave)
-
-        if isinstance(
-            valor,
-            (int, float, str),
-        ):
-            numero = _numero(
-                valor,
-                0.0,
-            )
-
-            if numero > 0:
-                return numero
-
-    return 0.0
+    return ((atual / inicial) - 1.0) * 100.0
 
 
-def _extrair_outcome(linha, nomes):
-    if not isinstance(linha, dict):
-        return 0.0
+# ============================================================
+# MEMÓRIA
+# ============================================================
 
-    for nome in nomes:
-        valor = linha.get(nome)
+def carregar_memoria():
+    global _memoria
 
-        if valor not in (None, ""):
-            preco = (
-                _preco_item(valor)
-                if isinstance(valor, dict)
-                else _numero(valor, 0.0)
-            )
+    try:
+        if not ARQUIVO_MEMORIA.exists():
+            _memoria = {}
+            return
 
-            if preco > 0:
-                return preco
+        with ARQUIVO_MEMORIA.open("r", encoding="utf-8") as arquivo:
+            dados = json.load(arquivo)
 
-    candidatos = []
+        _memoria = dados if isinstance(dados, dict) else {}
 
-    for chave in (
-        "outcomes",
-        "selections",
-        "items",
-        "options",
-    ):
-        valor = linha.get(chave)
+        print("🧠 Memória IPM carregada:", len(_memoria), "jogos")
 
-        if isinstance(valor, list):
-            candidatos.extend(
-                x
-                for x in valor
-                if isinstance(x, dict)
-            )
-
-        elif isinstance(valor, dict):
-            candidatos.extend(
-                x
-                for x in valor.values()
-                if isinstance(x, dict)
-            )
-
-    alvo = {
-        str(x).strip().lower()
-        for x in nomes
-    }
-
-    for item in candidatos:
-        nome = str(
-            item.get("name")
-            or item.get("label")
-            or item.get("selection")
-            or ""
-        ).strip().lower()
-
-        if nome in alvo:
-            preco = _preco_item(item)
-
-            if preco > 0:
-                return preco
-
-    nome = str(
-        linha.get("name")
-        or linha.get("label")
-        or ""
-    ).strip().lower()
-
-    if nome in alvo:
-        return _preco_item(linha)
-
-    return 0.0
-
-
-def _linhas_odds(mercado):
-    if not isinstance(mercado, dict):
-        return []
-
-    valores = mercado.get("odds")
-
-    if isinstance(valores, list):
-        return [
-            item
-            for item in valores
-            if isinstance(item, dict)
-        ]
-
-    if isinstance(valores, dict):
-        return [valores]
-
-    return []
-
-
-def _nome_normalizado(nome):
-    return (
-        str(nome or "")
-        .strip()
-        .lower()
-        .replace("_", " ")
-        .replace("-", " ")
-    )
-
-
-# Mantém compatibilidade caso alguma parte
-# do projeto utilize o nome sem underscore.
-def nome_normalizado(nome):
-    return _nome_normalizado(nome)
-
-
-def _eh_ht(nome):
-    n = _nome_normalizado(nome)
-
-    return any(
-        termo in n
-        for termo in (
-            "half time",
-            "halftime",
-            "1st half",
-            "first half",
-            "1h",
-            "ht result",
-            "ht totals",
-            "half time result",
+    except Exception as erro:
+        print(
+            "⚠️ ERRO AO CARREGAR MEMÓRIA IPM:",
+            type(erro).__name__,
+            erro,
         )
-    )
+        _memoria = {}
 
 
-def _categoria_mercado(nome):
-    n = _nome_normalizado(nome)
+def salvar_memoria():
+    try:
+        temporario = ARQUIVO_MEMORIA.with_suffix(".tmp")
 
-    if _eh_ht(nome):
-        return "HT"
+        with temporario.open("w", encoding="utf-8") as arquivo:
+            json.dump(
+                _memoria,
+                arquivo,
+                ensure_ascii=False,
+                indent=2,
+            )
 
-    if "corner" in n or "escante" in n:
-        return "CORNERS"
+        temporario.replace(ARQUIVO_MEMORIA)
+
+    except Exception as erro:
+        print(
+            "⚠️ ERRO AO SALVAR MEMÓRIA IPM:",
+            type(erro).__name__,
+            erro,
+        )
+
+
+def _obter_memoria(event_id):
+    chave = str(event_id)
+
+    if chave not in _memoria:
+        _memoria[chave] = {
+            "historico": [],
+            "odd_casa_inicial": 0.0,
+            "odd_empate_inicial": 0.0,
+            "odd_visitante_inicial": 0.0,
+            "ultimo_minuto": 0,
+        }
+
+    return _memoria[chave]
+
+
+# ============================================================
+# PROBABILIDADES DAS 3 ODDS
+# ============================================================
+
+def calcular_probabilidades(odd_casa, odd_empate, odd_visitante):
+    odd_casa = _float(odd_casa)
+    odd_empate = _float(odd_empate)
+    odd_visitante = _float(odd_visitante)
 
     if (
-        "card" in n
-        or "cartao" in n
-        or "cartões" in n
-        or "booking" in n
+        odd_casa <= 1.0
+        or odd_empate <= 1.0
+        or odd_visitante <= 1.0
     ):
-        return "CARDS"
+        return {
+            "prob_casa": 0.0,
+            "prob_empate": 0.0,
+            "prob_visitante": 0.0,
+            "overround": 0.0,
+        }
 
-    return "FT"
+    p_casa = 1.0 / odd_casa
+    p_empate = 1.0 / odd_empate
+    p_visitante = 1.0 / odd_visitante
+
+    soma = p_casa + p_empate + p_visitante
+
+    if soma <= 0:
+        return {
+            "prob_casa": 0.0,
+            "prob_empate": 0.0,
+            "prob_visitante": 0.0,
+            "overround": 0.0,
+        }
+
+    return {
+        "prob_casa": (p_casa / soma) * 100.0,
+        "prob_empate": (p_empate / soma) * 100.0,
+        "prob_visitante": (p_visitante / soma) * 100.0,
+        "overround": (soma - 1.0) * 100.0,
+    }
 
 
-def _extrair_placar(jogo):
-    if not isinstance(jogo, dict):
-        return 0, 0
+# ============================================================
+# REFERÊNCIA MATEMÁTICA DO EMPATE
+# ============================================================
 
+def calcular_referencia_empate_45(
+    odd_casa,
+    odd_visitante,
+):
+    """
+    Estima uma referência matemática para a odd do empate
+    aos 45 minutos utilizando somente CASA e VISITANTE.
+
+    A ideia central:
+
+        força_casa + força_visitante
+        --------------------------------
+        determina o espaço disponível para o empate.
+
+    Quanto mais equilibradas as duas forças,
+    maior a sustentação matemática do empate.
+    """
+
+    odd_casa = _float(odd_casa)
+    odd_visitante = _float(odd_visitante)
+
+    if odd_casa <= 1.0 or odd_visitante <= 1.0:
+        return 0.0
+
+    p_casa = 1.0 / odd_casa
+    p_visitante = 1.0 / odd_visitante
+
+    soma = p_casa + p_visitante
+
+    if soma <= 0:
+        return 0.0
+
+    # Equilíbrio entre casa e visitante.
+    equilibrio = 1.0 - abs(p_casa - p_visitante) / soma
+
+    equilibrio = _limitar(equilibrio, 0.0, 1.0)
+
+    # Probabilidade-base do empate.
+    #
+    # O valor 0.25 representa uma referência inicial.
+    # O equilíbrio aumenta a sustentação do empate.
+    prob_empate = 0.25 + (equilibrio * 0.10)
+
+    prob_empate = _limitar(prob_empate, 0.15, 0.35)
+
+    odd_referencia = 1.0 / prob_empate
+
+    return round(odd_referencia, 3)
+
+
+# ============================================================
+# PROJEÇÃO PARA O MINUTO 45
+# ============================================================
+
+def projetar_empate_45(
+    minuto,
+    odd_casa,
+    odd_empate,
+    odd_visitante,
+):
+    """
+    Calcula a distância entre a odd atual do empate
+    e a referência matemática projetada para 45'.
+
+    Também considera a evolução temporal.
+    """
+
+    minuto = _int(minuto)
+
+    odd_casa = _float(odd_casa)
+    odd_empate = _float(odd_empate)
+    odd_visitante = _float(odd_visitante)
+
+    referencia = calcular_referencia_empate_45(
+        odd_casa,
+        odd_visitante,
+    )
+
+    if referencia <= 0 or odd_empate <= 0:
+        return {
+            "odd_empate_45": 0.0,
+            "distancia_45": 0.0,
+            "proximidade_45": 0.0,
+        }
+
+    distancia = _variacao_percentual(
+        referencia,
+        odd_empate,
+    )
+
+    # Quanto menor a distância absoluta,
+    # mais próximo o mercado está da referência.
+    proximidade = max(
+        0.0,
+        100.0 - abs(distancia),
+    )
+
+    return {
+        "odd_empate_45": referencia,
+        "distancia_45": distancia,
+        "proximidade_45": _limitar(proximidade),
+    }
+
+
+# ============================================================
+# TRAJETÓRIA
+# ============================================================
+
+def calcular_trajetoria(
+    odd_casa_inicial,
+    odd_empate_inicial,
+    odd_visitante_inicial,
+    odd_casa,
+    odd_empate,
+    odd_visitante,
+):
+    var_casa = _variacao_percentual(
+        odd_casa_inicial,
+        odd_casa,
+    )
+
+    var_empate = _variacao_percentual(
+        odd_empate_inicial,
+        odd_empate,
+    )
+
+    var_visitante = _variacao_percentual(
+        odd_visitante_inicial,
+        odd_visitante,
+    )
+
+    return {
+        "variacao_casa": var_casa,
+        "variacao_empate": var_empate,
+        "variacao_visitante": var_visitante,
+    }
+
+
+# ============================================================
+# IPM
+# ============================================================
+
+def calcular_ipm(
+    odd_casa_inicial,
+    odd_empate_inicial,
+    odd_visitante_inicial,
+    odd_casa,
+    odd_empate,
+    odd_visitante,
+    minuto,
+):
+    """
+    IPM baseado somente na movimentação das três odds.
+
+    Componentes:
+
+    1. equilíbrio Casa x Visitante;
+    2. movimento da odd do empate;
+    3. proximidade da referência dos 45';
+    4. coerência das três trajetórias.
+    """
+
+    probs = calcular_probabilidades(
+        odd_casa,
+        odd_empate,
+        odd_visitante,
+    )
+
+    prob_casa = probs["prob_casa"]
+    prob_empate = probs["prob_empate"]
+    prob_visitante = probs["prob_visitante"]
+
+    # --------------------------------------------------------
+    # 1. EQUILÍBRIO CASA x VISITANTE
+    # --------------------------------------------------------
+
+    soma_cv = prob_casa + prob_visitante
+
+    if soma_cv > 0:
+        equilibrio = 1.0 - (
+            abs(prob_casa - prob_visitante) / soma_cv
+        )
+    else:
+        equilibrio = 0.0
+
+    equilibrio = _limitar(equilibrio, 0.0, 1.0)
+
+    pontos_equilibrio = equilibrio * 35.0
+
+    # --------------------------------------------------------
+    # 2. MOVIMENTO DA ODD DO EMPATE
+    # --------------------------------------------------------
+
+    movimento_empate = abs(
+        _variacao_percentual(
+            odd_empate_inicial,
+            odd_empate,
+        )
+    )
+
+    pontos_movimento = min(
+        movimento_empate * 4.0,
+        25.0,
+    )
+
+    # --------------------------------------------------------
+    # 3. PROXIMIDADE DA REFERÊNCIA 45'
+    # --------------------------------------------------------
+
+    projecao = projetar_empate_45(
+        minuto,
+        odd_casa,
+        odd_empate,
+        odd_visitante,
+    )
+
+    proximidade = projecao["proximidade_45"]
+
+    pontos_45 = proximidade * 0.30
+
+    # --------------------------------------------------------
+    # 4. COERÊNCIA
+    # --------------------------------------------------------
+
+    var_casa = _variacao_percentual(
+        odd_casa_inicial,
+        odd_casa,
+    )
+
+    var_visitante = _variacao_percentual(
+        odd_visitante_inicial,
+        odd_visitante,
+    )
+
+    # Se as duas pontas caminham em direções diferentes,
+    # o jogo está ficando mais equilibrado.
+    if var_casa * var_visitante < 0:
+        coerencia = 1.0
+    else:
+        coerencia = 0.5
+
+    pontos_coerencia = coerencia * 15.0
+
+    # --------------------------------------------------------
+    # IPM FINAL
+    # --------------------------------------------------------
+
+    ipm = (
+        pontos_equilibrio
+        + pontos_movimento
+        + pontos_45
+        + pontos_coerencia
+    )
+
+    # Pequeno ajuste temporal:
+    # antes de 15' não deixamos o IPM atingir o máximo
+    # somente por uma oscilação inicial.
+    minuto = max(0, minuto)
+
+    if minuto < 10:
+        ipm *= 0.65
+    elif minuto < 20:
+        ipm *= 0.80
+    elif minuto < 30:
+        ipm *= 0.90
+
+    ipm = _limitar(ipm)
+
+    return round(ipm, 2)
+
+
+# ============================================================
+# ANÁLISE PRINCIPAL
+# ============================================================
+
+def analisar_ipm_com_memoria(
+    event_id,
+    odd_atual,
+    minuto,
+    gols=0,
+    escanteios=0,
+    finalizacoes=0,
+    ataques_perigosos=0,
+    odd_pre_live=None,
+    odd_casa=None,
+    odd_visitante=None,
+):
+    """
+    Compatível com o main atual.
+
+    O main antigo envia apenas odd_atual.
+    A nova versão precisa receber também CASA e VISITANTE.
+
+    Portanto, quando esses valores forem fornecidos,
+    a análise completa será feita.
+    """
+
+    memoria = _obter_memoria(event_id)
+
+    minuto = _int(minuto)
+
+    # --------------------------------------------------------
+    # COMPATIBILIDADE
+    # --------------------------------------------------------
+
+    if odd_empate_valido(odd_atual):
+        odd_empate = _float(odd_atual)
+    else:
+        odd_empate = 0.0
+
+    odd_casa = _float(odd_casa)
+    odd_visitante = _float(odd_visitante)
+
+    # --------------------------------------------------------
+    # PRIMEIRA LEITURA
+    # --------------------------------------------------------
+
+    if (
+        memoria["odd_casa_inicial"] <= 0
+        and odd_casa > 0
+    ):
+        memoria["odd_casa_inicial"] = odd_casa
+
+    if (
+        memoria["odd_empate_inicial"] <= 0
+        and odd_empate > 0
+    ):
+        memoria["odd_empate_inicial"] = odd_empate
+
+    if (
+        memoria["odd_visitante_inicial"] <= 0
+        and odd_visitante > 0
+    ):
+        memoria["odd_visitante_inicial"] = odd_visitante
+
+    casa_ini = memoria["odd_casa_inicial"]
+    empate_ini = memoria["odd_empate_inicial"]
+    visitante_ini = memoria["odd_visitante_inicial"]
+
+    # --------------------------------------------------------
+    # TRAJETÓRIA
+    # --------------------------------------------------------
+
+    if casa_ini > 0 and visitante_ini > 0:
+        trajetoria = calcular_trajetoria(
+            casa_ini,
+            empate_ini,
+            visitante_ini,
+            odd_casa,
+            odd_empate,
+            odd_visitante,
+        )
+    else:
+        trajetoria = {
+            "variacao_casa": 0.0,
+            "variacao_empate": 0.0,
+            "variacao_visitante": 0.0,
+        }
+
+    # --------------------------------------------------------
+    # REFERÊNCIA 45'
+    # --------------------------------------------------------
+
+    projecao = projetar_empate_45(
+        minuto,
+        odd_casa,
+        odd_empate,
+        odd_visitante,
+    )
+
+    # --------------------------------------------------------
+    # IPM
+    # --------------------------------------------------------
+
+    if (
+        odd_casa > 0
+        and odd_empate > 0
+        and odd_visitante > 0
+        and casa_ini > 0
+        and empate_ini > 0
+        and visitante_ini > 0
+    ):
+        ipm = calcular_ipm(
+            casa_ini,
+            empate_ini,
+            visitante_ini,
+            odd_casa,
+            odd_empate,
+            odd_visitante,
+            minuto,
+        )
+    else:
+        ipm = 0.0
+
+    # --------------------------------------------------------
+    # HISTÓRICO
+    # --------------------------------------------------------
+
+    ponto = {
+        "minuto": minuto,
+        "odd_casa": odd_casa,
+        "odd_empate": odd_empate,
+        "odd_visitante": odd_visitante,
+        "ipm": ipm,
+        "odd_empate_45": projecao["odd_empate_45"],
+        "distancia_45": projecao["distancia_45"],
+    }
+
+    historico = memoria["historico"]
+
+    historico.append(ponto)
+
+    # Mantém apenas as últimas 200 leituras.
+    memoria["historico"] = historico[-200:]
+
+    memoria["ultimo_minuto"] = minuto
+
+    salvar_memoria()
+
+    # --------------------------------------------------------
+    # RESULTADO
+    # --------------------------------------------------------
+
+    return {
+        "ipm": ipm,
+
+        "minuto": minuto,
+        "gols": _int(gols),
+
+        "odd_casa": odd_casa,
+        "odd_empate": odd_empate,
+        "odd_visitante": odd_visitante,
+
+        "odd_atual": odd_empate,
+
+        "odd_pre_live": _float(
+            odd_pre_live or empate_ini
+        ),
+
+        "variacao_casa": trajetoria["variacao_casa"],
+        "variacao_empate": trajetoria["variacao_empate"],
+        "variacao_visitante": trajetoria["variacao_visitante"],
+
+        "variacao_pre_live": _variacao_percentual(
+            odd_pre_live or empate_ini,
+            odd_empate,
+        ),
+
+        "variacao_ciclo": 0.0,
+
+        "odd_empate_45": projecao["odd_empate_45"],
+        "distancia_45": projecao["distancia_45"],
+        "proximidade_45": projecao["proximidade_45"],
+
+        "historico": memoria["historico"],
+
+        "escanteios": 0,
+        "finalizacoes": 0,
+        "ataques_perigosos": 0,
+    }
+
+
+def odd_empate_valido(valor):
+    return _float(valor) > 1.0
+
+
+# ============================================================
+# ENTRADA
+# ============================================================
+
+def avaliar_entrada(
+    resultado,
+    minuto,
+    ipm_minimo,
+    variacao_minima_odd,
+    minuto_minimo,
+    minuto_maximo,
+):
+    ipm = _float(resultado.get("ipm"))
+
+    if minuto < minuto_minimo:
+        return False
+
+    if minuto > minuto_maximo:
+        return False
+
+    if ipm < ipm_minimo:
+        return False
+
+    return True
+
+
+# ============================================================
+# CLASSIFICAÇÃO
+# ============================================================
+
+def classificar_ipm(ipm):
+    ipm = _float(ipm)
+
+    if ipm >= 70:
+        return "EXPLOSIVO"
+
+    if ipm >= 50:
+        return "MUITO FORTE"
+
+    if ipm >= 40:
+        return "FORTE"
+
+    if ipm >= 25:
+        return "MÉDIO"
+
+    if ipm >= 10:
+        return "FRACO"
+
+    return "RUÍDO"
+
+
+# ============================================================
+# RADAR
+# ============================================================
+
+def formatar_radar(jogo, resultado, mercados=None):
+
+    casa = jogo.get("home") or jogo.get("homeTeam") or "Casa"
+    visitante = jogo.get("away") or jogo.get("awayTeam") or "Visitante"
+
+    minuto = resultado.get("minuto", 0)
+
+    odd_casa = _float(resultado.get("odd_casa"))
+    odd_empate = _float(resultado.get("odd_empate"))
+    odd_visitante = _float(resultado.get("odd_visitante"))
+
+    ipm = _float(resultado.get("ipm"))
+
+    odd_45 = _float(
+        resultado.get("odd_empate_45")
+    )
+
+    distancia = _float(
+        resultado.get("distancia_45")
+    )
+
+    proximidade = _float(
+        resultado.get("proximidade_45")
+    )
+
+    classe = classificar_ipm(ipm)
+
+    return (
+        "\n"
+        + "=" * 72
+        + "\n"
+        + f"⚽ {casa} x {visitante}\n"
+        + f"⏱️ Minuto: {minuto}'\n"
+        + "\n"
+        + "💰 ODDS\n"
+        + f"🏠 Casa:       {odd_casa:.2f}\n"
+        + f"🤝 Empate:     {odd_empate:.2f}\n"
+        + f"✈️ Visitante:  {odd_visitante:.2f}\n"
+        + "\n"
+        + "📈 TRAJETÓRIA\n"
+        + f"🏠 Casa:       {resultado.get('variacao_casa', 0):+.2f}%\n"
+        + f"🤝 Empate:     {resultado.get('variacao_empate', 0):+.2f}%\n"
+        + f"✈️ Visitante:  {resultado.get('variacao_visitante', 0):+.2f}%\n"
+        + "\n"
+        + "🎯 REFERÊNCIA 45'\n"
+        + f"🤝 Odd projetada: {odd_45:.3f}\n"
+        + f"📐 Distância:     {distancia:+.2f}%\n"
+        + f"📊 Proximidade:   {proximidade:.2f}%\n"
+        + "\n"
+        + f"🔥 IPM: {ipm:.2f}/100\n"
+        + f"🚦 {classe}\n"
+        + "=" * 72
+    )
+
+
+# ============================================================
+# FINALIZAÇÃO
+# ============================================================
+
+def jogo_finalizado(jogo):
+    status = str(
+        jogo.get("status")
+        or jogo.get("state")
+        or ""
+    ).lower()
+
+    return any(
+        termo in status
+        for termo in (
+            "finished",
+            "final",
+            "ended",
+            "ft",
+            "complete",
+        )
+    )
+
+
+def resultado_empate(jogo, mercados=None):
     scores = jogo.get("scores")
 
     if isinstance(scores, dict):
         casa = scores.get("home")
-        fora = scores.get("away")
+        visitante = scores.get("away")
 
-        if casa is not None or fora is not None:
-            return (
-                _inteiro(casa),
-                _inteiro(fora),
-            )
+        if casa is not None and visitante is not None:
+            return _int(casa) == _int(visitante)
 
-    for valor in (
-        jogo.get("score"),
-        jogo.get("result"),
-    ):
-        if isinstance(valor, dict):
-            casa = valor.get(
-                "home",
-                valor.get("homeScore"),
-            )
+    home_score = jogo.get("homeScore")
+    away_score = jogo.get("awayScore")
 
-            fora = valor.get(
-                "away",
-                valor.get("awayScore"),
-            )
+    if home_score is not None and away_score is not None:
+        return _int(home_score) == _int(away_score)
 
-            if casa is not None or fora is not None:
-                return (
-                    _inteiro(casa),
-                    _inteiro(fora),
-                )
-
-        elif isinstance(valor, list) and len(valor) >= 2:
-            return (
-                _inteiro(valor[0]),
-                _inteiro(valor[1]),
-            )
-
-    return (
-        _inteiro(jogo.get("homeScore")),
-        _inteiro(jogo.get("awayScore")),
-    )
+    return None
 
 
-def _extrair_estatisticas(jogo):
-    if not isinstance(jogo, dict):
-        return 0, 0, 0
+# ============================================================
+# INICIALIZAÇÃO
+# ============================================================
 
-    fontes = []
-
-    for chave in (
-        "statistics",
-        "stats",
-        "matchStatistics",
-        "match_statistics",
-        "liveStatistics",
-    ):
-        fonte = jogo.get(chave)
-
-        if isinstance(fonte, dict):
-            fontes.append(fonte)
-
-    for fonte in fontes:
-        esc = (
-            fonte.get("corners")
-            or fonte.get("corner")
-            or fonte.get("cornerKicks")
-            or fonte.get("escanteios")
-        )
-
-        fin = (
-            fonte.get("shots")
-            or fonte.get("totalShots")
-            or fonte.get("shotsTotal")
-            or fonte.get("finalizacoes")
-        )
-
-        atq = (
-            fonte.get("dangerousAttacks")
-            or fonte.get("dangerous_attacks")
-            or fonte.get("ataquesPerigosos")
-        )
-
-        if (
-            esc is not None
-            or fin is not None
-            or atq is not None
-        ):
-            return (
-                _inteiro(esc),
-                _inteiro(fin),
-                _inteiro(atq),
-            )
-
-    return 0, 0, 0
-
-
-def _copiar_mercado(mercado):
-    return {
-        "name": mercado.get("name", ""),
-        "updatedAt": mercado.get("updatedAt"),
-        "odds": _linhas_odds(mercado),
-    }
-
-
-def extrair_mercados(jogo, odds):
-    if not isinstance(jogo, dict):
-        return {}
-
-    event_id = jogo.get("id")
-    evento_odds = _evento_odds_por_id(
-        odds,
-        event_id,
-    )
-
-    # Mantém FT no destino: se não houver
-    # resposta de odds, usa o próprio jogo.
-    evento = evento_odds or jogo
-
-    mercados = _mercados_bet365(evento)
-
-    try:
-        nome_casa = (
-            jogo.get("home")
-            or jogo.get("homeTeam")
-            or ""
-        )
-
-        nome_fora = (
-            jogo.get("away")
-            or jogo.get("awayTeam")
-            or ""
-        )
-
-        print(
-            f"ODDS EVENTO | {nome_casa} x {nome_fora} "
-            f"| ID={event_id} "
-            f"| evento_odds="
-            f"{'SIM' if evento_odds else 'NAO'} "
-            f"| BOOKMAKER={BOOKMAKER} "
-            f"| mercados={len(mercados)}"
-        )
-
-    except Exception:
-        pass
-
-    casa, fora = _extrair_placar(jogo)
-    esc, fin, atq = _extrair_estatisticas(jogo)
-
-    resultado = {
-        "event_id": event_id,
-        "odd_home": 0.0,
-        "odd_draw": 0.0,
-        "odd_away": 0.0,
-        "odd_atual": 0.0,
-        "odd_pre_live": 0.0,
-        "over_linha": 0.0,
-        "under_linha": 0.0,
-        "odd_over": 0.0,
-        "odd_under": 0.0,
-        "odd_btts_sim": 0.0,
-        "odd_btts_nao": 0.0,
-        "handicap_linha": 0.0,
-        "odd_handicap_home": 0.0,
-        "odd_handicap_away": 0.0,
-        "odd_1x": 0.0,
-        "odd_12": 0.0,
-        "odd_x2": 0.0,
-        "odd_dnb_home": 0.0,
-        "odd_dnb_away": 0.0,
-        "minuto": _extrair_minuto(jogo),
-        "gols": casa + fora,
-        "escanteios": esc,
-        "finalizacoes": fin,
-        "ataques_perigosos": atq,
-        "mercados_encontrados": [],
-        "mercados_disponiveis": [],
-        "todos": [],
-        "odds_ft": [],
-        "odds_ht": [],
-        "odds_corners": [],
-        "odds_cards": [],
-    }
-
-    for mercado in mercados:
-        if not isinstance(mercado, dict):
-            continue
-
-        nome = str(
-            mercado.get("name", "")
-        ).strip()
-
-        if not nome:
-            continue
-
-        item = _copiar_mercado(mercado)
-        item["categoria"] = _categoria_mercado(nome)
-
-        resultado["todos"].append(item)
-        resultado["mercados_disponiveis"].append(nome)
-
-        destino = {
-            "HT": "odds_ht",
-            "CORNERS": "odds_corners",
-            "CARDS": "odds_cards",
-            "FT": "odds_ft",
-        }
-
-        campo_destino = destino.get(
-            item["categoria"]
-        )
-
-        if campo_destino:
-            resultado[campo_destino].append(item)
-
-        resultado["mercados
+carregar_memoria()
