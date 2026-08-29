@@ -61,7 +61,7 @@ _controle_jogos = {}
 
 def enviar_telegram(texto):
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        print("INFO: Telegram nao configurado; mensagem ficou no log.")
+        print("INFO: Telegram nao configurado")
         return False
 
     try:
@@ -70,18 +70,26 @@ def enviar_telegram(texto):
             f"bot{TELEGRAM_TOKEN}/sendMessage"
         )
 
-        dados = urllib.parse.urlencode(
-            {"chat_id": TELEGRAM_CHAT_ID, "text": texto}
-        ).encode("utf-8")
+        dados = urllib.parse.urlencode({
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": texto
+        }).encode("utf-8")
 
         requisicao = urllib.request.Request(
             url,
             data=dados,
-            method="POST",
+            method="POST"
         )
 
-        with urllib.request.urlopen(requisicao, timeout=15) as resposta:
+        with urllib.request.urlopen(requisicao) as resposta:
+            retorno = resposta.read().decode("utf-8", errors="replace")
+            print("TELEGRAM OK:", retorno)
             return 200 <= resposta.status < 300
+
+    except urllib.error.HTTPError as erro:
+        detalhe = erro.read().decode("utf-8", errors="replace")
+        print("ERRO TELEGRAM:", erro.code, detalhe)
+        return False
 
     except Exception as erro:
         print("ERRO TELEGRAM:", type(erro).__name__, erro)
