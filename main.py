@@ -95,7 +95,7 @@ def enviar_telegram(texto):
         print("ERRO TELEGRAM:", type(erro).__name__, erro)
         return False
 
-
+enviar_telegram("TESTE TELEGRAM IPM RADAR V3")
 def salvar_controle():
     try:
         temporario = ARQUIVO_CONTROLE.with_suffix(".tmp")
