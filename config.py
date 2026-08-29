@@ -3,13 +3,14 @@
 # ============================================================
 
 import os
-from datetime import datetime, time
+
+from datetime import (
+    datetime,
+    time,
+)
+
 from zoneinfo import ZoneInfo
 
-
-# ============================================================
-# IDENTIFICAÇÃO
-# ============================================================
 
 NOME_BOT = os.getenv(
     "NOME_BOT",
@@ -19,14 +20,11 @@ NOME_BOT = os.getenv(
 VERSAO = "5.0"
 
 
-# ============================================================
-# API
-# ============================================================
-
 BASE_URL = os.getenv(
     "ODDS_API_BASE_URL",
     "https://api.odds-api.io/v3",
 ).rstrip("/")
+
 
 BOOKMAKER = os.getenv(
     "ODDS_BOOKMAKER",
@@ -38,6 +36,7 @@ SPORT = os.getenv(
     "football",
 )
 
+
 TIMEOUT_REQUISICAO = int(
     os.getenv(
         "TIMEOUT_REQUISICAO",
@@ -46,11 +45,6 @@ TIMEOUT_REQUISICAO = int(
 )
 
 
-# ============================================================
-# RADAR
-# ============================================================
-
-# 300 segundos = 5 minutos.
 INTERVALO_RADAR = int(
     os.getenv(
         "INTERVALO_RADAR",
@@ -58,12 +52,14 @@ INTERVALO_RADAR = int(
     )
 )
 
+
 MAX_JOGOS_RADAR = int(
     os.getenv(
         "MAX_JOGOS_RADAR",
         "30",
     )
 )
+
 
 MAX_EVENTOS_POR_CONSULTA = min(
     int(
@@ -76,10 +72,6 @@ MAX_EVENTOS_POR_CONSULTA = min(
 )
 
 
-# ============================================================
-# CLASSIFICAÇÃO IPM
-# ============================================================
-
 IPM_MINIMO_OBSERVACAO = float(
     os.getenv(
         "IPM_MINIMO_OBSERVACAO",
@@ -87,12 +79,14 @@ IPM_MINIMO_OBSERVACAO = float(
     )
 )
 
+
 IPM_MINIMO_FORTE = float(
     os.getenv(
         "IPM_MINIMO_FORTE",
         "40",
     )
 )
+
 
 IPM_MINIMO_MUITO_FORTE = float(
     os.getenv(
@@ -102,16 +96,13 @@ IPM_MINIMO_MUITO_FORTE = float(
 )
 
 
-# ============================================================
-# ENTRADA
-# ============================================================
-
 VARIACAO_MINIMA_ODD = float(
     os.getenv(
         "VARIACAO_MINIMA_ODD",
         "0.5",
     )
 )
+
 
 IPM_MINIMO_ENTRADA = float(
     os.getenv(
@@ -120,6 +111,7 @@ IPM_MINIMO_ENTRADA = float(
     )
 )
 
+
 MINUTO_MINIMO_ENTRADA = int(
     os.getenv(
         "MINUTO_MINIMO_ENTRADA",
@@ -127,12 +119,14 @@ MINUTO_MINIMO_ENTRADA = int(
     )
 )
 
+
 MINUTO_MAXIMO_ENTRADA = int(
     os.getenv(
         "MINUTO_MAXIMO_ENTRADA",
         "45",
     )
 )
+
 
 MAX_ENTRADAS_POR_JOGO = int(
     os.getenv(
@@ -142,16 +136,13 @@ MAX_ENTRADAS_POR_JOGO = int(
 )
 
 
-# ============================================================
-# REFERÊNCIA 45'
-# ============================================================
-
 MINUTO_REFERENCIA = int(
     os.getenv(
         "MINUTO_REFERENCIA",
         "45",
     )
 )
+
 
 JANELA_MINUTO_45 = int(
     os.getenv(
@@ -161,16 +152,13 @@ JANELA_MINUTO_45 = int(
 )
 
 
-# ============================================================
-# TRAJETÓRIA
-# ============================================================
-
 MAX_PONTOS_TRAJETORIA = int(
     os.getenv(
         "MAX_PONTOS_TRAJETORIA",
         "100",
     )
 )
+
 
 VARIACAO_MINIMA_TRAJETORIA = float(
     os.getenv(
@@ -180,10 +168,6 @@ VARIACAO_MINIMA_TRAJETORIA = float(
 )
 
 
-# ============================================================
-# PRE-LIVE
-# ============================================================
-
 PRE_LIVE_JANELA_MINUTOS = int(
     os.getenv(
         "PRE_LIVE_JANELA_MINUTOS",
@@ -192,10 +176,6 @@ PRE_LIVE_JANELA_MINUTOS = int(
 )
 
 
-# ============================================================
-# FUSO HORÁRIO
-# ============================================================
-
 FUSO_HORARIO = ZoneInfo(
     os.getenv(
         "FUSO_HORARIO",
@@ -203,10 +183,6 @@ FUSO_HORARIO = ZoneInfo(
     )
 )
 
-
-# ============================================================
-# HORÁRIO DE FUNCIONAMENTO
-# ============================================================
 
 HORA_INICIO = time(
     6,
@@ -219,11 +195,8 @@ HORA_FIM = time(
 )
 
 
-# ============================================================
-# API KEY
-# ============================================================
-
 def obter_api_key():
+
     key = os.getenv(
         "ODDS_API_KEY",
         "",
@@ -237,10 +210,6 @@ def obter_api_key():
     return key
 
 
-# ============================================================
-# HORÁRIO
-# ============================================================
-
 def horario_atual():
     return datetime.now(
         FUSO_HORARIO
@@ -248,6 +217,7 @@ def horario_atual():
 
 
 def horario_ativo():
+
     agora = horario_atual().time()
 
     if HORA_INICIO < HORA_FIM:
