@@ -15,7 +15,7 @@ SPORT = os.getenv("ODDS_SPORT", "football")
 
 # 300 s = uma leitura a cada 5 minutos.
 INTERVALO_RADAR = int(os.getenv("INTERVALO_RADAR", "300"))
-MAX_JOGOS_RADAR = int(os.getenv("MAX_JOGOS_RADAR", "30"))
+MAX_JOGOS_RADAR = int(os.getenv("MAX_JOGOS_RADAR", "10"))
 MAX_EVENTOS_POR_CONSULTA = min(int(os.getenv("MAX_EVENTOS_POR_CONSULTA", "30")), 30)
 
 TIMEOUT_REQUISICAO = int(os.getenv("TIMEOUT_REQUISICAO", "20"))
