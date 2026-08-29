@@ -945,11 +945,11 @@ def loop_consulta():
         espera = max(
             1,
             int(INTERVALO_RADAR - (time.time() - inicio))
-        )
+            )
 
-        print(
+            print(
             f"⏳ Nova consulta em {espera} segundos..."
-        )
+            )
 
         time.sleep(espera)
        
