@@ -830,11 +830,10 @@ def loop_consulta():
                 erro,
             )
 
-        tempo_decorrido = time.time() - inicio
-
+        decorrido = time.time() - inicio
         espera = max(
             1,
-            INTERVALO_RADAR - tempo_decorrido,
+            INTERVALO_RADAR - decorrido,
         )
 
         print(
@@ -846,11 +845,11 @@ def loop_consulta():
 
 
 if __name__ == "__main__":
-    servidor_thread = threading.Thread(
+    servidor = threading.Thread(
         target=iniciar_servidor_saude,
         daemon=True,
     )
 
-    servidor_thread.start()
+    servidor.start()
 
     loop_consulta()
