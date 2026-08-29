@@ -233,43 +233,53 @@ def analisar_ipm_com_memoria(
     )
 
     if (
-        memoria["odd_casa_inicial"] is None
+        memoria["odd_casa_inicial"]
+        is None
         and odd_casa > 0
     ):
-        memoria["odd_casa_inicial"] = (
-            odd_casa
-        )
-
-    if memoria["odd_empate_inicial"] is None:
-
-        if pre_live > 0:
-            memoria["odd_empate_inicial"] = (
-                pre_live
-            )
-
-        elif odd_empate > 0:
-            memoria["odd_empate_inicial"] = (
-                odd_empate
-            )
+        memoria[
+            "odd_casa_inicial"
+        ] = odd_casa
 
     if (
-        memoria["odd_visitante_inicial"] is None
+        memoria["odd_empate_inicial"]
+        is None
+    ):
+        if pre_live > 0:
+            memoria[
+                "odd_empate_inicial"
+            ] = pre_live
+
+        elif odd_empate > 0:
+            memoria[
+                "odd_empate_inicial"
+            ] = odd_empate
+
+    if (
+        memoria["odd_visitante_inicial"]
+        is None
         and odd_visitante > 0
     ):
-        memoria["odd_visitante_inicial"] = (
-            odd_visitante
-        )
+        memoria[
+            "odd_visitante_inicial"
+        ] = odd_visitante
 
     odd_casa_ini = _numero(
-        memoria["odd_casa_inicial"]
+        memoria[
+            "odd_casa_inicial"
+        ]
     )
 
     odd_empate_ini = _numero(
-        memoria["odd_empate_inicial"]
+        memoria[
+            "odd_empate_inicial"
+        ]
     )
 
     odd_visitante_ini = _numero(
-        memoria["odd_visitante_inicial"]
+        memoria[
+            "odd_visitante_inicial"
+        ]
     )
 
     var_casa = _variacao_percentual(
@@ -288,7 +298,9 @@ def analisar_ipm_com_memoria(
     )
 
     var_ciclo = _movimento_odd(
-        memoria["ultima_odd_empate"],
+        memoria[
+            "ultima_odd_empate"
+        ],
         odd_empate,
     )
 
@@ -345,19 +357,21 @@ def analisar_ipm_com_memoria(
         memoria["historico"][-100:]
     )
 
-    memoria["ultima_odd_casa"] = (
-        odd_casa
-    )
+    memoria[
+        "ultima_odd_casa"
+    ] = odd_casa
 
-    memoria["ultima_odd_empate"] = (
-        odd_empate
-    )
+    memoria[
+        "ultima_odd_empate"
+    ] = odd_empate
 
-    memoria["ultima_odd_visitante"] = (
-        odd_visitante
-    )
+    memoria[
+        "ultima_odd_visitante"
+    ] = odd_visitante
 
-    memoria["ultimo_minuto"] = minuto
+    memoria[
+        "ultimo_minuto"
+    ] = minuto
 
     referencia_pre = (
         pre_live
@@ -369,41 +383,65 @@ def analisar_ipm_com_memoria(
         "event_id": chave_jogo,
         "minuto": minuto,
         "gols": gols,
+
         "escanteios": _inteiro(
             escanteios
         ),
+
         "cartoes": _inteiro(
             cartoes
         ),
+
         "finalizacoes": _inteiro(
             finalizacoes
         ),
+
         "ataques_perigosos": _inteiro(
             ataques_perigosos
         ),
+
         "odd_casa": odd_casa,
         "odd_atual": odd_empate,
         "odd_empate": odd_empate,
         "odd_visitante": odd_visitante,
+
         "odd_pre_live": referencia_pre,
-        "odd_casa_inicial": odd_casa_ini,
-        "odd_empate_inicial": odd_empate_ini,
-        "odd_visitante_inicial": odd_visitante_ini,
-        "variacao_casa": var_casa,
-        "variacao_pre_live": _variacao_percentual(
-            referencia_pre,
-            odd_empate,
+
+        "odd_casa_inicial": (
+            odd_casa_ini
         ),
+
+        "odd_empate_inicial": (
+            odd_empate_ini
+        ),
+
+        "odd_visitante_inicial": (
+            odd_visitante_ini
+        ),
+
+        "variacao_casa": var_casa,
+
+        "variacao_pre_live": (
+            _variacao_percentual(
+                referencia_pre,
+                odd_empate,
+            )
+        ),
+
         "variacao_empate": var_empate,
         "variacao_visitante": var_visitante,
+
         "variacao_odd": var_ciclo,
         "variacao_ciclo": var_ciclo,
+
         "odd_45": odd_45,
         "diferenca_45": diferenca_45,
+
         "ipm": ipm,
-        "historico_odds": memoria[
-            "historico"
-        ],
+
+        "historico_odds": (
+            memoria["historico"]
+        ),
     }
 
 
@@ -500,9 +538,7 @@ def resultado_empate(
         "score",
         "result",
     ):
-        valor = jogo.get(
-            chave
-        )
+        valor = jogo.get(chave)
 
         if isinstance(
             valor,
@@ -627,8 +663,7 @@ def formatar_radar(
         f"⚽ {casa} x {fora}\n"
         f"⏱️ Minuto: {minuto}'\n"
         f"📊 Placar: "
-        f"{placar_casa} x "
-        f"{placar_fora}\n"
+        f"{placar_casa} x {placar_fora}\n"
         "\n"
         "💰 ODDS\n"
         f"🏠 Casa:      "
