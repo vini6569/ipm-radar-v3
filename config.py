@@ -3,12 +3,7 @@
 # ============================================================
 
 import os
-
-from datetime import (
-    datetime,
-    time,
-)
-
+from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
 
@@ -19,12 +14,10 @@ NOME_BOT = os.getenv(
 
 VERSAO = "5.0"
 
-
 BASE_URL = os.getenv(
     "ODDS_API_BASE_URL",
     "https://api.odds-api.io/v3",
 ).rstrip("/")
-
 
 BOOKMAKER = os.getenv(
     "ODDS_BOOKMAKER",
@@ -36,14 +29,12 @@ SPORT = os.getenv(
     "football",
 )
 
-
 TIMEOUT_REQUISICAO = int(
     os.getenv(
         "TIMEOUT_REQUISICAO",
         "20",
     )
 )
-
 
 INTERVALO_RADAR = int(
     os.getenv(
@@ -52,14 +43,12 @@ INTERVALO_RADAR = int(
     )
 )
 
-
 MAX_JOGOS_RADAR = int(
     os.getenv(
         "MAX_JOGOS_RADAR",
         "30",
     )
 )
-
 
 MAX_EVENTOS_POR_CONSULTA = min(
     int(
@@ -71,14 +60,12 @@ MAX_EVENTOS_POR_CONSULTA = min(
     30,
 )
 
-
 IPM_MINIMO_OBSERVACAO = float(
     os.getenv(
         "IPM_MINIMO_OBSERVACAO",
         "20",
     )
 )
-
 
 IPM_MINIMO_FORTE = float(
     os.getenv(
@@ -87,14 +74,12 @@ IPM_MINIMO_FORTE = float(
     )
 )
 
-
 IPM_MINIMO_MUITO_FORTE = float(
     os.getenv(
         "IPM_MINIMO_MUITO_FORTE",
         "60",
     )
 )
-
 
 VARIACAO_MINIMA_ODD = float(
     os.getenv(
@@ -103,14 +88,12 @@ VARIACAO_MINIMA_ODD = float(
     )
 )
 
-
 IPM_MINIMO_ENTRADA = float(
     os.getenv(
         "IPM_MINIMO_ENTRADA",
         "40",
     )
 )
-
 
 MINUTO_MINIMO_ENTRADA = int(
     os.getenv(
@@ -119,14 +102,12 @@ MINUTO_MINIMO_ENTRADA = int(
     )
 )
 
-
 MINUTO_MAXIMO_ENTRADA = int(
     os.getenv(
         "MINUTO_MAXIMO_ENTRADA",
         "45",
     )
 )
-
 
 MAX_ENTRADAS_POR_JOGO = int(
     os.getenv(
@@ -135,14 +116,12 @@ MAX_ENTRADAS_POR_JOGO = int(
     )
 )
 
-
 MINUTO_REFERENCIA = int(
     os.getenv(
         "MINUTO_REFERENCIA",
         "45",
     )
 )
-
 
 JANELA_MINUTO_45 = int(
     os.getenv(
@@ -151,14 +130,12 @@ JANELA_MINUTO_45 = int(
     )
 )
 
-
 MAX_PONTOS_TRAJETORIA = int(
     os.getenv(
         "MAX_PONTOS_TRAJETORIA",
         "100",
     )
 )
-
 
 VARIACAO_MINIMA_TRAJETORIA = float(
     os.getenv(
@@ -167,14 +144,12 @@ VARIACAO_MINIMA_TRAJETORIA = float(
     )
 )
 
-
 PRE_LIVE_JANELA_MINUTOS = int(
     os.getenv(
         "PRE_LIVE_JANELA_MINUTOS",
         "15",
     )
 )
-
 
 FUSO_HORARIO = ZoneInfo(
     os.getenv(
@@ -183,20 +158,11 @@ FUSO_HORARIO = ZoneInfo(
     )
 )
 
-
-HORA_INICIO = time(
-    6,
-    0,
-)
-
-HORA_FIM = time(
-    0,
-    0,
-)
+HORA_INICIO = time(6, 0)
+HORA_FIM = time(0, 0)
 
 
 def obter_api_key():
-
     key = os.getenv(
         "ODDS_API_KEY",
         "",
@@ -217,7 +183,6 @@ def horario_atual():
 
 
 def horario_ativo():
-
     agora = horario_atual().time()
 
     if HORA_INICIO < HORA_FIM:
