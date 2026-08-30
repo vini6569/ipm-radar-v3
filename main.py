@@ -789,4 +789,4 @@ def executar_consulta():
                     status_min45 = "CONFIRMADO"
                     icone_min45 = "🎯"
                 else:
-                    controle["min45_sinal"] = "ABAIXO DE 
+                    controle["min45_sinal"] = "ABAIXO DE 40%"
