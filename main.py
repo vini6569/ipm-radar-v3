@@ -1,5 +1,5 @@
 # ============================================================
-# MAIN - IPM RADAR V5.1
+# MAIN - IPM RADAR V5.0
 # ============================================================
 
 import json
@@ -44,28 +44,21 @@ from motor_ipm import (
 )
 
 # ============================================================
-# PAINEL DE AJUSTE - ALTERE SOMENTE AQUI
+# PAINEL DE PARAMETROS - ALTERE SOMENTE ESTES VALORES
 # ============================================================
-# Este bloco e isolado. A logica oficial de entrada continua
-# sendo controlada pelo motor_ipm.py e pelos parametros de config.py.
-#
-# PRE-ENTRADA: sinal de observacao da variacao PRE-LIVE -> ATUAL
-# POSITIVO: var_pre >= PRE_ENTRADA_POSITIVO
-# NEGATIVO: var_pre <= -PRE_ENTRADA_NEGATIVO
-#
-# Exemplos:
-#   20 / 20 = +20% / -20%
-#   15 / 15 = +15% / -15%
-#   30 / 30 = +30% / -30%
-# ============================================================
-PRE_ENTRADA_ATIVADA = True
-PRE_ENTRADA_MINUTO = 10
+# Pre-entrada: percentual minimo de variacao da odd X.
+# POSITIVO e NEGATIVO sao independentes e podem ser alterados
+# para 15, 20, 25, 30 etc., sem mexer na logica do robo.
 PRE_ENTRADA_POSITIVO = 20.0
 PRE_ENTRADA_NEGATIVO = 20.0
 
-# MIN 45!!!!! - referencia da probabilidade implicita do empate.
-# Mantido em 40% por padrao. Alterar somente se quiser testar outra base.
-MIN45_PROB_BASE = 40.0
+# MIN 45!!!!!: probabilidade implicita minima do empate no 0x0.
+MIN45_PROBABILIDADE_MINIMA = 40.0
+
+# Minuto inicial para permitir o aviso de pre-entrada.
+PRE_ENTRADA_MINUTO_MINIMO = 10
+# ============================================================
+
 
 print("[BOOT 5] módulos locais carregados", flush=True)
 
@@ -214,7 +207,6 @@ def obter_controle(event_id):
                 "padrao_mantido": False,
                 "finalizado": False,
                 "resultado": None,
-                "pre_entrada_enviada": False,
                 "trajetoria": [],
                 "ultimo_minuto": 0,
                 "ultima_odd": None,
@@ -240,8 +232,6 @@ def obter_controle(event_id):
         list,
     ):
         controle["trajetoria"] = []
-
-    controle.setdefault("pre_entrada_enviada", False)
 
     return controle
 
@@ -639,67 +629,12 @@ def processar_jogo(jogo, mercados, resultado):
     salvar_controle()
 
 
-def avaliar_pre_entrada(jogo, controle, minuto, var_pre, ipm):
-    """Sinal de observacao parametrizado; nao altera a entrada oficial."""
-    if not PRE_ENTRADA_ATIVADA:
-        return
-
-    if controle.get("pre_entrada_enviada", False):
-        return
-
-    if minuto < PRE_ENTRADA_MINUTO:
-        return
-
-    try:
-        variacao = float(var_pre or 0.0)
-    except (TypeError, ValueError):
-        variacao = 0.0
-
-    if variacao >= PRE_ENTRADA_POSITIVO:
-        direcao = "📈 POSITIVO"
-        limite = PRE_ENTRADA_POSITIVO
-    elif variacao <= -PRE_ENTRADA_NEGATIVO:
-        direcao = "📉 NEGATIVO"
-        limite = PRE_ENTRADA_NEGATIVO
-    else:
-        return
-
-    controle["pre_entrada_enviada"] = True
-
-    enviar_telegram(
-        (
-            "👀 PRÉ-ENTRADA\n\n"
-            f"⚽ {jogo.get('home', 'Casa')} x "
-            f"{jogo.get('away', 'Fora')}\n"
-            f"⏱️ Minuto: {minuto}'\n"
-            f"📌 Sinal: {direcao}\n"
-            f"📉 Pre-live -> atual: {variacao:+.2f}%\n"
-            f"🎯 IPM: {float(ipm or 0):.2f}\n"
-            f"⚙️ Limite: {limite:.0f}%\n"
-            "ℹ️ SINAL DE OBSERVAÇÃO - NÃO É ENTRADA OFICIAL"
-        )
-    )
-
-    print(
-        "PRÉ-ENTRADA | "
-        f"{jogo.get('home', 'Casa')} x "
-        f"{jogo.get('away', 'Fora')} | "
-        f"MIN={minuto} | "
-        f"VAR={variacao:+.2f}% | "
-        f"IPM={float(ipm or 0):.2f} | "
-        f"{direcao} | "
-        f"LIMITE={limite:.0f}%"
-    )
-
-    salvar_controle()
-
-
 def executar_consulta():
     print("[BOOT 8] executar_consulta chamado", flush=True)
     print()
     print("=" * 72)
     print(
-        "IPM RADAR V5.1 | "
+        "IPM RADAR V5.0 | "
         + horario_atual().strftime(
             "%d/%m/%Y %H:%M:%S"
         )
@@ -806,4 +741,53 @@ def executar_consulta():
 
             controle = obter_controle(event_id)
             odd_pre_live = controle.get(
-       
+                "odd_pre_live"
+            )
+
+            if (
+                not odd_pre_live
+                and odd_empate > 0
+            ):
+                controle["odd_pre_live"] = (
+                    odd_empate
+                )
+                controle["pre_live_fallback"] = True
+                odd_pre_live = odd_empate
+
+            resultado = analisar_ipm_com_memoria(
+                chave_jogo=event_id,
+                odd_atual=odd_empate,
+                minuto=minuto,
+                gols=gols,
+                escanteios=escanteios,
+                cartoes=cartoes,
+                finalizacoes=finalizacoes,
+                ataques_perigosos=ataques,
+                odd_pre_live=odd_pre_live,
+                odd_casa=odd_casa,
+                odd_visitante=odd_visitante,
+            )
+
+            resultado["odd_casa"] = odd_casa
+            resultado["odd_empate"] = odd_empate
+            resultado["odd_visitante"] = odd_visitante
+            resultado["odd_atual"] = odd_empate
+            resultado["odd_pre_live"] = odd_pre_live
+
+            # ========================================================
+            # MIN 45!!!!! - OBSERVACAO DO 0x0 NO INTERVALO
+            # Probabilidade implicita do empate >= 40% = CONFIRMADO
+            # NAO ALTERA A LOGICA NORMAL DE ENTRADA
+            # ========================================================
+            if (
+                minuto >= 45
+                and gols == 0
+                and odd_empate > 0
+                and not controle.get("min45_avaliado", False)
+            ):
+                prob_empate_45 = (1 / odd_empate) * 100.0
+
+                controle["min45_avaliado"] = True
+                controle["min45_minuto"] = minuto
+                controle["min45_odd"] = odd_empate
+            
