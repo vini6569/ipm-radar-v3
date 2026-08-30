@@ -628,50 +628,55 @@ def executar_consulta():
             resultado["odd_pre_live"] = odd_pre_live
             resultado["odd_casa_pre_live"] = odd_casa_pre_live
             resultado["odd_visitante_pre_live"] = odd_visitante_pre_live
-# ============================================================
-# MIN 45!!!!! — OBSERVAÇÃO DO 0x0 NO INTERVALO
-# Probabilidade implícita do empate >= 40%
-# NÃO ALTERA A LÓGICA NORMAL DE ENTRADA
-# ============================================================
+                    # ============================================================
+                    # MIN 45!!!!! - OBSERVAÇÃO DO 0x0 NO INTERVALO
+                    # Probabilidade implícita do empate >= 40%
+                    # NÃO ALTERA A LÓGICA NORMAL DE ENTRADA
+                    # ============================================================
 
-if (
-    minuto >= 45
-    and gols == 0
-    and odd_empate > 0
-    and not controle.get("min45_avaliado", False)
-):
-    prob_empate_45 = (1 / odd_empate) * 100
+                    if (
+                        minuto >= 45
+                        and gols == 0
+                        and odd_empate > 0
+                        and not controle.get("min45_avaliado", False)
+                    ):
+                        prob_empate_45 = (1 / odd_empate) * 100
 
-    controle["min45_avaliado"] = True
-    controle["min45_minuto"] = minuto
-    controle["min45_odd"] = odd_empate
-    controle["min45_probabilidade"] = prob_empate_45
-    controle["min45_ipm"] = ipm
+                        controle["min45_avaliado"] = True
+                        controle["min45_minuto"] = minuto
+                        controle["min45_odd"] = odd_empate
+                        controle["min45_probabilidade"] = prob_empate_45
+                        controle["min45_ipm"] = ipm
 
-    if prob_empate_45 >= 40:
-        controle["min45_sinal"] = "CONFIRMADO"
-        print(
-            f"🎯 MIN 45!!!!! | "
-            f"{jogo.get('home', 'Casa')} x "
-            f"{jogo.get('away', 'Fora')} | "
-            f"0x0 | "
-            f"MINUTO={minuto} | "
-            f"ODD X={odd_empate:.3f} | "
-            f"PROB X={prob_empate_45:.2f}% | "
-            f"IPM={ipm:.2f} | "
-            f"✅ CONFIRMADO"
-        )
-    else:
-        controle["min45_sinal"] = "ABAIXO_40"
-        print(
-            f"📊 MIN 45!!!!! | "
-            f"0x0 | "
-            f"MINUTO={minuto} | "
-            f"ODD X={odd_empate:.3f} | "
-            f"PROB X={prob_empate_45:.2f}% | "
-            f"IPM={ipm:.2f} | "
-            f"❌ ABAIXO DE 40%"
-        )
+                        if prob_empate_45 >= 40:
+                            controle["min45_sinal"] = "CONFIRMADO"
+
+                            print(
+                                f"🎯 MIN 45!!!!! | "
+                                f"{jogo.get('home', 'Casa')} x "
+                                f"{jogo.get('away', 'Fora')} | "
+                                f"0x0 | "
+                                f"MINUTO={minuto} | "
+                                f"ODD X={odd_empate:.3f} | "
+                                f"PROB X={prob_empate_45:.2f}% | "
+                                f"IPM={ipm:.2f} | "
+                                f"✅ CONFIRMADO"
+                            )
+
+                        else:
+                            controle["min45_sinal"] = "ABAIXO_40"
+
+                            print(
+                                f"📊 MIN 45!!!!! | "
+                                f"{jogo.get('home', 'Casa')} x "
+                                f"{jogo.get('away', 'Fora')} | "
+                                f"0x0 | "
+                                f"MINUTO={minuto} | "
+                                f"ODD X={odd_empate:.3f} | "
+                                f"PROB X={prob_empate_45:.2f}% | "
+                                f"IPM={ipm:.2f} | "
+                                f"❌ ABAIXO DE 40%"
+                            )
 
     salvar_controle()
             print(
