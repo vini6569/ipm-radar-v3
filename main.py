@@ -201,12 +201,6 @@ def obter_controle(event_id):
                 "odd_45": None,
                 "variacao_pre_live_45": None,
                 "variacao_ciclo_45": None,
-                "min45_avaliado": False,
-                "min45_minuto": None,
-                "min45_odd": None,
-                "min45_probabilidade": None,
-                "min45_ipm": None,
-                "min45_sinal": None,
             },
         )
 
@@ -764,10 +758,27 @@ def executar_consulta():
             resultado["odd_pre_live"] = odd_pre_live
 
             # ========================================================
-            # MIN 45!!!!! - OBSERVACAO DO 0x0 NO INTERVALO
-            # Probabilidade implicita do empate >= 40% = CONFIRMADO
-            # NAO ALTERA A LOGICA NORMAL DE ENTRADA
+            # MIN 45!!!!! - BLOCO ISOLADO E AJUSTAVEL
+            #
+            # PAINEL DE AJUSTE - ALTERE SOMENTE ESTES 3 VALORES:
+            # 40 = limite base de confirmacao
+            # +20 = faixa positiva adicional
+            # -20 = faixa negativa adicional
+            #
+            # A logica NORMAL de entrada nao e alterada por este bloco.
             # ========================================================
+            MIN45_PROB_BASE = 40.0
+            MIN45_AJUSTE_POSITIVO = 20.0
+            MIN45_AJUSTE_NEGATIVO = 20.0
+
+            MIN45_LIMITE_POSITIVO = (
+                MIN45_PROB_BASE + MIN45_AJUSTE_POSITIVO
+            )
+            MIN45_LIMITE_NEGATIVO = max(
+                0.0,
+                MIN45_PROB_BASE - MIN45_AJUSTE_NEGATIVO,
+            )
+
             if (
                 minuto >= 45
                 and gols == 0
@@ -781,12 +792,4 @@ def executar_consulta():
                 controle["min45_odd"] = odd_empate
                 controle["min45_probabilidade"] = prob_empate_45
                 controle["min45_ipm"] = float(
-                    resultado.get("ipm", 0) or 0
-                )
-
-                if prob_empate_45 >= 40.0:
-                    controle["min45_sinal"] = "CONFIRMADO"
-                    status_min45 = "CONFIRMADO"
-                    icone_min45 = "🎯"
-                else:
-                    controle["min45_sinal"] = "ABAIXO DE 
+                    resultado.g
