@@ -1,7 +1,5 @@
 # ============================================================
-# MAIN - IPM RADAR V5.1
-# CASA + EMPATE + VISITANTE
-# PRE-LIVE COMPLETO + TRAJETÓRIA + REFERÊNCIA 45' + MEMÓRIA
+# MAIN - IPM RADAR V5.0
 # ============================================================
 
 import json
@@ -45,23 +43,44 @@ from motor_ipm import (
     resultado_empate,
 )
 
+print("[BOOT 5] módulos locais carregados", flush=True)
 
-PORTA_SAUDE = int(os.environ.get("PORT", "10000"))
 
-ARQUIVO_CONTROLE = Path(
-    os.getenv("ARQUIVO_CONTROLE", "ipm_controle.json")
+# ===== IPM RADAR V5.1 DIAGNOSTICO =====
+print("[BOOT 1] Python iniciou o main.py", flush=True)
+
+PORTA_SAUDE = int(
+    os.environ.get("PORT", "10000")
 )
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+ARQUIVO_CONTROLE = Path(
+    os.getenv(
+        "ARQUIVO_CONTROLE",
+        "ipm_controle.json",
+    )
+)
+
+TELEGRAM_TOKEN = os.getenv(
+    "TELEGRAM_BOT_TOKEN",
+    "",
+).strip()
+
+TELEGRAM_CHAT_ID = os.getenv(
+    "TELEGRAM_CHAT_ID",
+    "",
+).strip()
 
 _lock = threading.Lock()
 _controle_jogos = {}
 
 
 def enviar_telegram(texto):
+    print("[DIAG] função Telegram carregada", flush=True)
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        print("INFO: Telegram nao configurado")
+        print(
+            "INFO: Telegram nao configurado; "
+            "mensagem ficou no log."
+        )
         return False
 
     try:
@@ -70,49 +89,57 @@ def enviar_telegram(texto):
             f"bot{TELEGRAM_TOKEN}/sendMessage"
         )
 
-        dados = urllib.parse.urlencode({
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": texto
-        }).encode("utf-8")
+        dados = urllib.parse.urlencode(
+            {
+                "chat_id": TELEGRAM_CHAT_ID,
+                "text": texto,
+            }
+        ).encode("utf-8")
 
         requisicao = urllib.request.Request(
             url,
             data=dados,
-            method="POST"
+            method="POST",
         )
 
-        with urllib.request.urlopen(requisicao) as resposta:
-            retorno = resposta.read().decode("utf-8", errors="replace")
-            print("TELEGRAM OK:", retorno)
+        with urllib.request.urlopen(
+            requisicao,
+            timeout=15,
+        ) as resposta:
             return 200 <= resposta.status < 300
 
-    except urllib.error.HTTPError as erro:
-        detalhe = erro.read().decode("utf-8", errors="replace")
-        print("ERRO TELEGRAM:", erro.code, detalhe)
-        return False
-
     except Exception as erro:
-        print("ERRO TELEGRAM:", type(erro).__name__, erro)
+        print(
+            "ERRO TELEGRAM:",
+            type(erro).__name__,
+            erro,
+        )
         return False
 
-enviar_telegram("TESTE TELEGRAM IPM RADAR V3")
+
 def salvar_controle():
     try:
         temporario = ARQUIVO_CONTROLE.with_suffix(".tmp")
 
-        with temporario.open("w", encoding="utf-8") as arquivo:
-            with _lock:
-                json.dump(
-                    _controle_jogos,
-                    arquivo,
-                    ensure_ascii=False,
-                    indent=2,
-                )
+        with temporario.open(
+            "w",
+            encoding="utf-8",
+        ) as arquivo:
+            json.dump(
+                _controle_jogos,
+                arquivo,
+                ensure_ascii=False,
+                indent=2,
+            )
 
         temporario.replace(ARQUIVO_CONTROLE)
 
     except Exception as erro:
-        print("ERRO AO SALVAR CONTROLE:", type(erro).__name__, erro)
+        print(
+            "ERRO AO SALVAR CONTROLE:",
+            type(erro).__name__,
+            erro,
+        )
 
 
 def carregar_controle():
@@ -120,19 +147,32 @@ def carregar_controle():
 
     try:
         if not ARQUIVO_CONTROLE.exists():
-            print("INFO: Arquivo de controle ainda nao existe.")
+            print(
+                "INFO: Arquivo de controle ainda nao existe."
+            )
             return
 
-        with ARQUIVO_CONTROLE.open("r", encoding="utf-8") as arquivo:
+        with ARQUIVO_CONTROLE.open(
+            "r",
+            encoding="utf-8",
+        ) as arquivo:
             dados = json.load(arquivo)
 
         if isinstance(dados, dict):
             _controle_jogos = dados
 
-        print("Controle carregado:", len(_controle_jogos), "jogos")
+        print(
+            "Controle carregado:",
+            len(_controle_jogos),
+            "jogos",
+        )
 
     except Exception as erro:
-        print("ERRO AO CARREGAR CONTROLE:", type(erro).__name__, erro)
+        print(
+            "ERRO AO CARREGAR CONTROLE:",
+            type(erro).__name__,
+            erro,
+        )
 
 
 def obter_controle(event_id):
@@ -143,8 +183,6 @@ def obter_controle(event_id):
             chave,
             {
                 "odd_pre_live": None,
-                "odd_casa_pre_live": None,
-                "odd_visitante_pre_live": None,
                 "pre_live_capturada_em": None,
                 "pre_live_fallback": False,
                 "entradas": [],
@@ -166,15 +204,17 @@ def obter_controle(event_id):
             },
         )
 
-        # Compatibilidade com controles antigos.
-        controle.setdefault("odd_casa_pre_live", None)
-        controle.setdefault("odd_visitante_pre_live", None)
+    if not isinstance(
+        controle.get("entradas"),
+        list,
+    ):
+        controle["entradas"] = []
 
-        if not isinstance(controle.get("entradas"), list):
-            controle["entradas"] = []
-
-        if not isinstance(controle.get("trajetoria"), list):
-            controle["trajetoria"] = []
+    if not isinstance(
+        controle.get("trajetoria"),
+        list,
+    ):
+        controle["trajetoria"] = []
 
     return controle
 
@@ -187,10 +227,13 @@ def classificar_sinal(ipm):
 
     if valor >= IPM_MINIMO_MUITO_FORTE:
         return "SINAL MUITO FORTE"
+
     if valor >= IPM_MINIMO_FORTE:
         return "SINAL FORTE"
+
     if valor >= IPM_MINIMO_OBSERVACAO:
         return "OBSERVAR"
+
     return "SEM SINAL"
 
 
@@ -202,7 +245,8 @@ class HealthHandler(BaseHTTPRequestHandler):
 
             corpo = (
                 f"{NOME_BOT} ONLINE | "
-                f"Brasil: {agora.strftime('%d/%m/%Y %H:%M:%S')} | "
+                f"Brasil: "
+                f"{agora.strftime('%d/%m/%Y %H:%M:%S')} | "
                 f"Versao: {VERSAO}"
             ).encode("utf-8")
 
@@ -230,13 +274,18 @@ class HealthHandler(BaseHTTPRequestHandler):
 
 
 def iniciar_servidor_saude():
+    print("[BOOT 6] iniciando servidor de saúde", flush=True)
     try:
         servidor = HTTPServer(
             ("0.0.0.0", PORTA_SAUDE),
             HealthHandler,
         )
 
-        print("Servidor de saude iniciado na porta", PORTA_SAUDE)
+        print(
+            "Servidor de saude iniciado na porta",
+            PORTA_SAUDE,
+        )
+
         servidor.serve_forever()
 
     except Exception as erro:
@@ -248,6 +297,7 @@ def iniciar_servidor_saude():
 
 
 def capturar_referencia_pre_live():
+    print("[DIAG] iniciando captura PRE-LIVE", flush=True)
     try:
         jogos = buscar_jogos_pre_live() or []
         if not jogos:
@@ -256,40 +306,29 @@ def capturar_referencia_pre_live():
         odds = buscar_odds_multiplos(jogos) or []
 
         for jogo in jogos:
-            if not isinstance(jogo, dict) or jogo.get("id") is None:
+            if (
+                not isinstance(jogo, dict)
+                or jogo.get("id") is None
+            ):
                 continue
 
-            mercados = extrair_mercados(jogo, odds) or {}
+            mercados = extrair_mercados(
+                jogo,
+                odds,
+            ) or {}
 
-            odd_casa = float(mercados.get("odd_casa", 0.0) or 0.0)
-            odd_empate = float(mercados.get("odd_draw", 0.0) or 0.0)
-            odd_visitante = float(
-                mercados.get("odd_visitante", 0.0) or 0.0
+            odd_draw = float(
+                mercados.get("odd_draw", 0.0)
+                or 0.0
             )
 
-            if odd_casa <= 0 and odd_empate <= 0 and odd_visitante <= 0:
+            if odd_draw <= 0:
                 continue
 
             controle = obter_controle(jogo["id"])
 
-            alterou = False
-
-            if not controle.get("odd_casa_pre_live") and odd_casa > 0:
-                controle["odd_casa_pre_live"] = odd_casa
-                alterou = True
-
-            if not controle.get("odd_pre_live") and odd_empate > 0:
-                controle["odd_pre_live"] = odd_empate
-                alterou = True
-
-            if (
-                not controle.get("odd_visitante_pre_live")
-                and odd_visitante > 0
-            ):
-                controle["odd_visitante_pre_live"] = odd_visitante
-                alterou = True
-
-            if alterou and not controle.get("pre_live_capturada_em"):
+            if not controle.get("odd_pre_live"):
+                controle["odd_pre_live"] = odd_draw
                 controle["pre_live_capturada_em"] = (
                     horario_atual().isoformat()
                 )
@@ -299,9 +338,7 @@ def capturar_referencia_pre_live():
                     "PRE-LIVE | "
                     f"{jogo.get('home', '')} x "
                     f"{jogo.get('away', '')} | "
-                    f"casa={controle.get('odd_casa_pre_live')} | "
-                    f"empate={controle.get('odd_pre_live')} | "
-                    f"visitante={controle.get('odd_visitante_pre_live')}"
+                    f"odd empate={odd_draw}"
                 )
 
         salvar_controle()
@@ -320,16 +357,30 @@ def registrar_trajetoria(controle, resultado):
         "ipm": resultado.get("ipm", 0.0),
         "odd_casa": resultado.get("odd_casa", 0.0),
         "odd_empate": resultado.get("odd_empate", 0.0),
-        "odd_visitante": resultado.get("odd_visitante", 0.0),
-        "variacao_casa": resultado.get("variacao_casa", 0.0),
-        "variacao_empate": resultado.get("variacao_empate", 0.0),
+        "odd_visitante": resultado.get(
+            "odd_visitante",
+            0.0,
+        ),
+        "variacao_casa": resultado.get(
+            "variacao_casa",
+            0.0,
+        ),
+        "variacao_empate": resultado.get(
+            "variacao_empate",
+            0.0,
+        ),
         "variacao_visitante": resultado.get(
-            "variacao_visitante", 0.0
+            "variacao_visitante",
+            0.0,
         ),
         "variacao_pre_live": resultado.get(
-            "variacao_pre_live", 0.0
+            "variacao_pre_live",
+            0.0,
         ),
-        "variacao_ciclo": resultado.get("variacao_ciclo", 0.0),
+        "variacao_ciclo": resultado.get(
+            "variacao_ciclo",
+            0.0,
+        ),
         "gols": resultado.get("gols", 0),
     }
 
@@ -358,13 +409,19 @@ def registrar_trajetoria(controle, resultado):
     except (TypeError, ValueError):
         minuto = 0
 
-    if minuto >= 45 and not controle.get("acompanhamento_45", False):
+    if (
+        minuto >= 45
+        and not controle.get("acompanhamento_45", False)
+    ):
         controle["acompanhamento_45"] = True
-        controle["minuto_45"] = minuto
         controle["ipm_45"] = ponto["ipm"]
         controle["odd_45"] = ponto["odd_empate"]
-        controle["variacao_pre_live_45"] = ponto["variacao_pre_live"]
-        controle["variacao_ciclo_45"] = ponto["variacao_ciclo"]
+        controle["variacao_pre_live_45"] = (
+            ponto["variacao_pre_live"]
+        )
+        controle["variacao_ciclo_45"] = (
+            ponto["variacao_ciclo"]
+        )
 
 
 def processar_jogo(jogo, mercados, resultado):
@@ -376,56 +433,84 @@ def processar_jogo(jogo, mercados, resultado):
     controle = obter_controle(event_id)
 
     try:
-        minuto = int(resultado.get("minuto", 0) or 0)
+        minuto = int(
+            resultado.get("minuto", 0) or 0
+        )
     except (TypeError, ValueError):
         minuto = 0
 
     try:
-        ipm = float(resultado.get("ipm", 0.0) or 0.0)
+        ipm = float(
+            resultado.get("ipm", 0.0) or 0.0
+        )
     except (TypeError, ValueError):
         ipm = 0.0
 
     try:
         var_pre = float(
-            resultado.get("variacao_pre_live", 0.0) or 0.0
+            resultado.get("variacao_pre_live", 0.0)
+            or 0.0
         )
     except (TypeError, ValueError):
         var_pre = 0.0
 
     try:
         var_ciclo = float(
-            resultado.get("variacao_ciclo", 0.0) or 0.0
+            resultado.get("variacao_ciclo", 0.0)
+            or 0.0
         )
     except (TypeError, ValueError):
         var_ciclo = 0.0
 
     try:
-        if not controle.get("finalizado", False) and jogo_finalizado(jogo):
-            empate = resultado_empate(jogo, mercados)
+        if (
+            not controle.get("finalizado", False)
+            and jogo_finalizado(jogo)
+        ):
+            empate = resultado_empate(
+                jogo,
+                mercados,
+            )
 
             if empate is not None:
                 controle["finalizado"] = True
-                controle["resultado"] = "VERDE" if empate else "VERMELHO"
+                controle["resultado"] = (
+                    "VERDE" if empate else "VERMELHO"
+                )
                 controle["entrada_ativa"] = False
 
-                for entrada in controle.get("entradas", []):
-                    entrada["status"] = controle["resultado"]
+                for entrada in controle.get(
+                    "entradas",
+                    [],
+                ):
+                    entrada["status"] = (
+                        controle["resultado"]
+                    )
 
                 placar_casa = 0
                 placar_fora = 0
                 scores = jogo.get("scores")
 
                 if isinstance(scores, dict):
-                    placar_casa = scores.get("home", 0)
-                    placar_fora = scores.get("away", 0)
+                    placar_casa = scores.get(
+                        "home",
+                        0,
+                    )
+                    placar_fora = scores.get(
+                        "away",
+                        0,
+                    )
 
                 enviar_telegram(
                     (
-                        f"{'🟢' if empate else '🔴'} RESULTADO FINAL\n\n"
+                        f"{'🟢' if empate else '🔴'} "
+                        "RESULTADO FINAL\n\n"
                         f"⚽ {jogo.get('home', 'Casa')} x "
                         f"{jogo.get('away', 'Fora')}\n"
-                        f"📊 Placar: {placar_casa} x {placar_fora}\n"
-                        f"📌 {'EMPATE' if empate else 'NAO EMPATE'}"
+                        f"📊 Placar: "
+                        f"{placar_casa} x {placar_fora}\n"
+                        f"📌 "
+                        f"{'EMPATE' if empate else 'NAO EMPATE'}"
                     )
                 )
 
@@ -440,7 +525,10 @@ def processar_jogo(jogo, mercados, resultado):
             erro,
         )
 
-    registrar_trajetoria(controle, resultado)
+    registrar_trajetoria(
+        controle,
+        resultado,
+    )
 
     controle["ultimo_minuto"] = minuto
     controle["ultima_odd"] = resultado.get("odd_atual")
@@ -465,7 +553,9 @@ def processar_jogo(jogo, mercados, resultado):
         )
         pode_entrar = False
 
-    quantidade = len(controle.get("entradas", []))
+    quantidade = len(
+        controle.get("entradas", [])
+    )
 
     if (
         not controle.get("finalizado", False)
@@ -476,7 +566,9 @@ def processar_jogo(jogo, mercados, resultado):
             "numero": quantidade + 1,
             "minuto": minuto,
             "odd": resultado.get("odd_atual"),
-            "odd_pre_live": resultado.get("odd_pre_live"),
+            "odd_pre_live": resultado.get(
+                "odd_pre_live"
+            ),
             "ipm": ipm,
             "variacao_pre_live": var_pre,
             "variacao_ciclo": var_ciclo,
@@ -493,10 +585,14 @@ def processar_jogo(jogo, mercados, resultado):
                 f"⚽ {jogo.get('home', 'Casa')} x "
                 f"{jogo.get('away', 'Fora')}\n"
                 f"⏱️ Minuto: {minuto}'\n"
-                f"💰 Odd pre-live: {resultado.get('odd_pre_live')}\n"
-                f"💰 Odd atual: {resultado.get('odd_atual')}\n"
-                f"📉 Pre-live -> atual: {var_pre:+.2f}%\n"
-                f"🔄 Ultimo ciclo: {var_ciclo:+.2f}%\n"
+                f"💰 Odd pre-live: "
+                f"{resultado.get('odd_pre_live')}\n"
+                f"💰 Odd atual: "
+                f"{resultado.get('odd_atual')}\n"
+                f"📉 Pre-live -> atual: "
+                f"{var_pre:+.2f}%\n"
+                f"🔄 Ultimo ciclo: "
+                f"{var_ciclo:+.2f}%\n"
                 f"🎯 IPM: {ipm:.2f}\n"
                 "🟢 PADRAO CONFIRMADO"
             )
@@ -517,11 +613,14 @@ def processar_jogo(jogo, mercados, resultado):
 
 
 def executar_consulta():
+    print("[BOOT 8] executar_consulta chamado", flush=True)
     print()
     print("=" * 72)
     print(
-        "IPM RADAR V5.1 | "
-        + horario_atual().strftime("%d/%m/%Y %H:%M:%S")
+        "IPM RADAR V5.0 | "
+        + horario_atual().strftime(
+            "%d/%m/%Y %H:%M:%S"
+        )
     )
     print("=" * 72)
 
@@ -548,62 +647,95 @@ def executar_consulta():
     try:
         odds = buscar_odds_multiplos(jogos) or []
     except Exception as erro:
-        print("ERRO AO BUSCAR ODDS:", type(erro).__name__, erro)
+        print(
+            "ERRO AO BUSCAR ODDS:",
+            type(erro).__name__,
+            erro,
+        )
         odds = []
 
-    print("EVENTOS COM ODDS RECEBIDOS:", len(odds))
+    print(
+        "EVENTOS COM ODDS RECEBIDOS:",
+        len(odds),
+    )
 
     for jogo in jogos:
         try:
-            if not isinstance(jogo, dict) or jogo.get("id") is None:
+            if (
+                not isinstance(jogo, dict)
+                or jogo.get("id") is None
+            ):
                 continue
 
             event_id = jogo["id"]
 
-            mercados = extrair_mercados(jogo, odds) or {}
+            mercados = (
+                extrair_mercados(
+                    jogo,
+                    odds,
+                )
+                or {}
+            )
 
-            odd_casa = float(mercados.get("odd_casa", 0.0) or 0.0)
+            odd_casa = float(
+                mercados.get("odd_casa", 0.0)
+                or 0.0
+            )
             odd_empate = float(
                 mercados.get("odd_empate", 0.0)
                 or mercados.get("odd_atual", 0.0)
                 or 0.0
             )
             odd_visitante = float(
-                mercados.get("odd_visitante", 0.0) or 0.0
+                mercados.get(
+                    "odd_visitante",
+                    0.0,
+                )
+                or 0.0
             )
 
-            minuto = int(mercados.get("minuto", 0) or 0)
-            gols = int(mercados.get("gols", 0) or 0)
-            escanteios = int(mercados.get("escanteios", 0) or 0)
-            cartoes = int(mercados.get("cartoes", 0) or 0)
-            finalizacoes = int(mercados.get("finalizacoes", 0) or 0)
+            minuto = int(
+                mercados.get("minuto", 0)
+                or 0
+            )
+            gols = int(
+                mercados.get("gols", 0)
+                or 0
+            )
+            escanteios = int(
+                mercados.get("escanteios", 0)
+                or 0
+            )
+            cartoes = int(
+                mercados.get("cartoes", 0)
+                or 0
+            )
+            finalizacoes = int(
+                mercados.get("finalizacoes", 0)
+                or 0
+            )
             ataques = int(
-                mercados.get("ataques_perigosos", 0) or 0
+                mercados.get(
+                    "ataques_perigosos",
+                    0,
+                )
+                or 0
             )
 
             controle = obter_controle(event_id)
-
-            odd_pre_live = controle.get("odd_pre_live")
-            odd_casa_pre_live = controle.get("odd_casa_pre_live")
-            odd_visitante_pre_live = controle.get(
-                "odd_visitante_pre_live"
+            odd_pre_live = controle.get(
+                "odd_pre_live"
             )
 
-            # Fallback somente quando não houve referência pré-live.
-            if not odd_pre_live and odd_empate > 0:
-                controle["odd_pre_live"] = odd_empate
+            if (
+                not odd_pre_live
+                and odd_empate > 0
+            ):
+                controle["odd_pre_live"] = (
+                    odd_empate
+                )
                 controle["pre_live_fallback"] = True
                 odd_pre_live = odd_empate
-
-            if not odd_casa_pre_live and odd_casa > 0:
-                odd_casa_pre_live = odd_casa
-                controle["odd_casa_pre_live"] = odd_casa
-                controle["pre_live_fallback"] = True
-
-            if not odd_visitante_pre_live and odd_visitante > 0:
-                odd_visitante_pre_live = odd_visitante
-                controle["odd_visitante_pre_live"] = odd_visitante
-                controle["pre_live_fallback"] = True
 
             resultado = analisar_ipm_com_memoria(
                 chave_jogo=event_id,
@@ -617,8 +749,6 @@ def executar_consulta():
                 odd_pre_live=odd_pre_live,
                 odd_casa=odd_casa,
                 odd_visitante=odd_visitante,
-                odd_casa_pre_live=odd_casa_pre_live,
-                odd_visitante_pre_live=odd_visitante_pre_live,
             )
 
             resultado["odd_casa"] = odd_casa
@@ -626,157 +756,37 @@ def executar_consulta():
             resultado["odd_visitante"] = odd_visitante
             resultado["odd_atual"] = odd_empate
             resultado["odd_pre_live"] = odd_pre_live
-            resultado["odd_casa_pre_live"] = odd_casa_pre_live
-            resultado["odd_visitante_pre_live"] = odd_visitante_pre_live
 
-    # ============================================================
-    # MIN 45!!!!! - OBSERVAÇÃO DO 0x0 NO INTERVALO
-    # Probabilidade implícita do empate >= 40%
-    # NÃO ALTERA A LÓGICA NORMAL DE ENTRADA
-    # ============================================================
-
-    if (
-        minuto >= 45
-        and gols == 0
-        and odd_empate > 0
-        and not controle.get("min45_avaliado", False)
-    ):
-        prob_empate_45 = (1 / odd_empate) * 100
-
-        controle["min45_avaliado"] = True
-        controle["min45_minuto"] = minuto
-        controle["min45_odd"] = odd_empate
-        controle["min45_probabilidade"] = prob_empate_45
-        controle["min45_ipm"] = ipm
-
-        if prob_empate_45 >= 40:
-            controle["min45_sinal"] = "CONFIRMADO"
-
-            print(
-                f"🎯 MIN 45!!!!! | "
-                f"{jogo.get('home', 'Casa')} x "
-                f"{jogo.get('away', 'Fora')} | "
-                f"0x0 | "
-                f"MINUTO={minuto} | "
-                f"ODD X={odd_empate:.3f} | "
-                f"PROB X={prob_empate_45:.2f}% | "
-                f"IPM={ipm:.2f} | "
-                f"✅ CONFIRMADO"
-            )
-        else:
-            controle["min45_sinal"] = "ABAIXO_40"
-
-            print(
-                f"📊 MIN 45!!!!! | "
-                f"0x0 | "
-                f"MINUTO={minuto} | "
-                f"ODD X={odd_empate:.3f} | "
-                f"PROB X={prob_empate_45:.2f}% | "
-                f"IPM={ipm:.2f} | "
-                f"❌ ABAIXO DE 40%"
-            )
-            
-            salvar_controle() 
-            print(
-                "TRAJETORIA | "
-                f"{jogo.get('home', 'Casa')} x "
-                f"{jogo.get('away', 'Fora')} | "
-                f"{minuto}' | "
-                f"CASA={odd_casa:.3f} | "
-                f"EMPATE={odd_empate:.3f} | "
-                f"VISITANTE={odd_visitante:.3f} | "
-                f"IPM={float(resultado.get('ipm', 0)):.2f}"
-            )
-
-            try:
-                texto = formatar_radar(jogo, resultado, mercados)
-                if texto:
-                    print(texto)
-            except Exception as erro:
-                print(
-                    "ERRO AO FORMATAR RADAR:",
-                    type(erro).__name__,
-                    erro,
-                )
-
-            print("SINAL:", classificar_sinal(resultado.get("ipm", 0)))
-
-            processar_jogo(jogo, mercados, resultado)
-            # ============================================
-            # PRÉ-ENTRADA - SINAL DE OBSERVAÇÃO
-            # NÃO ALTERA A LÓGICA DA ENTRADA OFICIAL
-            # ============================================
-
+            # ========================================================
+            # MIN 45!!!!! - OBSERVACAO DO 0x0 NO INTERVALO
+            # Probabilidade implicita do empate >= 40% = CONFIRMADO
+            # NAO ALTERA A LOGICA NORMAL DE ENTRADA
+            # ========================================================
             if (
-                minuto >= 10
-                and not controle.get("pre_entrada_enviada")
-                and abs(var_pre) >= 20
+                minuto >= 45
+                and gols == 0
+                and odd_empate > 0
+                and not controle.get("min45_avaliado", False)
             ):
-                if var_pre >= 20:
-                    direcao_pre = "📈 POSITIVO"
-                else:
-                    direcao_pre = "📉 NEGATIVO"
+                prob_empate_45 = (1 / odd_empate) * 100.0
 
-                enviar_telegram(
-                    (
-                        "👀 PRÉ-ENTRADA\n\n"
-                        f"⚽ {jogo.get('home', 'Casa')} x "
-                        f"{jogo.get('away', 'Fora')}\n"
-                        f"⏱ Minuto: {minuto}\n"
-                        f"📊 IPM: {ipm:.2f}\n"
-                        f"📈 Variação pré-live: {var_pre:.2f}\n"
-                        f"🎯 Sinal: {direcao_pre}\n\n"
-                        "🟡 JOGO PARA OBSERVAÇÃO\n"
-                        "Aguardar confirmação da entrada."
-                    )
+                controle["min45_avaliado"] = True
+                controle["min45_minuto"] = minuto
+                controle["min45_odd"] = odd_empate
+                controle["min45_probabilidade"] = prob_empate_45
+                controle["min45_ipm"] = float(
+                    resultado.get("ipm", 0) or 0
                 )
 
-                controle["pre_entrada_enviada"] = True
-                salvar_controle()
-        except Exception as erro:
-            print(
-                "ERRO AO PROCESSAR JOGO:",
-                type(erro).__name__,
-                erro,
-            )
+                if prob_empate_45 >= 40.0:
+                    controle["min45_sinal"] = "CONFIRMADO"
 
-
-def loop_consulta():
-    carregar_controle()
-
-    print(
-        f"ROBO INICIADO | {NOME_BOT} | "
-        f"VERSAO {VERSAO}"
-    )
-
-    while True:
-        inicio = time.time()
-
-        try:
-            if horario_ativo():
-                executar_consulta()
-            else:
-                print("Radar em periodo de pausa.")
-
-        except Exception as erro:
-            print(
-                "ERRO NO LOOP:",
-                type(erro).__name__,
-                erro,
-            )
-
-        decorrido = time.time() - inicio
-        espera = max(0, INTERVALO_RADAR - decorrido)
-
-        if espera:
-            time.sleep(espera)
-
-
-if __name__ == "__main__":
-    thread_saude = threading.Thread(
-        target=iniciar_servidor_saude,
-        daemon=True,
-    )
-    thread_saude.start()
-
-    loop_consulta()
+                    print(
+                        f"🎯 MIN 45!!!!! | "
+                        f"{jogo.get('home', 'Casa')} x "
+                        f"{jogo.get('away', 'Fora')} | "
+                        f"0x0 | "
+                        f"MINUTO={minuto} | "
+                        f"ODD X={odd_empate:.3f} | "
+                        f"PROB X={prob_empate_45:.2f}% | "
+            
