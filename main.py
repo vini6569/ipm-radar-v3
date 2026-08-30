@@ -74,11 +74,15 @@ TELEGRAM_CHAT_ID = os.getenv(
 # PAINEL DE AJUSTE - MIN 45!!!!!
 #
 # ALTERE SOMENTE ESTES 3 VALORES.
-# A lógica normal de entrada NÃO depende deles.
+# A logica normal de entrada permanece inalterada.
 #
-# Exemplo atual: base 40%, positivo +20%, negativo -20%.
-# Para testar 15%: altere para 15.0.
-# Para testar 30%: altere para 30.0.
+# BASE = referencia principal da probabilidade implicita do empate.
+# POSITIVO = quanto acima da BASE sera considerado positivo.
+# NEGATIVO = quanto abaixo da BASE sera considerado negativo.
+#
+# Exemplo atual: BASE 40%, +20%, -20%.
+# Para testar 15%: altere apenas os dois ajustes para 15.0.
+# Para testar 30%: altere apenas os dois ajustes para 30.0.
 # ============================================================
 MIN45_PROB_BASE = 40.0
 MIN45_AJUSTE_POSITIVO = 20.0
@@ -223,6 +227,12 @@ def obter_controle(event_id):
                 "odd_45": None,
                 "variacao_pre_live_45": None,
                 "variacao_ciclo_45": None,
+                "min45_avaliado": False,
+                "min45_minuto": None,
+                "min45_odd": None,
+                "min45_probabilidade": None,
+                "min45_ipm": None,
+                "min45_sinal": None,
             },
         )
 
@@ -780,21 +790,8 @@ def executar_consulta():
             resultado["odd_pre_live"] = odd_pre_live
 
             # ========================================================
-            # MIN 45!!!!! - BLOCO DE OBSERVAÇÃO DO 0x0
-            #
-            # Os parâmetros ficam no PAINEL DE AJUSTE no topo do
-            # arquivo. Aqui apenas aplicamos os valores configurados.
-            # A lógica NORMAL de entrada continua intacta.
+            # MIN 45!!!!! - BLOCO ISOLADO
+            # Os parametros ficam no painel no topo do arquivo.
+            # Este bloco NAO altera a logica normal de entrada.
             # ========================================================
-
-            if (
-                minuto >= 45
-                and gols == 0
-                and odd_empate > 0
-                and not controle.get("min45_avaliado", False)
-            ):
-                prob_empate_45 = 100.0 / odd_empate
-
-                controle["min45_avaliado"] = True
-                controle["min45_minuto"] = minuto
-                controle["min
+         
