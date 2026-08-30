@@ -201,6 +201,12 @@ def obter_controle(event_id):
                 "odd_45": None,
                 "variacao_pre_live_45": None,
                 "variacao_ciclo_45": None,
+                "min45_avaliado": False,
+                "min45_minuto": None,
+                "min45_odd": None,
+                "min45_probabilidade": None,
+                "min45_ipm": None,
+                "min45_sinal": None,
             },
         )
 
@@ -768,7 +774,7 @@ def executar_consulta():
                 and odd_empate > 0
                 and not controle.get("min45_avaliado", False)
             ):
-                prob_empate_45 = (1 / odd_empate) * 100.0
+                prob_empate_45 = 100.0 / odd_empate
 
                 controle["min45_avaliado"] = True
                 controle["min45_minuto"] = minuto
@@ -780,13 +786,7 @@ def executar_consulta():
 
                 if prob_empate_45 >= 40.0:
                     controle["min45_sinal"] = "CONFIRMADO"
-
-                    print(
-                        f"🎯 MIN 45!!!!! | "
-                        f"{jogo.get('home', 'Casa')} x "
-                        f"{jogo.get('away', 'Fora')} | "
-                        f"0x0 | "
-                        f"MINUTO={minuto} | "
-                        f"ODD X={odd_empate:.3f} | "
-                        f"PROB X={prob_empate_45:.2f}% | "
-            
+                    status_min45 = "CONFIRMADO"
+                    icone_min45 = "🎯"
+                else:
+                    controle["min45_sinal"] = "ABAIXO DE 
