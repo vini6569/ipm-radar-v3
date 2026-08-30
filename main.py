@@ -1,5 +1,5 @@
 # ============================================================
-# MAIN - IPM RADAR V5.0
+# MAIN - IPM RADAR V5.1
 # ============================================================
 
 import json
@@ -330,7 +330,9 @@ def capturar_referencia_pre_live():
             ) or {}
 
             odd_draw = float(
-                mercados.get("odd_draw", 0.0)
+                mercados.get("odd_empate", 0.0)
+                or mercados.get("odd_draw", 0.0)
+                or mercados.get("odd_atual", 0.0)
                 or 0.0
             )
 
@@ -680,7 +682,7 @@ def executar_consulta():
     print()
     print("=" * 72)
     print(
-        "IPM RADAR V5.0 | "
+        "IPM RADAR V5.1 | "
         + horario_atual().strftime(
             "%d/%m/%Y %H:%M:%S"
         )
@@ -804,7 +806,4 @@ def executar_consulta():
                 chave_jogo=event_id,
                 odd_atual=odd_empate,
                 minuto=minuto,
-                gols=gols,
-                escanteios=escanteios,
-                cartoes=cartoes,
-                fina
+                go
