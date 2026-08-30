@@ -70,6 +70,28 @@ TELEGRAM_CHAT_ID = os.getenv(
     "",
 ).strip()
 
+# ============================================================
+# PAINEL DE AJUSTE - MIN 45!!!!!
+#
+# ALTERE SOMENTE ESTES 3 VALORES.
+# A lógica normal de entrada NÃO depende deles.
+#
+# Exemplo atual: base 40%, positivo +20%, negativo -20%.
+# Para testar 15%: altere para 15.0.
+# Para testar 30%: altere para 30.0.
+# ============================================================
+MIN45_PROB_BASE = 40.0
+MIN45_AJUSTE_POSITIVO = 20.0
+MIN45_AJUSTE_NEGATIVO = 20.0
+
+MIN45_LIMITE_POSITIVO = (
+    MIN45_PROB_BASE + MIN45_AJUSTE_POSITIVO
+)
+MIN45_LIMITE_NEGATIVO = max(
+    0.0,
+    MIN45_PROB_BASE - MIN45_AJUSTE_NEGATIVO,
+)
+
 _lock = threading.Lock()
 _controle_jogos = {}
 
@@ -758,26 +780,12 @@ def executar_consulta():
             resultado["odd_pre_live"] = odd_pre_live
 
             # ========================================================
-            # MIN 45!!!!! - BLOCO ISOLADO E AJUSTAVEL
+            # MIN 45!!!!! - BLOCO DE OBSERVAÇÃO DO 0x0
             #
-            # PAINEL DE AJUSTE - ALTERE SOMENTE ESTES 3 VALORES:
-            # 40 = limite base de confirmacao
-            # +20 = faixa positiva adicional
-            # -20 = faixa negativa adicional
-            #
-            # A logica NORMAL de entrada nao e alterada por este bloco.
+            # Os parâmetros ficam no PAINEL DE AJUSTE no topo do
+            # arquivo. Aqui apenas aplicamos os valores configurados.
+            # A lógica NORMAL de entrada continua intacta.
             # ========================================================
-            MIN45_PROB_BASE = 40.0
-            MIN45_AJUSTE_POSITIVO = 20.0
-            MIN45_AJUSTE_NEGATIVO = 20.0
-
-            MIN45_LIMITE_POSITIVO = (
-                MIN45_PROB_BASE + MIN45_AJUSTE_POSITIVO
-            )
-            MIN45_LIMITE_NEGATIVO = max(
-                0.0,
-                MIN45_PROB_BASE - MIN45_AJUSTE_NEGATIVO,
-            )
 
             if (
                 minuto >= 45
@@ -789,7 +797,4 @@ def executar_consulta():
 
                 controle["min45_avaliado"] = True
                 controle["min45_minuto"] = minuto
-                controle["min45_odd"] = odd_empate
-                controle["min45_probabilidade"] = prob_empate_45
-                controle["min45_ipm"] = float(
-                    resultado.g
+                controle["min
