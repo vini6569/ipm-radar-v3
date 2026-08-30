@@ -44,11 +44,13 @@ from motor_ipm import (
 )
 
 # ============================================================
-# PAINEL DE PARAMETROS — ALTERE SOMENTE ESTES VALORES
+# PAINEL DE PARAMETROS - ALTERE SOMENTE ESTES VALORES
 # ============================================================
 PRE_ENTRADA_POSITIVO = 20.0
 PRE_ENTRADA_NEGATIVO = 20.0
 PRE_ENTRADA_MINUTO_MINIMO = 10
+
+# MIN 45!!!!! - probabilidade implicita minima do empate
 MIN45_PROBABILIDADE_MINIMA = 40.0
 # ============================================================
 
@@ -622,35 +624,39 @@ def processar_jogo(jogo, mercados, resultado):
     salvar_controle()
 
 
-def processar_pre_entrada(jogo, resultado, controle):
-    """Sinal de observacao separado da entrada oficial."""
-    if controle.get("pre_entrada_enviada", False):
-        return
 
+def processar_pre_entrada(jogo, resultado, minuto, controle):
+    """
+    Sinal de observacao baseado somente na variacao da odd X
+    em relacao ao pre-live. Nao altera a entrada oficial.
+    """
     try:
-        minuto = int(resultado.get("minuto", 0) or 0)
+        variacao = float(
+            resultado.get("variacao_pre_live", 0.0) or 0.0
+        )
     except (TypeError, ValueError):
-        minuto = 0
-
-    try:
-        var_pre = float(resultado.get("variacao_pre_live", 0.0) or 0.0)
-    except (TypeError, ValueError):
-        var_pre = 0.0
+        variacao = 0.0
 
     if minuto < PRE_ENTRADA_MINUTO_MINIMO:
         return
 
-    positivo = var_pre >= PRE_ENTRADA_POSITIVO
-    negativo = var_pre <= -PRE_ENTRADA_NEGATIVO
-
-    if not (positivo or negativo):
+    if controle.get("pre_entrada_enviada", False):
         return
 
-    direcao = "📈 POSITIVO" if positivo else "📉 NEGATIVO"
+    atingiu_positivo = variacao >= PRE_ENTRADA_POSITIVO
+    atingiu_negativo = variacao <= -PRE_ENTRADA_NEGATIVO
+
+    if not (atingiu_positivo or atingiu_negativo):
+        return
+
+    if atingiu_positivo:
+        direcao = "📈 POSITIVO"
+    else:
+        direcao = "📉 NEGATIVO"
 
     controle["pre_entrada_enviada"] = True
     controle["pre_entrada_minuto"] = minuto
-    controle["pre_entrada_variacao"] = var_pre
+    controle["pre_entrada_variacao"] = variacao
     controle["pre_entrada_direcao"] = direcao
 
     enviar_telegram(
@@ -660,14 +666,14 @@ def processar_pre_entrada(jogo, resultado, controle):
             f"{jogo.get('away', 'Fora')}\n"
             f"⏱️ Minuto: {minuto}'\n"
             f"📌 Direção: {direcao}\n"
-            f"📉 Pre-live → atual: {var_pre:+.2f}%\n"
-            f"🎯 IPM: {float(resultado.get('ipm', 0) or 0):.2f}\n"
+            f"📉 Pre-live → atual: {variacao:+.2f}%\n"
+            f"🎯 IPM: "
+            f"{float(resultado.get('ipm', 0) or 0):.2f}\n"
             "ℹ️ Sinal de observação — não é entrada oficial."
         )
     )
 
     salvar_controle()
-
 
 def executar_consulta():
     print("[BOOT 8] executar_consulta chamado", flush=True)
@@ -801,7 +807,4 @@ def executar_consulta():
                 gols=gols,
                 escanteios=escanteios,
                 cartoes=cartoes,
-                finalizacoes=finalizacoes,
-                ataques_perigosos=ataques,
-                odd_pre_live=odd_pre_live,
-                odd_casa=odd_c
+                fina
