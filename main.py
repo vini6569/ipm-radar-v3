@@ -653,7 +653,37 @@ def executar_consulta():
             print("SINAL:", classificar_sinal(resultado.get("ipm", 0)))
 
             processar_jogo(jogo, mercados, resultado)
+            # ============================================
+            # PRÉ-ENTRADA - SINAL DE OBSERVAÇÃO
+            # NÃO ALTERA A LÓGICA DA ENTRADA OFICIAL
+            # ============================================
 
+            if (
+                minuto >= 10
+                and not controle.get("pre_entrada_enviada")
+                and abs(var_pre) >= 20
+            ):
+                if var_pre >= 20:
+                    direcao_pre = "📈 POSITIVO"
+                else:
+                    direcao_pre = "📉 NEGATIVO"
+
+                enviar_telegram(
+                    (
+                        "👀 PRÉ-ENTRADA\n\n"
+                        f"⚽ {jogo.get('home', 'Casa')} x "
+                        f"{jogo.get('away', 'Fora')}\n"
+                        f"⏱ Minuto: {minuto}\n"
+                        f"📊 IPM: {ipm:.2f}\n"
+                        f"📈 Variação pré-live: {var_pre:.2f}\n"
+                        f"🎯 Sinal: {direcao_pre}\n\n"
+                        "🟡 JOGO PARA OBSERVAÇÃO\n"
+                        "Aguardar confirmação da entrada."
+                    )
+                )
+
+                controle["pre_entrada_enviada"] = True
+                salvar_controle()
         except Exception as erro:
             print(
                 "ERRO AO PROCESSAR JOGO:",
