@@ -74,15 +74,18 @@ TELEGRAM_CHAT_ID = os.getenv(
 # PAINEL DE AJUSTE - MIN 45!!!!!
 #
 # ALTERE SOMENTE ESTES 3 VALORES.
-# A logica normal de entrada permanece inalterada.
+# A logica normal de entrada NAO e alterada por este bloco.
 #
-# BASE = referencia principal da probabilidade implicita do empate.
-# POSITIVO = quanto acima da BASE sera considerado positivo.
-# NEGATIVO = quanto abaixo da BASE sera considerado negativo.
+# BASE: ponto de referencia da probabilidade implicita do empate.
+# POSITIVO: pontos percentuais acima da BASE para sinal POSITIVO.
+# NEGATIVO: pontos percentuais abaixo da BASE para sinal NEGATIVO.
 #
-# Exemplo atual: BASE 40%, +20%, -20%.
-# Para testar 15%: altere apenas os dois ajustes para 15.0.
-# Para testar 30%: altere apenas os dois ajustes para 30.0.
+# Exemplo: BASE=40, POSITIVO=20, NEGATIVO=20
+# -> POSITIVO a partir de 60%
+# -> CONFIRMADO entre 40% e abaixo de 60%
+# -> NEGATIVO ate 20%
+#
+# Para testar 15/15 ou 30/30, altere SOMENTE os dois ajustes.
 # ============================================================
 MIN45_PROB_BASE = 40.0
 MIN45_AJUSTE_POSITIVO = 20.0
@@ -644,6 +647,58 @@ def processar_jogo(jogo, mercados, resultado):
     salvar_controle()
 
 
+def avaliar_min45(jogo, controle, resultado, minuto, gols, odd_empate):
+    """Observacao MIN 45 do 0x0; nao altera a entrada oficial."""
+
+    if (
+        minuto < 45
+        or gols != 0
+        or odd_empate <= 0
+        or controle.get("min45_avaliado", False)
+    ):
+        return
+
+    prob_empate_45 = 100.0 / odd_empate
+
+    controle["min45_avaliado"] = True
+    controle["min45_minuto"] = minuto
+    controle["min45_odd"] = odd_empate
+    controle["min45_probabilidade"] = prob_empate_45
+    controle["min45_ipm"] = float(
+        resultado.get("ipm", 0) or 0
+    )
+
+    if prob_empate_45 >= MIN45_LIMITE_POSITIVO:
+        controle["min45_sinal"] = (
+            f"POSITIVO +{MIN45_AJUSTE_POSITIVO:.0f}%"
+        )
+    elif prob_empate_45 >= MIN45_PROB_BASE:
+        controle["min45_sinal"] = "CONFIRMADO"
+    elif prob_empate_45 <= MIN45_LIMITE_NEGATIVO:
+        controle["min45_sinal"] = (
+            f"NEGATIVO -{MIN45_AJUSTE_NEGATIVO:.0f}%"
+        )
+    else:
+        controle["min45_sinal"] = (
+            f"ABAIXO DE {MIN45_PROB_BASE:.0f}%"
+        )
+
+    print(
+        "MIN 45!!!!! | "
+        f"{jogo.get('home', 'Casa')} x "
+        f"{jogo.get('away', 'Fora')} | "
+        f"0x0 | MINUTO={minuto} | "
+        f"ODD X={odd_empate:.3f} | "
+        f"PROB X={prob_empate_45:.2f}% | "
+        f"IPM={float(resultado.get('ipm', 0) or 0):.2f} | "
+        f"BASE={MIN45_PROB_BASE:.0f}% | "
+        f"+{MIN45_AJUSTE_POSITIVO:.0f}%/-{MIN45_AJUSTE_NEGATIVO:.0f}% | "
+        f"{controle['min45_sinal']}"
+    )
+
+    salvar_controle()
+
+
 def executar_consulta():
     print("[BOOT 8] executar_consulta chamado", flush=True)
     print()
@@ -747,51 +802,4 @@ def executar_consulta():
                 or 0
             )
             ataques = int(
-                mercados.get(
-                    "ataques_perigosos",
-                    0,
-                )
-                or 0
-            )
-
-            controle = obter_controle(event_id)
-            odd_pre_live = controle.get(
-                "odd_pre_live"
-            )
-
-            if (
-                not odd_pre_live
-                and odd_empate > 0
-            ):
-                controle["odd_pre_live"] = (
-                    odd_empate
-                )
-                controle["pre_live_fallback"] = True
-                odd_pre_live = odd_empate
-
-            resultado = analisar_ipm_com_memoria(
-                chave_jogo=event_id,
-                odd_atual=odd_empate,
-                minuto=minuto,
-                gols=gols,
-                escanteios=escanteios,
-                cartoes=cartoes,
-                finalizacoes=finalizacoes,
-                ataques_perigosos=ataques,
-                odd_pre_live=odd_pre_live,
-                odd_casa=odd_casa,
-                odd_visitante=odd_visitante,
-            )
-
-            resultado["odd_casa"] = odd_casa
-            resultado["odd_empate"] = odd_empate
-            resultado["odd_visitante"] = odd_visitante
-            resultado["odd_atual"] = odd_empate
-            resultado["odd_pre_live"] = odd_pre_live
-
-            # ========================================================
-            # MIN 45!!!!! - BLOCO ISOLADO
-            # Os parametros ficam no painel no topo do arquivo.
-            # Este bloco NAO altera a logica normal de entrada.
-            # ========================================================
-         
+               
