@@ -897,58 +897,9 @@ def executar_consulta():
                 type(erro).__name__,
                 erro,
             )
-            if (
-                    
-                    prob_empate_45
-                    >= MIN45_LIMITE_POSITIVO
-                ):
-                    controle["min45_sinal"] = (
-                        f"POSITIVO +"
-                        f"{MIN45_AJUSTE_POSITIVO:.0f}%"
-                    )
+salvar_controle()
 
-                elif (
-                    prob_empate_45
-                    >= MIN45_PROB_BASE
-                ):
-                    controle["min45_sinal"] = (
-                        "CONFIRMADO"
-                    )
-
-                elif (
-                    prob_empate_45
-                    <= MIN45_LIMITE_NEGATIVO
-                ):
-                    controle["min45_sinal"] = (
-                        f"NEGATIVO -"
-                        f"{MIN45_AJUSTE_NEGATIVO:.0f}%"
-                    )
-
-                else:
-                    controle["min45_sinal"] = (
-                        f"ABAIXO DE "
-                        f"{MIN45_PROB_BASE:.0f}%"
-                    )
-
-                print(
-                    "MIN 45!!!!! | "
-                    f"{jogo.get('home', 'Casa')} x "
-                    f"{jogo.get('away', 'Fora')} | "
-                    f"0x0 | "
-                    f"MINUTO={minuto} | "
-                    f"ODD X={odd_empate:.3f} | "
-                    f"PROB X={prob_empate_45:.2f}% | "
-                    f"IPM="
-                    f"{float(resultado.get('ipm', 0) or 0):.2f} | "
-                    f"BASE={MIN45_PROB_BASE:.0f}% | "
-                    f"+{MIN45_AJUSTE_POSITIVO:.0f}%/"
-                    f"-{MIN45_AJUSTE_NEGATIVO:.0f}% | "
-                    f"{controle['min45_sinal']}"
-                )
-
-                salvar_controle()
-
-            print(
+print(
                 "TRAJETORIA | "
                 f"{jogo.get('home', 'Casa')} x "
                 f"{jogo.get('away', 'Fora')} | "
