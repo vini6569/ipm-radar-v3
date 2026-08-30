@@ -360,6 +360,7 @@ def registrar_trajetoria(controle, resultado):
 
     if minuto >= 45 and not controle.get("acompanhamento_45", False):
         controle["acompanhamento_45"] = True
+        controle["minuto_45"] = minuto
         controle["ipm_45"] = ponto["ipm"]
         controle["odd_45"] = ponto["odd_empate"]
         controle["variacao_pre_live_45"] = ponto["variacao_pre_live"]
