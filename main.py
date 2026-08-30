@@ -764,29 +764,242 @@ def executar_consulta():
             resultado["odd_pre_live"] = odd_pre_live
 
             # ========================================================
-            # MIN 45!!!!! - OBSERVACAO DO 0x0 NO INTERVALO
-            # Probabilidade implicita do empate >= 40% = CONFIRMADO
-            # NAO ALTERA A LOGICA NORMAL DE ENTRADA
+            # MIN 45!!!!! - OBSERVAÇÃO DO 0x0
+            # BLOCO PARAMETRIZADO
+            # NÃO ALTERA A LÓGICA NORMAL DE ENTRADA
             # ========================================================
+
             if (
                 minuto >= 45
                 and gols == 0
                 and odd_empate > 0
                 and not controle.get("min45_avaliado", False)
             ):
-                prob_empate_45 = 100.0 / odd_empate
+                prob_empate_45 = (
+                    100.0 / odd_empate
+                )
 
                 controle["min45_avaliado"] = True
                 controle["min45_minuto"] = minuto
                 controle["min45_odd"] = odd_empate
-                controle["min45_probabilidade"] = prob_empate_45
+                controle["min45_probabilidade"] = (
+                    prob_empate_45
+                )
                 controle["min45_ipm"] = float(
                     resultado.get("ipm", 0) or 0
                 )
 
-                if prob_empate_45 >= 40.0:
+                
+                # ====================================================
+                # PARÂMETROS DO MIN 45
+                # ====================================================
+                MIN45_BASE = 40.0
+                MIN45_POSITIVO = 0.0
+                MIN45_NEGATIVO = 0.0
+
+                limite_superior = (
+                    MIN45_BASE + MIN45_POSITIVO
+                )
+
+                limite_inferior = (
+                    MIN45_BASE - MIN45_NEGATIVO
+                )
+
+                # ====================================================
+                # CLASSIFICAÇÃO DO MIN 45
+                # ====================================================
+                if prob_empate_45 >= limite_superior:
+
                     controle["min45_sinal"] = "CONFIRMADO"
-                    status_min45 = "CONFIRMADO"
-                    icone_min45 = "🎯"
+
+                    print(
+                        "🎯 MIN 45!!!!! | "
+                        f"{jogo.get('home', 'Casa')} x "
+                        f"{jogo.get('away', 'Fora')} | "
+                        "0x0 | "
+                        f"MINUTO={minuto} | "
+                        f"ODD X={odd_empate:.3f} | "
+                        f"PROB X={prob_empate_45:.2f}% | "
+                        f"IPM={float(resultado.get('ipm', 0) or 0):.2f} | "
+                        "CONFIRMADO"
+                    )
+
+                elif prob_empate_45 >= limite_inferior:
+
+                    controle["min45_sinal"] = "FAIXA INTERMEDIARIA"
+
+                    print(
+                        "🎯 MIN 45!!!!! | "
+                        f"{jogo.get('home', 'Casa')} x "
+                        f"{jogo.get('away', 'Fora')} | "
+                        "0x0 | "
+                        f"MINUTO={minuto} | "
+                        f"ODD X={odd_empate:.3f} | "
+                        f"PROB X={prob_empate_45:.2f}% | "
+                        f"IPM={float(resultado.get('ipm', 0) or 0):.2f} | "
+                        "FAIXA INTERMEDIARIA"
+                    )
+
                 else:
-                    controle["min45_sinal"] = "ABAIXO DE 40%"
+
+                    controle["min45_sinal"] = "ABAIXO DO LIMITE"
+
+                    print(
+                        "🎯 MIN 45!!!!! | "
+                        f"{jogo.get('home', 'Casa')} x "
+                        f"{jogo.get('away', 'Fora')} | "
+                        "0x0 | "
+                        f"MINUTO={minuto} | "
+                        f"ODD X={odd_empate:.3f} | "
+                        f"PROB X={prob_empate_45:.2f}% | "
+                        f"IPM={float(resultado.get('ipm', 0) or 0):.2f} | "
+                        "ABAIXO DO LIMITE"
+                    )
+
+            # ========================================================
+            # FIM DO BLOCO MIN 45
+            # AQUI COMEÇA O TRY NORMAL DO RADAR
+            # ========================================================
+
+            try:
+                texto = formatar_radar(
+                    jogo,
+                    resultado,
+                    mercados,
+                )
+
+                if texto:
+                    print(texto)
+
+            except Exception as erro:
+                print(
+                    "ERRO AO FORMATAR RADAR:",
+                    type(erro).__name__,
+                    erro,
+                )
+
+            print(
+                "SINAL:",
+                classificar_sinal(
+                    resultado.get("ipm", 0)
+                ),
+            )
+
+            processar_jogo(
+                jogo,
+                mercados,
+                resultado,
+            )
+
+        except Exception as erro:
+            print(
+                "ERRO AO PROCESSAR JOGO:",
+                type(erro).__name__,
+                erro,
+            )
+            if (
+                    
+                    prob_empate_45
+                    >= MIN45_LIMITE_POSITIVO
+                ):
+                    controle["min45_sinal"] = (
+                        f"POSITIVO +"
+                        f"{MIN45_AJUSTE_POSITIVO:.0f}%"
+                    )
+
+                elif (
+                    prob_empate_45
+                    >= MIN45_PROB_BASE
+                ):
+                    controle["min45_sinal"] = (
+                        "CONFIRMADO"
+                    )
+
+                elif (
+                    prob_empate_45
+                    <= MIN45_LIMITE_NEGATIVO
+                ):
+                    controle["min45_sinal"] = (
+                        f"NEGATIVO -"
+                        f"{MIN45_AJUSTE_NEGATIVO:.0f}%"
+                    )
+
+                else:
+                    controle["min45_sinal"] = (
+                        f"ABAIXO DE "
+                        f"{MIN45_PROB_BASE:.0f}%"
+                    )
+
+                print(
+                    "MIN 45!!!!! | "
+                    f"{jogo.get('home', 'Casa')} x "
+                    f"{jogo.get('away', 'Fora')} | "
+                    f"0x0 | "
+                    f"MINUTO={minuto} | "
+                    f"ODD X={odd_empate:.3f} | "
+                    f"PROB X={prob_empate_45:.2f}% | "
+                    f"IPM="
+                    f"{float(resultado.get('ipm', 0) or 0):.2f} | "
+                    f"BASE={MIN45_PROB_BASE:.0f}% | "
+                    f"+{MIN45_AJUSTE_POSITIVO:.0f}%/"
+                    f"-{MIN45_AJUSTE_NEGATIVO:.0f}% | "
+                    f"{controle['min45_sinal']}"
+                )
+
+                salvar_controle()
+
+            print(
+                "TRAJETORIA | "
+                f"{jogo.get('home', 'Casa')} x "
+                f"{jogo.get('away', 'Fora')} | "
+                f"{minuto}' | "
+                f"CASA={odd_casa:.3f} | "
+                f"EMPATE={odd_empate:.3f} | "
+                f"VISITANTE={odd_visitante:.3f} | "
+                f"IPM="
+                f"{float(resultado.get('ipm', 0)):.2f}"
+            )
+
+            try:
+                texto = formatar_radar(
+                    jogo,
+                    resultado,
+                    mercados,
+                )
+
+                if texto:
+                    print(texto)
+
+            except Exception as erro:
+                print(
+                    "ERRO AO FORMATAR RADAR:",
+                    type(erro).__name__,
+                    erro,
+                )
+
+            print(
+                "SINAL:",
+                classificar_sinal(
+                    resultado.get("ipm", 0)
+                ),
+            )
+
+            processar_jogo(
+                jogo,
+                mercados,
+                resultado,
+            )
+
+            processar_pre_entrada(
+                jogo,
+                resultado,
+                minuto,
+                controle,
+            )
+
+        except Exception as erro:
+            print(
+                "ERRO AO PROCESSAR JOGO:",
+                type(erro).__name__,
+                erro,
+                    )
