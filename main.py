@@ -635,37 +635,49 @@ event_id = jogo["id"]
         f"IPM={float(resultado.get('ipm', 0)):.2f}"    
     )    
 
-    try:    
-        texto = formatar_radar(jogo, resultado, mercados)    
-        if texto:    
-            print(texto)    
-    except Exception as erro:    
-        print(    
-            "ERRO AO FORMATAR RADAR:",    
-            type(erro).__name__,    
-            erro,    
-        )    
+    # ============================================================
+# MIN 45!!!!! — OBSERVAÇÃO DO 0x0 NO INTERVALO
+# Probabilidade implícita do empate >= 40%
+# NÃO ALTERA A LÓGICA NORMAL DE ENTRADA
+# ============================================================
 
-    print("SINAL:", classificar_sinal(resultado.get("ipm", 0)))    
+if (
+    minuto >= 45
+    and gols == 0
+    and odd_empate > 0
+    and not controle.get("min45_avaliado", False)
+):
+    prob_empate_45 = (1 / odd_empate) * 100
 
-    processar_jogo(jogo, mercados, resultado)    
-    # ============================================    
-    # PRÉ-ENTRADA - SINAL DE OBSERVAÇÃO    
-    # NÃO ALTERA A LÓGICA DA ENTRADA OFICIAL    
-    # ============================================    
+    controle["min45_avaliado"] = True
+    controle["min45_minuto"] = minuto
+    controle["min45_odd"] = odd_empate
+    controle["min45_probabilidade"] = prob_empate_45
+    controle["min45_ipm"] = ipm
 
-    if (    
-        minuto >= 10    
-        and not controle.get("pre_entrada_enviada")    
-        and abs(var_pre) >= 20    
-    ):    
-        if var_pre >= 20:    
-            direcao_pre = "📈 POSITIVO"    
-        else:    
-            direcao_pre = "📉 NEGATIVO"    
+    if prob_empate_45 >= 40:
+        controle["min45_sinal"] = "CONFIRMADO"
+        print(
+            f"🎯 MIN 45!!!!! | "
+            f"{jogo.get('home', 'Casa')} x "
+            f"{jogo.get('away', 'Fora')} | "
+            f"0x0 | "
+            f"MINUTO={minuto} | "
+            f"ODD X={odd_empate:.3f} | "
+            f"PROB X={prob_empate_45:.2f}% | "
+            f"IPM={ipm:.2f} | "
+            f"✅ CONFIRMADO"
+        )
+    else:
+        controle["min45_sinal"] = "ABAIXO_40"
+        print(
+            f"📊 MIN 45!!!!! | "
+            f"0x0 | "
+            f"MINUTO={minuto} | "
+            f"ODD X={odd_empate:.3f} | "
+            f"PROB X={prob_empate_45:.2f}% | "
+            f"IPM={ipm:.2f} | "
+            f"❌ ABAIXO DE 40%"
+        )
 
-        enviar_telegram(    
-            (    
-                "👀 PRÉ-ENTRADA\n\n"    
-                f"⚽ {jogo.get('home', 'Casa')} x "    
-                f"{jogo.get('away', 'For
+    salvar_controle()
