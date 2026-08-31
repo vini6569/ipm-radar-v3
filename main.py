@@ -235,12 +235,41 @@ def registrar_trajetoria(controle, resultado):
         minuto = int(ponto["minuto"])
     except (TypeError, ValueError):
         minuto = 0
-    if minuto >= 45 and not controle.get("acompanhamento_45", False):
+        if minuto >= 45 and not controle.get("acompanhamento_45", False):
         controle["acompanhamento_45"] = True
         controle["ipm_45"] = ponto["ipm"]
         controle["odd_45"] = ponto["odd_empate"]
         controle["variacao_pre_live_45"] = ponto["variacao_pre_live"]
         controle["variacao_ciclo_45"] = ponto["variacao_ciclo"]
+
+        try:
+            odd_45 = float(ponto.get("odd_empate", 0.0) or 0.0)
+
+            if odd_45 > 0:
+                prob_45 = 100.0 / odd_45
+            else:
+                prob_45 = 0.0
+
+        except (TypeError, ValueError, ZeroDivisionError):
+            prob_45 = 0.0
+
+        controle["probabilidade_empate_45"] = prob_45
+
+        if prob_45 >= MIN45_PROB_BASE:
+            controle["min45_sinal"] = "ACIMA_40"
+        else:
+            controle["min45_sinal"] = "ABAIXO_40"
+
+        print(
+            "MIN 45!!!!! | "
+            f"{ponto.get('odd_empate', 0.0)} | "
+            f"PROB={prob_45:.2f}% | "
+            f"BASE={MIN45_PROB_BASE:.2f}% | "
+            f"{controle['min45_sinal']} | "
+            f"IPM={ponto.get('ipm', 0.0):.2f} | "
+            f"PRE={ponto.get('variacao_pre_live', 0.0):+.2f}% | "
+            f"CICLO={ponto.get('variacao_ciclo', 0.0):+.2f}%"
+        )
 
 
 def processar_jogo(jogo, mercados, resultado):
