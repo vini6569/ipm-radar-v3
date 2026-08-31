@@ -42,7 +42,20 @@ from motor_ipm import (
     jogo_finalizado,
     resultado_empate,
 )
+# ============================================================
+# PAINEL DE AJUSTE - MIN 45 E PRE-ENTRADA
+# ============================================================
 
+# Pré-entrada: variação da odd empate PRE-LIVE -> ATUAL
+PRE_ENTRADA_ATIVADA = True
+PRE_ENTRADA_MINUTO = 10
+
+# Limites reguláveis
+PRE_ENTRADA_POSITIVO = 20.0
+PRE_ENTRADA_NEGATIVO = 20.0
+
+# MIN 45!!!!! - probabilidade implícita mínima do empate
+MIN45_PROB_BASE = 40.0
 PORTA_SAUDE = int(os.environ.get("PORT", "10000"))
 ARQUIVO_CONTROLE = Path(os.getenv("ARQUIVO_CONTROLE", "ipm_controle.json"))
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
