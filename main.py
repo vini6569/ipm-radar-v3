@@ -207,7 +207,6 @@ def capturar_referencia_pre_live():
     except Exception as erro:
         print("ERRO CAPTURA PRE-LIVE:", type(erro).__name__, erro)
 
-
 def registrar_trajetoria(controle, resultado):
     ponto = {
         "minuto": resultado.get("minuto", 0),
@@ -222,20 +221,28 @@ def registrar_trajetoria(controle, resultado):
         "variacao_ciclo": resultado.get("variacao_ciclo", 0.0),
         "gols": resultado.get("gols", 0),
     }
+
     trajetoria = controle.get("trajetoria", [])
     if not isinstance(trajetoria, list):
         trajetoria = []
-    if trajetoria and isinstance(trajetoria[-1], dict) and trajetoria[-1].get("minuto") == ponto["minuto"]:
+
+    if (
+        trajetoria
+        and isinstance(trajetoria[-1], dict)
+        and trajetoria[-1].get("minuto") == ponto["minuto"]
+    ):
         trajetoria[-1] = ponto
     else:
         trajetoria.append(ponto)
+
     controle["trajetoria"] = trajetoria[-100:]
 
     try:
         minuto = int(ponto["minuto"])
     except (TypeError, ValueError):
         minuto = 0
-        if minuto >= 45 and not controle.get("acompanhamento_45", False):
+
+    if minuto >= 45 and not controle.get("acompanhamento_45", False):
         controle["acompanhamento_45"] = True
         controle["ipm_45"] = ponto["ipm"]
         controle["odd_45"] = ponto["odd_empate"]
@@ -256,20 +263,21 @@ def registrar_trajetoria(controle, resultado):
         controle["probabilidade_empate_45"] = prob_45
 
         if prob_45 >= MIN45_PROB_BASE:
-            controle["min45_sinal"] = "ACIMA_40"
+            controle["min45_sinal"] = "ACIMA_DA_BASE"
         else:
-            controle["min45_sinal"] = "ABAIXO_40"
+            controle["min45_sinal"] = "ABAIXO_DA_BASE"
 
         print(
             "MIN 45!!!!! | "
-            f"{ponto.get('odd_empate', 0.0)} | "
+            f"ODD={odd_45:.3f} | "
             f"PROB={prob_45:.2f}% | "
             f"BASE={MIN45_PROB_BASE:.2f}% | "
             f"{controle['min45_sinal']} | "
             f"IPM={ponto.get('ipm', 0.0):.2f} | "
             f"PRE={ponto.get('variacao_pre_live', 0.0):+.2f}% | "
             f"CICLO={ponto.get('variacao_ciclo', 0.0):+.2f}%"
-        )
+    )
+    
 
 
 def processar_jogo(jogo, mercados, resultado):
