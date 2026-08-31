@@ -113,6 +113,7 @@ def obter_controle(event_id):
                 "odd_pre_live": None,
                 "pre_live_capturada_em": None,
                 "pre_live_fallback": False,
+                "pre_entrada_emitida": False,
                 "entradas": [],
                 "entrada_ativa": False,
                 "padrao_mantido": False,
@@ -302,6 +303,43 @@ def processar_jogo(jogo, mercados, resultado):
         var_ciclo = float(resultado.get("variacao_ciclo", 0.0) or 0.0)
     except (TypeError, ValueError):
         var_ciclo = 0.0
+    # ============================================================
+    # PRÉ-ENTRADA - MOVIMENTO FORTE DA ODD PRÉ-LIVE
+    # Até o minuto definido e com variação >= +20% ou <= -20%
+    # NÃO ativa a entrada oficial.
+    # ============================================================
+
+    if (
+        PRE_ENTRADA_ATIVADA
+        and minuto <= PRE_ENTRADA_MINUTO
+        and not controle.get("pre_entrada_emitida", False)
+        and (
+            var_pre >= PRE_ENTRADA_POSITIVO
+            or var_pre <= -PRE_ENTRADA_NEGATIVO
+        )
+    ):
+        controle["pre_entrada_emitida"] = True
+
+        direcao_pre = (
+            "ALTA"
+            if var_pre >= PRE_ENTRADA_POSITIVO
+            else "QUEDA"
+        )
+
+        enviar_telegram(
+            "⚠️ PRÉ-ENTRADA DETECTADA\n\n"
+            f"⚽ {jogo.get('home', 'Casa')} x "
+            f"{jogo.get('away', 'Fora')}\n"
+            f"⏱️ Minuto: {minuto}\n"
+            f"💰 Odd pré-live: {resultado.get('odd_pre_live', 0)}\n"
+            f"💰 Odd atual: {resultado.get('odd_atual', 0)}\n"
+            f"📊 Variação pré-live: {var_pre:+.2f}%\n"
+            f"🚨 Movimento: {direcao_pre}\n"
+            f"🎯 IPM: {ipm:.2f}\n\n"
+            "🔎 SINAL DE PRÉ-ENTRADA"
+        )
+
+        salvar_controle()
 
     try:
         if not controle.get("finalizado", False) and jogo_finalizado(jogo):
