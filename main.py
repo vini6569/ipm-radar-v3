@@ -215,9 +215,6 @@ def capturar_referencia_pre_live():
             if (
                 controle.get("odd_casa_pre_live") is None
                 and odd_casa > 0
-                odd_casa_pre_live = controle.get("odd_casa_pre_live")
-            odd_visitante_pre_live = controle.get("odd_visitante_pre_live")
-
             ):
                 controle["odd_casa_pre_live"] = odd_casa
 
@@ -253,7 +250,7 @@ def capturar_referencia_pre_live():
             "ERRO CAPTURA PRE-LIVE:",
             type(erro).__name__,
             erro
-                )
+        )
 
 def registrar_trajetoria(controle, resultado):
     ponto = {
