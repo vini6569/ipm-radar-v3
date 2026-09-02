@@ -42,6 +42,8 @@ from motor_ipm import (
     jogo_finalizado,
     resultado_empate,
 )
+
+from telegram import enviar_mensagem
 # ============================================================
 # PAINEL DE AJUSTE - MIN 45 E PRE-ENTRADA
 # ============================================================
