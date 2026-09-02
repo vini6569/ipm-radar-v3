@@ -105,6 +105,8 @@ def obter_controle(event_id):
             chave,
             {
                 "odd_pre_live": None,
+                "odd_casa_pre_live": None,
+                "odd_visitante_pre_live": None,
                 "pre_live_capturada_em": None,
                 "pre_live_fallback": False,
                 "pre_entrada_emitida": False,
