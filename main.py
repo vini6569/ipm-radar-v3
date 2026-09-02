@@ -65,20 +65,12 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 _lock = threading.Lock()
 _controle_jogos = {}
 
+# ============================================================
+# TELEGRAM - USAR O MODULO telegram.py
+# ============================================================
 
 def enviar_telegram(texto):
-    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        print("INFO: Telegram nao configurado; mensagem ficou no log.")
-        return False
-    try:
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        dados = urllib.parse.urlencode({"chat_id": TELEGRAM_CHAT_ID, "text": texto}).encode("utf-8")
-        requisicao = urllib.request.Request(url, data=dados, method="POST")
-        with urllib.request.urlopen(requisicao, timeout=15) as resposta:
-            return 200 <= resposta.status < 300
-    except Exception as erro:
-        print("ERRO TELEGRAM:", type(erro).__name__, erro)
-        return False
+    return enviar_mensagem(texto)
 
 
 def salvar_controle():
@@ -288,7 +280,6 @@ def processar_jogo(jogo, mercados, resultado):
     if event_id is None:
         return
     controle = obter_controle(event_id)
-
     try:
         minuto = int(resultado.get("minuto", 0) or 0)
     except (TypeError, ValueError):
