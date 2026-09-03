@@ -439,182 +439,99 @@ def iniciar_servidor_saude():
 
 
 # ============================================================
-# CAPTURAR REFERÊNCIA PRÉ-LIVE
+# BUSCAR JOGOS PRÉ-LIVE PRÓXIMOS
 # ============================================================
 
-def capturar_referencia_pre_live():
+def buscar_jogos_pre_live():
 
     try:
 
-        jogos = (
-            buscar_jogos_pre_live()
-            or []
-        )
+        key = obter_api_key()
+
+    except Exception as erro:
 
         print(
-            f"PRE-LIVE ENCONTRADOS: {len(jogos)}"
+            "ERRO API KEY:",
+            erro
         )
 
-        if not jogos:
-            return
+        return []
 
-        odds = (
-            buscar_odds_multiplos(
-                jogos
-            )
-            or []
+    resposta = _request_json(
+        "/events",
+        {
+            "apiKey": key,
+            "sport": SPORT,
+            "status": "pending",
+            "limit": 100,
+            "bookmaker": BOOKMAKER,
+        },
+    )
+
+    eventos = _lista_eventos(
+        resposta
+    )
+
+    agora = datetime.now(
+        timezone.utc
+    )
+
+    proximos = []
+
+    for evento in eventos:
+
+        dt = _parse_data_evento(
+            evento
         )
 
-        print(
-            f"PRE-LIVE ODDS RECEBIDAS: {len(odds)}"
+        if dt is None:
+            continue
+
+        # Somente jogos futuros
+        if dt <= agora:
+            continue
+
+        proximos.append(
+            evento
         )
 
-        for jogo in jogos:
+    # Ordena do mais próximo
+    # para o mais distante
+    proximos.sort(
+        key=lambda e: (
+            _parse_data_evento(e)
+            or agora
+        )
+    )
 
-            if (
-                not isinstance(
-                    jogo,
-                    dict
-                )
-                or jogo.get("id") is None
-            ):
+    # Limita quantidade
+    proximos = proximos[
+        :MAX_EVENTOS_POR_CONSULTA
+    ]
 
-                continue
+    print(
+        "JOGOS PRE-LIVE PROXIMOS:",
+        len(proximos)
+    )
 
-            mercados = (
-                extrair_mercados(
-                    jogo,
-                    odds
-                )
-                or {}
-            )
+    for jogo in proximos:
 
-            try:
+        dt = _parse_data_evento(
+            jogo
+        )
 
-                odd_casa = float(
-                    mercados.get(
-                        "odd_casa",
-                        0.0
-                    )
-                    or 0.0
-                )
-
-                odd_draw = float(
-                    mercados.get(
-                        "odd_draw",
-                        0.0
-                    )
-                    or mercados.get(
-                        "odd_empate",
-                        0.0
-                    )
-                    or 0.0
-                )
-
-                odd_visitante = float(
-                    mercados.get(
-                        "odd_visitante",
-                        0.0
-                    )
-                    or 0.0
-                )
-
-            except (
-                TypeError,
-                ValueError
-            ):
-
-                continue
-
-            if (
-                odd_casa <= 0
-                and odd_draw <= 0
-                and odd_visitante <= 0
-            ):
-
-                print(
-                    "PRE-LIVE SEM ODDS | "
-                    f"{jogo.get('home', '')} x "
-                    f"{jogo.get('away', '')}"
-                )
-
-                continue
-
-            controle = obter_controle(
-                jogo["id"]
-            )
-
-            # ----------------------------------------------------
-            # CASA
-            # ----------------------------------------------------
-
-            if (
-                controle.get(
-                    "odd_casa_pre_live"
-                ) is None
-                and odd_casa > 0
-            ):
-
-                controle[
-                    "odd_casa_pre_live"
-                ] = odd_casa
-
-            # ----------------------------------------------------
-            # EMPATE
-            # ----------------------------------------------------
-
-            if (
-                controle.get(
-                    "odd_pre_live"
-                ) is None
-                and odd_draw > 0
-            ):
-
-                controle[
-                    "odd_pre_live"
-                ] = odd_draw
-
-                controle[
-                    "pre_live_capturada_em"
-                ] = horario_atual().isoformat()
-
-                controle[
-                    "pre_live_fallback"
-                ] = False
-
-            # ----------------------------------------------------
-            # VISITANTE
-            # ----------------------------------------------------
-
-            if (
-                controle.get(
-                    "odd_visitante_pre_live"
-                ) is None
-                and odd_visitante > 0
-            ):
-
-                controle[
-                    "odd_visitante_pre_live"
-                ] = odd_visitante
+        if dt:
 
             print(
                 "PRE-LIVE | "
                 f"{jogo.get('home', '')} x "
                 f"{jogo.get('away', '')} | "
-                f"CASA={controle.get('odd_casa_pre_live')} | "
-                f"EMPATE={controle.get('odd_pre_live')} | "
-                f"VISITANTE={controle.get('odd_visitante_pre_live')}"
+                f"INICIO={dt.astimezone().strftime('%H:%M')} | "
+                f"ID={jogo.get('id')}"
             )
 
-        salvar_controle()
+    return proximos
 
-    except Exception as erro:
-
-        print(
-            "ERRO CAPTURA PRE-LIVE:",
-            type(erro).__name__,
-            erro
-        )
 
 
 # ============================================================
