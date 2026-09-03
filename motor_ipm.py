@@ -500,6 +500,8 @@ def formatar_radar(jogo, resultado, mercados=None):
         f"{_numero(resultado.get('diferenca_45')):+.2f}%\n"
         "\n"
         f"📈 IPM: {_numero(resultado.get('ipm')):.2f}\n"
+        f"⏱️ Variação 10min: {_numero(resultado.get('var_10min')):+.2f}%\n"
+        f"🚨 PRÉ-ENTRADA: {resultado.get('sinal_pre_entrada', 'NEUTRO')}\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
 
