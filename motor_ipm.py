@@ -253,11 +253,12 @@ def analisar_ipm_com_memoria(
         memoria["ultima_odd_empate"],
         odd_empate,
     )
-        var_10min = _variacao_10min(
+
+    var_10min = _variacao_10min(
         memoria["historico"],
         minuto,
         odd_empate,
-        )
+    )
     # ========================================================
     # SINAL DE PRÉ-ENTRADA - MOVIMENTO DE 10 MINUTOS
     # ========================================================
