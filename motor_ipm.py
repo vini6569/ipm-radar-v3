@@ -66,6 +66,48 @@ def _movimento_odd(anterior, atual):
     return ((atual - anterior) / anterior) * 100.0
 
 
+def _variacao_10min(historico, minuto, odd_atual):
+    """
+    Calcula a variação percentual da odd do empate
+    comparando com a odd registrada aproximadamente
+    10 minutos antes.
+    """
+
+    odd_atual = _numero(odd_atual)
+    minuto = _inteiro(minuto)
+
+    if odd_atual <= 0 or minuto < 10:
+        return 0.0
+
+    minuto_referencia = minuto - 10
+    registro_10min = None
+
+    for registro in reversed(historico):
+        minuto_registro = _inteiro(
+            registro.get("minuto"),
+            -1
+        )
+
+        if minuto_registro <= minuto_referencia:
+            registro_10min = registro
+            break
+
+    if not registro_10min:
+        return 0.0
+
+    odd_10min = _numero(
+        registro_10min.get("odd_empate")
+    )
+
+    if odd_10min <= 0:
+        return 0.0
+
+    return (
+        (odd_atual - odd_10min)
+        / odd_10min
+    ) * 100.0
+
+
 def _calcular_referencia_45(
     odd_casa,
     odd_empate,
