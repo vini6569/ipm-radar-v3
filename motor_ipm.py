@@ -988,12 +988,59 @@ def formatar_radar(
         dict
     ):
 
-        placar_casa = _inteiro(
-            scores.get("home")
-        )
+    placar_casa = _inteiro(
+    scores.get("home")
+   )
 
-        placar_fora = _inteiro(
-            scores.get("away")
-        )
+    placar_fora = _inteiro(
+    scores.get("away")
+   )
+
+    else:
+
+   placar_casa = _inteiro(
+   jogo.get("homeScore")
+   )
+
+   placar_fora = _inteiro(
+   jogo.get("awayScore")
+   )
+
+    return (
+        "\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"⚽ {casa} x {fora}\n"
+        f"⏱️ Minuto: {minuto}'\n"
+        f"📊 Placar: {placar_casa} x {placar_fora}\n"
+        "\n"
+        "💰 ODDS\n"
+        f"🏠 Casa:      {_numero(resultado.get('odd_casa')):.2f} "
+        f"({_numero(resultado.get('variacao_casa')):+.2f}%)\n"
+        f"🤝 Empate:    {_numero(resultado.get('odd_empate')):.2f} "
+        f"({_numero(resultado.get('variacao_empate')):+.2f}%)\n"
+        f"🚌 Visitante: {_numero(resultado.get('odd_visitante')):.2f} "
+        f"({_numero(resultado.get('variacao_visitante')):+.2f}%)\n"
+        "\n"
+        f"🧪 Q: {_numero(resultado.get('q')):.2f}\n"
+        "\n"
+        "🎯 REFERÊNCIA 45'\n"
+        f"🤝 Odd projetada: {_numero(resultado.get('odd_45')):.2f}\n"
+        f"📐 Diferença atual: "
+        f"{_numero(resultado.get('diferenca_45')):+.2f}%\n"
+        "\n"
+        f"📈 IPM: {_numero(resultado.get('ipm')):.2f}\n"
+        f"⏱️ Variação 10min: {_numero(resultado.get('var_10min')):+.2f}%\n"
+        f"🚨 PRÉ-ENTRADA: "
+        f"{resultado.get('sinal_pre_entrada', 'NEUTRO')}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    )
+
+
+# ============================================================
+# LIMPAR MEMÓRIA
+# ============================================================
+
+def limpar_memoria():
+    _MEMORIA.clear()
 
   
