@@ -983,20 +983,20 @@ def formatar_radar(
         "scores"
     )
 
-    if isinstance(
-        scores,
-        dict
+if isinstance(
+    scores,
+    dict
     ):
 
     placar_casa = _inteiro(
-    scores.get("home")
-   )
+            scores.get("home")
+    )
 
     placar_fora = _inteiro(
-    scores.get("away")
-   )
+            scores.get("away")
+    )
 
-    else:
+else:
 
    placar_casa = _inteiro(
    jogo.get("homeScore")
@@ -1006,8 +1006,8 @@ def formatar_radar(
    jogo.get("awayScore")
    )
 
-    return (
-        "\n"
+   return (
+   "\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"⚽ {casa} x {fora}\n"
         f"⏱️ Minuto: {minuto}'\n"
