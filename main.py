@@ -969,6 +969,48 @@ def processar_jogo(
     # ISSO NÃO É ENTRADA OFICIAL.
     # ========================================================
 
+    if (
+        PRE_ENTRADA_ATIVADA
+        and minuto <= PRE_ENTRADA_MINUTO
+        and not controle.get(
+            "pre_entrada_emitida",
+            False
+        )
+        and (
+            var_10min >= PRE_ENTRADA_POSITIVO
+            or var_10min <= -PRE_ENTRADA_NEGATIVO
+        )
+    ):
+
+        controle[
+            "pre_entrada_emitida"
+        ] = True
+
+        if (
+            var_10min
+            >= PRE_ENTRADA_POSITIVO
+        ):
+
+            direcao_pre = "ALTA"
+
+        else:
+
+            direcao_pre = "QUEDA"
+
+    # ========================================================
+    # PRÉ-ENTRADA
+    #
+    # REGRA:
+    #
+    # odd atual comparada com a odd aproximadamente
+    # 10 minutos antes.
+    #
+    # +20% = ALTA_20
+    # -20% = QUEDA_20
+    #
+    # ISSO NÃO É ENTRADA OFICIAL.
+    # ========================================================
+
         var_10min = float(
         resultado.get("var_10min", 0.0) or 0.0
     )
