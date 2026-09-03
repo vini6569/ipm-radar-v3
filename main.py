@@ -451,6 +451,10 @@ def capturar_referencia_pre_live():
             or []
         )
 
+        print(
+            f"PRE-LIVE ENCONTRADOS: {len(jogos)}"
+        )
+
         if not jogos:
             return
 
@@ -459,6 +463,10 @@ def capturar_referencia_pre_live():
                 jogos
             )
             or []
+        )
+
+        print(
+            f"PRE-LIVE ODDS RECEBIDAS: {len(odds)}"
         )
 
         for jogo in jogos:
@@ -523,6 +531,12 @@ def capturar_referencia_pre_live():
                 and odd_draw <= 0
                 and odd_visitante <= 0
             ):
+
+                print(
+                    "PRE-LIVE SEM ODDS | "
+                    f"{jogo.get('home', '')} x "
+                    f"{jogo.get('away', '')}"
+                )
 
                 continue
 
