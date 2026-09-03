@@ -258,7 +258,15 @@ def analisar_ipm_com_memoria(
         minuto,
         odd_empate,
         )
+    # ========================================================
+    # SINAL DE PRÉ-ENTRADA - MOVIMENTO DE 10 MINUTOS
+    # ========================================================
+    sinal_pre_entrada = "NEUTRO"
 
+    if var_10min >= 20.0:
+        sinal_pre_entrada = "ALTA_20"
+    elif var_10min <= -20.0:
+        sinal_pre_entrada = "QUEDA_20"
     odd_45 = _calcular_referencia_45(
         odd_casa,
         odd_empate,
