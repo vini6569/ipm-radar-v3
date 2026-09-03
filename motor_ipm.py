@@ -368,8 +368,10 @@ def analisar_ipm_com_memoria(
         "odd_45": odd_45,
         "diferenca_45": diferenca_45,
         "ipm": ipm,
+        "var_10min": var_10min,
+        "sinal_pre_entrada": sinal_pre_entrada,
         "historico_odds": memoria["historico"],
-    }
+        }
 
 
 def avaliar_entrada(
