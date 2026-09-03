@@ -309,6 +309,7 @@ def analisar_ipm_com_memoria(
         "diferenca_45": diferenca_45,
         "ipm": ipm,
         "var_10min": var_10min,
+        "sinal_pre_entrada": sinal_pre_entrada,
         "gols": gols,
     }
 
