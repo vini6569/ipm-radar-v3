@@ -300,6 +300,7 @@ def analisar_ipm_com_memoria(
         "odd_45": odd_45,
         "diferenca_45": diferenca_45,
         "ipm": ipm,
+        "var_10min": var_10min,
         "gols": gols,
     }
 
