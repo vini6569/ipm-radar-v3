@@ -290,16 +290,16 @@ def analisar_ipm_com_memoria(
         odd_visitante,
         minuto,
     )
-# ========================================================
-# Q - ODD PRÉ-LIVE DO EMPATE
-# ========================================================
-q = 0.0
+    # ========================================================
+    # Q - ODD PRÉ-LIVE DO EMPATE
+    # ========================================================
+    q = 0.0
 
-if pre_live > 0:
-    q = pre_live
-elif odd_empate_ini > 0:
-    q = odd_empate_ini
-    
+    if pre_live > 0:
+        q = pre_live
+    elif odd_empate_ini > 0:
+        q = odd_empate_ini
+
     registro = {
         "hora": datetime.now().strftime("%H:%M:%S"),
         "minuto": minuto,
