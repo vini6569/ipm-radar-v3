@@ -534,7 +534,7 @@ def executar_consulta():
                 odd_casa_pre_live=controle.get("odd_casa_pre_live"),
                 odd_visitante_pre_live=controle.get("odd_visitante_pre_live"),
                 )
-            )
+            
             resultado["odd_casa"] = odd_casa
             resultado["odd_empate"] = odd_empate
             resultado["odd_visitante"] = odd_visitante
