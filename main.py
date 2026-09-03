@@ -545,9 +545,11 @@ def executar_consulta():
                 f"VISITANTE={odd_visitante:.3f} | IPM={float(resultado.get('ipm', 0)):.2f}"
             )
             try:
-                texto = formatar_radar(jogo, resultado, mercados)
+                texto = formatar_radar(jogo, 
+            resultado, mercados)
                 if texto:
                     print(texto)
+                    enviar_telegram(texto)
             except Exception as erro:
                 print("ERRO AO FORMATAR RADAR:", type(erro).__name__, erro)
             print("SINAL:", classificar_sinal(resultado.get("ipm", 0)))
