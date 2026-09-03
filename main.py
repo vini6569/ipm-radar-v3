@@ -969,18 +969,19 @@ def processar_jogo(
     # ISSO NÃO É ENTRADA OFICIAL.
     # ========================================================
 
+        var_10min = float(
+        resultado.get("var_10min", 0.0) or 0.0
+    )
+
     if (
         PRE_ENTRADA_ATIVADA
-        and minuto >= PRE_ENTRADA_MINUTO
-        and not controle.get(
-            "pre_entrada_emitida",
-            False
-        )
+        and minuto <= PRE_ENTRADA_MINUTO
+        and not controle.get("pre_entrada_emitida", False)
         and (
             var_10min >= PRE_ENTRADA_POSITIVO
             or var_10min <= -PRE_ENTRADA_NEGATIVO
         )
-    ):
+        ):
 
         controle[
             "pre_entrada_emitida"
