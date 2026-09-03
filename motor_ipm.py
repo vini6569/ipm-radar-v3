@@ -234,7 +234,13 @@ def analisar_ipm_com_memoria(
         odd_visitante,
         minuto,
     )
+    # ========================================================
+    # Q - QUOCIENTE DE MOVIMENTAÇÃO DA ODD DO EMPATE
+    # ========================================================
+    q = 0.0
 
+    if odd_empate_ini > 0 and odd_empate > 0:
+        q = odd_empate / odd_empate_ini
     registro = {
         "hora": datetime.now().strftime("%H:%M:%S"),
         "minuto": minuto,
@@ -297,7 +303,7 @@ def analisar_ipm_com_memoria(
         "variacao_visitante": var_visitante,
         "variacao_odd": var_ciclo,
         "variacao_ciclo": var_ciclo,
-
+        "q": q,
         "odd_45": odd_45,
         "diferenca_45": diferenca_45,
         "ipm": ipm,
