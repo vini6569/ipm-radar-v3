@@ -253,6 +253,11 @@ def analisar_ipm_com_memoria(
         memoria["ultima_odd_empate"],
         odd_empate,
     )
+        var_10min = _variacao_10min(
+        memoria["historico"],
+        minuto,
+        odd_empate,
+        )
 
     odd_45 = _calcular_referencia_45(
         odd_casa,
