@@ -761,7 +761,7 @@ resultado["mercados_disponiveis"] = list(
         )
     )
 
-    if odd_casa > 0 or odd_draw > 0 or odd_away > 0:
+        if odd_casa > 0 or odd_draw > 0 or odd_away > 0:
         resultado["mercados_encontrados"].append("1X2")
 
     print(
