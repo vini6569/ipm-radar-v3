@@ -572,7 +572,7 @@ def capturar_referencia_pre_live():
                     "pre_live_fallback"
                 ] = False
 
-            if (
+                        if (
                 controle.get(
                     "odd_visitante_pre_live"
                 ) is None
@@ -583,7 +583,7 @@ def capturar_referencia_pre_live():
                     "odd_visitante_pre_live"
                 ] = odd_visitante
 
-                       print(
+            print(
                 "PRE-LIVE | "
                 f"{jogo.get('home', '')} x "
                 f"{jogo.get('away', '')} | "
