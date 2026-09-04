@@ -665,6 +665,20 @@ def extrair_mercados(jogo, odds):
         mercados
     )
 
+# =================================================
+# Q PRÉ-LIVE
+# W1 x W2
+# =================================================
+
+q_pre_live = 0.0
+
+if odd_casa > 0 and odd_away > 0:
+
+    q_pre_live = (
+        odd_casa * odd_away
+    ) ** 0.5
+
+resultado = {
     resultado = {
         "event_id": event_id,
 
