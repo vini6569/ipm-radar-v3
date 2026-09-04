@@ -592,19 +592,6 @@ def capturar_referencia_pre_live():
                 f"VISITANTE={controle.get('odd_visitante_pre_live')}"
             )
 # ------------------------------------------------------------
-# FINALIZAR CAPTURA PRÉ-LIVE
-# ------------------------------------------------------------
-
-except Exception as erro:
-
-    print(
-        "ERRO CAPTURA PRE-LIVE:",
-        type(erro).__name__,
-        erro
-    )
-
-
-# ------------------------------------------------------------
 # ENVIAR PRÉ-LIVE PARA O TELEGRAM
 # ------------------------------------------------------------
 
@@ -619,7 +606,6 @@ texto_pre_live = (
 )
 
 try:
-
     enviar_telegram(texto_pre_live)
 
     print(
@@ -629,12 +615,11 @@ try:
     )
 
 except Exception as erro:
-
     print(
-        "ERRO CAPTURA PRE-LIVE:",
+        "ERRO AO ENVIAR PRÉ-LIVE:",
         type(erro).__name__,
         erro
-    )
+            )
 
 
 # ============================================================
