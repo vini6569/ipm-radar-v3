@@ -629,14 +629,35 @@ try:
     )
 
 except Exception as erro:
+        print(
+            "ERRO AO ENVIAR PRÉ-LIVE:",
+            type(erro).__name__,
+            erro
+        )
 
-    print(
-        "ERRO AO ENVIAR PRÉ-LIVE:",
-        type(erro).__name__,
-        erro
-    )
+    salvar_controle()
 
-salvar_controle()
+
+# ============================================================
+# REGISTRAR TRAJETÓRIA
+# ============================================================
+
+def registrar_trajetoria(
+    controle,
+    resultado
+):
+
+    ponto = {
+
+        "minuto": resultado.get(
+            "minuto",
+            0
+        ),
+
+        "ipm": resultado.get(
+            "ipm",
+            0.0
+        ),
 
     
 
