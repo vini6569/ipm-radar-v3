@@ -755,11 +755,11 @@ for mercado in mercados:
 
         resultado[destino].append(item)
 
-    resultado["mercados_disponiveis"] = list(
+        resultado["mercados_disponiveis"] = list(
         dict.fromkeys(
             resultado["mercados_disponiveis"]
         )
-    )
+        )
 
     if odd_casa > 0 or odd_draw > 0 or odd_away > 0:
         resultado["mercados_encontrados"].append("1X2")
