@@ -594,22 +594,19 @@ def capturar_referencia_pre_live():
 # ------------------------------------------------
 # ENVIAR PRÉ-LIVE PARA O TELEGRAM
 # ------------------------------------------------
-
 texto_pre_live = (
     "🧪 PRÉ-LIVE | IPM RADAR\n\n"
     f"⚽ {jogo.get('home', '')} x "
     f"{jogo.get('away', '')}\n\n"
-    f"🏠 CASA: "
-    f"{controle.get('odd_casa_pre_live')}\n"
-    f"🤝 EMPATE: "
-    f"{controle.get('odd_pre_live')}\n"
-    f"✈️ VISITANTE: "
-    f"{controle.get('odd_visitante_pre_live')}\n\n"
+    f"🏠 CASA: {controle.get('odd_casa_pre_live')}\n"
+    f"🤝 EMPATE: {controle.get('odd_pre_live')}\n"
+    f"✈️ VISITANTE: {controle.get('odd_visitante_pre_live')}\n"
     f"🆔 ID: {jogo.get('id')}"
 )
 
 try:
     enviar_telegram(texto_pre_live)
+
     print(
         "TELEGRAM PRÉ-LIVE ENVIADO | "
         f"{jogo.get('home', '')} x "
@@ -623,15 +620,9 @@ except Exception as erro:
         erro
     )
 
-        salvar_controle()
+salvar_controle()
 
-    except Exception as erro:
-
-        print(
-            "ERRO CAPTURA PRE-LIVE:",
-            type(erro).__name__,
-            erro
-                    )
+    
 
 
 
