@@ -1683,88 +1683,86 @@ def executar_consulta():
                 "odd_pre_live"
             ] = odd_pre_live
 
-    # ============================================================
-    # DESCOBRIR ODD DE 10 MINUTOS
-    # ============================================================
+            # ============================================================
+            # DESCOBRIR ODD DE 10 MINUTOS
+            # ============================================================
 
-    historico = resultado.get(
-        "historico_odds",
-        []
-    )
+            historico = resultado.get(
+                "historico_odds",
+                []
+            )
 
-    odd_10min = None
+            odd_10min = None
 
-    if (
-        isinstance(historico, list)
-        and minuto >= 10
-    ):
+            if (
+                isinstance(historico, list)
+                and minuto >= 10
+            ):
 
-        minuto_referencia = minuto - 10
+                minuto_referencia = minuto - 10
 
-        # Procurar o registro mais próximo
-        # dos 10 minutos anteriores
-        for registro in reversed(historico[:-1]):
+                for registro in reversed(historico[:-1]):
 
-            if not isinstance(registro, dict):
-                continue
+                    if not isinstance(registro, dict):
+                        continue
 
-            minuto_registro = registro.get("minuto")
+                    minuto_registro = registro.get("minuto")
 
-            if minuto_registro is None:
-                continue
+                    if minuto_registro is None:
+                        continue
 
-            try:
-                minuto_registro = int(minuto_registro)
-            except (TypeError, ValueError):
-                continue
+                    try:
+                        minuto_registro = int(minuto_registro)
+                    except (TypeError, ValueError):
+                        continue
 
-            if minuto_registro <= minuto_referencia:
+                    if minuto_registro <= minuto_referencia:
 
-                odd_10min = registro.get(
-                    "odd_empate"
-                )
+                        odd_10min = registro.get(
+                            "odd_empate"
+                        )
 
-                if (
-                    odd_10min is not None
-                    and odd_10min > 0
-                ):
-                    break
+                        if (
+                            odd_10min is not None
+                            and odd_10min > 0
+                        ):
+                            break
 
-    resultado[
-        "odd_10min"
-    ] = odd_10min
+            resultado[
+                "odd_10min"
+            ] = odd_10min
 
-    # ============================================================
-    # VARIAÇÃO DA ODD DO EMPATE EM 10 MINUTOS
-    # ============================================================
+            # ============================================================
+            # VARIAÇÃO DA ODD DO EMPATE EM 10 MINUTOS
+            # ============================================================
 
-    variacao_10min = 0.0
-    sinal_pre_entrada = None
+            variacao_10min = 0.0
+            sinal_pre_entrada = None
 
-    if (
-        odd_10min is not None
-        and odd_10min > 0
-        and odd_empate > 0
-    ):
+            if (
+                odd_10min is not None
+                and odd_10min > 0
+                and odd_empate > 0
+            ):
 
-        variacao_10min = (
-            (odd_empate - odd_10min)
-            / odd_10min
-        ) * 100
+                variacao_10min = (
+                    (odd_empate - odd_10min)
+                    / odd_10min
+                ) * 100
 
-        if variacao_10min >= 20:
-            sinal_pre_entrada = "ALTA_20"
+                if variacao_10min >= 20:
+                    sinal_pre_entrada = "ALTA_20"
 
-        elif variacao_10min <= -20:
-            sinal_pre_entrada = "BAIXA_20"
+                elif variacao_10min <= -20:
+                    sinal_pre_entrada = "BAIXA_20"
 
-    resultado[
-        "variacao_10min"
-    ] = variacao_10min
+            resultado[
+                "variacao_10min"
+            ] = variacao_10min
 
-    resultado[
-        "sinal_pre_entrada"
-    ] = sinal_pre_entrada
+            resultado[
+                "sinal_pre_entrada"
+            ] = sinal_pre_entrada
 
             # =================================================
             # TRAJETÓRIA NO CONSOLE
