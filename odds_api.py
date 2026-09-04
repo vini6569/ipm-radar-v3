@@ -707,9 +707,9 @@ resultado = {
     "odds_ht": [],
     "odds_corners": [],
     "odds_cards": [],
-}
+        }
 
-    for mercado in mercados:
+        for mercado in mercados:
         if not isinstance(mercado, dict):
             continue
 
