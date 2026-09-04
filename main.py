@@ -596,30 +596,37 @@ def capturar_referencia_pre_live():
 # ------------------------------------------------------------
 
 texto_pre_live = (
-    "🧪 PRÉ-LIVE | IPM RADAR\n\n"
-    f"⚽ {jogo.get('home', '')} x "
-    f"{jogo.get('away', '')}\n\n"
-    f"🏠 CASA: {controle.get('odd_casa_pre_live')}\n"
-    f"🤝 EMPATE: {controle.get('odd_pre_live')}\n"
-    f"✈️ VISITANTE: {controle.get('odd_visitante_pre_live')}\n"
-    f"🆔 ID: {jogo.get('id')}"
-)
+                "🧪 PRÉ-LIVE | IPM RADAR\n\n"
+                f"⚽ {jogo.get('home', '')} x "
+                f"{jogo.get('away', '')}\n\n"
+                f"🏠 CASA: {controle.get('odd_casa_pre_live')}\n"
+                f"🤝 EMPATE: {controle.get('odd_pre_live')}\n"
+                f"✈️ VISITANTE: {controle.get('odd_visitante_pre_live')}\n"
+                f"🆔 ID: {jogo.get('id')}"
+            )
 
-try:
-    enviar_telegram(texto_pre_live)
+            try:
+                enviar_telegram(texto_pre_live)
 
-    print(
-        "TELEGRAM PRÉ-LIVE ENVIADO | "
-        f"{jogo.get('home', '')} x "
-        f"{jogo.get('away', '')}"
-    )
+                print(
+                    "TELEGRAM PRÉ-LIVE ENVIADO | "
+                    f"{jogo.get('home', '')} x "
+                    f"{jogo.get('away', '')}"
+                )
 
-except Exception as erro:
-    print(
-        "ERRO AO ENVIAR PRÉ-LIVE:",
-        type(erro).__name__,
-        erro
-    )
+            except Exception as erro:
+                print(
+                    "ERRO AO ENVIAR PRÉ-LIVE:",
+                    type(erro).__name__,
+                    erro
+                )
+
+    except Exception as erro:
+        print(
+            "ERRO CAPTURAR PRÉ-LIVE:",
+            type(erro).__name__,
+            erro
+        )
 
 
 # ============================================================
