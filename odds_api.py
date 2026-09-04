@@ -728,7 +728,7 @@ for mercado in mercados:
             "odds": _linhas_odds(mercado),
         }
 
-                    resultado["todos"].append(item)
+    resultado["todos"].append(item)
     resultado["mercados_disponiveis"].append(nome)
 
     nome_lower = nome.lower()
