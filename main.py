@@ -1746,9 +1746,9 @@ def executar_consulta():
 
                         break
 
-            resultado[
-                "odd_10min"
-            ] = odd_10min
+resultado[
+    "odd_10min"
+] = odd_10min
 # ============================================================
 # VARIAÇÃO DA ODD DO EMPATE EM 10 MINUTOS
 # ============================================================
