@@ -691,7 +691,7 @@ resultado = {
         "odd_empate": odd_draw,
         "odd_visitante": odd_away,
 
-        "odd_pre_live": 0.0,
+        "odd_pre_live": q_pre_live,
 
         "minuto": _extrair_minuto(jogo),
         "gols": placar_casa + placar_fora,
