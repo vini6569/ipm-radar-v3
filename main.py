@@ -622,6 +622,13 @@ except Exception as erro:
     )
 
 salvar_controle()
+    except Exception as erro:
+
+        print(
+            "ERRO CAPTURA PRE-LIVE:",
+            type(erro).__name__,
+            erro
+        )
 
     
 
