@@ -1749,6 +1749,36 @@ def executar_consulta():
             resultado[
                 "odd_10min"
             ] = odd_10min
+# ============================================================
+# VARIAÇÃO DA ODD DO EMPATE EM 10 MINUTOS
+# ============================================================
+
+variacao_10min = 0.0
+sinal_pre_entrada = None
+
+if (
+    odd_10min is not None
+    and odd_10min > 0
+    and odd_empate > 0
+):
+    variacao_10min = (
+        (odd_empate - odd_10min)
+        / odd_10min
+    ) * 100
+
+    if variacao_10min >= 20:
+        sinal_pre_entrada = "ALTA_20"
+
+    elif variacao_10min <= -20:
+        sinal_pre_entrada = "BAIXA_20"
+
+resultado[
+    "variacao_10min"
+] = variacao_10min
+
+resultado[
+    "sinal_pre_entrada"
+] = sinal_pre_entrada
 
             # =================================================
             # TRAJETÓRIA NO CONSOLE
