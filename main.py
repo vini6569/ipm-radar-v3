@@ -594,8 +594,15 @@ def capturar_referencia_pre_live():
 # ------------------------------------------------------------
 # ENVIAR PRÉ-LIVE PARA O TELEGRAM
 # ------------------------------------------------------------
+ texto_pre_live = (
+    ...
+)
 
-texto_pre_live = (
+try:
+    ...
+except Exception as erro:
+    ...
+
                 "🧪 PRÉ-LIVE | IPM RADAR\n\n"
                 f"⚽ {jogo.get('home', '')} x "
                 f"{jogo.get('away', '')}\n\n"
