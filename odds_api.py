@@ -728,56 +728,56 @@ for mercado in mercados:
             "odds": _linhas_odds(mercado),
         }
 
-                resultado["todos"].append(item)
-        resultado["mercados_disponiveis"].append(nome)
+                    resultado["todos"].append(item)
+    resultado["mercados_disponiveis"].append(nome)
 
-        nome_lower = nome.lower()
+    nome_lower = nome.lower()
 
-        if (
-            "half" in nome_lower
-            or "halftime" in nome_lower
-            or "1st half" in nome_lower
-        ):
-            destino = "odds_ht"
+    if (
+        "half" in nome_lower
+        or "halftime" in nome_lower
+        or "1st half" in nome_lower
+    ):
+        destino = "odds_ht"
 
-        elif (
-            "corner" in nome_lower
-            or "escante" in nome_lower
-        ):
-            destino = "odds_corners"
+    elif (
+        "corner" in nome_lower
+        or "escante" in nome_lower
+    ):
+        destino = "odds_corners"
 
-        elif (
-            "card" in nome_lower
-            or "booking" in nome_lower
-            or "cart" in nome_lower
-        ):
-            destino = "odds_cards"
+    elif (
+        "card" in nome_lower
+        or "booking" in nome_lower
+        or "cart" in nome_lower
+    ):
+        destino = "odds_cards"
 
-        else:
-            destino = "odds_ft"
+    else:
+        destino = "odds_ft"
 
-        resultado[destino].append(item)
+    resultado[destino].append(item)
 
-    resultado["mercados_disponiveis"] = list(
-        dict.fromkeys(
-            resultado["mercados_disponiveis"]
-        )
+resultado["mercados_disponiveis"] = list(
+    dict.fromkeys(
+        resultado["mercados_disponiveis"]
+    )
+)
+
+if odd_casa > 0 or odd_draw > 0 or odd_away > 0:
+    resultado["mercados_encontrados"].append(
+        "1X2"
     )
 
-    if odd_casa > 0 or odd_draw > 0 or odd_away > 0:
-        resultado["mercados_encontrados"].append(
-            "1X2"
-        )
+print(
+    "ODDS 1X2 | "
+    f"ID={event_id} | "
+    f"CASA={odd_casa} | "
+    f"EMPATE={odd_draw} | "
+    f"VISITANTE={odd_away}"
+)
 
-    print(
-        "ODDS 1X2 | "
-        f"ID={event_id} | "
-        f"CASA={odd_casa} | "
-        f"EMPATE={odd_draw} | "
-        f"VISITANTE={odd_away}"
-    )
-
-    return resultado
+return resultado
 
 
 def limpar_memoria():
