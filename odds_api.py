@@ -678,36 +678,36 @@ if odd_casa > 0 and odd_away > 0:
         odd_casa * odd_away
     ) ** 0.5
 
+
 resultado = {
-    resultado = {
-        "event_id": event_id,
+    "event_id": event_id,
 
-        "odd_home": odd_casa,
-        "odd_draw": odd_draw,
-        "odd_away": odd_away,
+    "odd_home": odd_casa,
+    "odd_draw": odd_draw,
+    "odd_away": odd_away,
 
-        "odd_casa": odd_casa,
-        "odd_atual": odd_draw,
-        "odd_empate": odd_draw,
-        "odd_visitante": odd_away,
+    "odd_casa": odd_casa,
+    "odd_atual": odd_draw,
+    "odd_empate": odd_draw,
+    "odd_visitante": odd_away,
 
-        "odd_pre_live": q_pre_live,
+    "odd_pre_live": q_pre_live,
 
-        "minuto": _extrair_minuto(jogo),
-        "gols": placar_casa + placar_fora,
-        "escanteios": esc,
-        "cartoes": cart,
-        "finalizacoes": fin,
-        "ataques_perigosos": atq,
+    "minuto": _extrair_minuto(jogo),
+    "gols": placar_casa + placar_fora,
+    "escanteios": esc,
+    "cartoes": cart,
+    "finalizacoes": fin,
+    "ataques_perigosos": atq,
 
-        "mercados_encontrados": [],
-        "mercados_disponiveis": [],
-        "todos": [],
-        "odds_ft": [],
-        "odds_ht": [],
-        "odds_corners": [],
-        "odds_cards": [],
-    }
+    "mercados_encontrados": [],
+    "mercados_disponiveis": [],
+    "todos": [],
+    "odds_ft": [],
+    "odds_ht": [],
+    "odds_corners": [],
+    "odds_cards": [],
+}
 
     for mercado in mercados:
         if not isinstance(mercado, dict):
