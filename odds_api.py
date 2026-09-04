@@ -51,6 +51,7 @@ def _request_json(endpoint, params):
             detalhe = erro.read().decode("utf-8")
         except Exception:
             detalhe = ""
+
         print(
             f"ERRO HTTP ODDS API: {erro.code} | "
             f"{detalhe[:500]}"
@@ -82,6 +83,7 @@ def _lista_eventos(resposta):
 
     for chave in ("events", "data", "results"):
         valor = resposta.get(chave)
+
         if isinstance(valor, list):
             return [
                 x for x in valor
@@ -102,7 +104,9 @@ def _numero(valor, padrao=0.0):
     try:
         if valor in (None, ""):
             return padrao
+
         return float(valor)
+
     except (TypeError, ValueError):
         return padrao
 
@@ -111,7 +115,9 @@ def _inteiro(valor, padrao=0):
     try:
         if valor in (None, ""):
             return padrao
+
         return int(float(valor))
+
     except (TypeError, ValueError):
         return padrao
 
@@ -121,11 +127,13 @@ def _extrair_minuto(jogo):
         return 0
 
     clock = jogo.get("clock")
+
     if isinstance(clock, dict):
         minuto = _inteiro(
             clock.get("minute"),
             -1,
         )
+
         if minuto >= 0:
             return minuto
 
@@ -148,6 +156,7 @@ def _extrair_minuto(jogo):
             )
 
         minuto = _inteiro(valor, -1)
+
         if minuto >= 0:
             return minuto
 
@@ -165,13 +174,17 @@ def _extrair_placar(jogo):
                 "home",
                 valor.get("homeScore"),
             )
+
             fora = valor.get(
                 "away",
                 valor.get("awayScore"),
             )
 
             if casa is not None or fora is not None:
-                return _inteiro(casa), _inteiro(fora)
+                return (
+                    _inteiro(casa),
+                    _inteiro(fora),
+                )
 
         elif isinstance(valor, list) and len(valor) >= 2:
             return (
@@ -220,6 +233,7 @@ def buscar_jogos_ao_vivo():
 
     try:
         key = obter_api_key()
+
     except Exception as erro:
         print("ERRO API KEY:", erro)
         return []
@@ -235,8 +249,10 @@ def buscar_jogos_ao_vivo():
     eventos = _lista_eventos(resposta)
 
     mapa = {}
+
     for evento in eventos:
         event_id = evento.get("id")
+
         if event_id is not None:
             mapa[str(event_id)] = evento
 
@@ -318,6 +334,7 @@ def _parse_data_evento(evento):
 def buscar_jogos_pre_live():
     try:
         key = obter_api_key()
+
     except Exception as erro:
         print("ERRO API KEY:", erro)
         return []
@@ -334,7 +351,9 @@ def buscar_jogos_pre_live():
     )
 
     eventos = _lista_eventos(resposta)
+
     agora = datetime.now(timezone.utc)
+
     limite = (
         agora.timestamp()
         + PRE_LIVE_JANELA_MINUTOS * 180
@@ -344,17 +363,24 @@ def buscar_jogos_pre_live():
 
     for evento in eventos:
         dt = _parse_data_evento(evento)
+
         if dt is None:
             continue
 
-        if agora.timestamp() <= dt.timestamp() <= limite:
+        if (
+            agora.timestamp()
+            <= dt.timestamp()
+            <= limite
+        ):
             proximos.append(evento)
 
     proximos.sort(
         key=lambda e: _parse_data_evento(e) or agora
     )
 
-    proximos = proximos[:MAX_EVENTOS_POR_CONSULTA]
+    proximos = proximos[
+        :MAX_EVENTOS_POR_CONSULTA
+    ]
 
     print(
         "JOGOS PRE-LIVE PROXIMOS:",
@@ -371,6 +397,7 @@ def buscar_odds_multiplos(eventos):
 
     try:
         key = obter_api_key()
+
     except Exception as erro:
         print("ERRO API KEY:", erro)
         return []
@@ -438,6 +465,7 @@ def _evento_odds_por_id(odds, event_id):
             return odds
 
         item = odds.get(alvo)
+
         if isinstance(item, dict):
             return item
 
@@ -465,7 +493,11 @@ def _mercados_bet365(evento):
         if isinstance(mercados, dict):
             mercados = mercados.get("markets", [])
 
-        return mercados if isinstance(mercados, list) else []
+        return (
+            mercados
+            if isinstance(mercados, list)
+            else []
+        )
 
     if isinstance(bookmakers, list):
         for bookmaker in bookmakers:
@@ -480,7 +512,11 @@ def _mercados_bet365(evento):
             ).strip().lower()
 
             if nome == BOOKMAKER.strip().lower():
-                mercados = bookmaker.get("markets", [])
+                mercados = bookmaker.get(
+                    "markets",
+                    []
+                )
+
                 return (
                     mercados
                     if isinstance(mercados, list)
@@ -521,8 +557,12 @@ def _preco_item(item):
     ):
         valor = item.get(chave)
 
-        if isinstance(valor, (int, float, str)):
+        if isinstance(
+            valor,
+            (int, float, str),
+        ):
             numero = _numero(valor)
+
             if numero > 0:
                 return numero
 
@@ -541,6 +581,7 @@ def _extrair_outcome(linha, nomes):
     # Formato direto.
     for nome in nomes:
         valor = linha.get(nome)
+
         if valor not in (None, ""):
             if isinstance(valor, dict):
                 preco = _preco_item(valor)
@@ -564,11 +605,13 @@ def _extrair_outcome(linha, nomes):
                 item for item in valor
                 if isinstance(item, dict)
             ]
+
         elif isinstance(valor, dict):
             candidatos = [
                 item for item in valor.values()
                 if isinstance(item, dict)
             ]
+
         else:
             candidatos = []
 
@@ -583,6 +626,7 @@ def _extrair_outcome(linha, nomes):
 
             if nome in alvo:
                 preco = _preco_item(item)
+
                 if preco > 0:
                     return preco
 
@@ -631,17 +675,27 @@ def _encontrar_1x2(mercados):
                     linha,
                     ("home", "1"),
                 )
+
                 empate = _extrair_outcome(
                     linha,
                     ("draw", "x", "tie"),
                 )
+
                 fora = _extrair_outcome(
                     linha,
                     ("away", "2"),
                 )
 
-                if casa > 0 or empate > 0 or fora > 0:
-                    return casa, empate, fora
+                if (
+                    casa > 0
+                    or empate > 0
+                    or fora > 0
+                ):
+                    return (
+                        casa,
+                        empate,
+                        fora,
+                    )
 
     return 0.0, 0.0, 0.0
 
@@ -651,65 +705,68 @@ def extrair_mercados(jogo, odds):
         return {}
 
     event_id = jogo.get("id")
+
     evento = (
-        _evento_odds_por_id(odds, event_id)
+        _evento_odds_por_id(
+            odds,
+            event_id,
+        )
         or jogo
     )
 
     mercados = _mercados_bet365(evento)
 
     placar_casa, placar_fora = _extrair_placar(jogo)
+
     esc, fin, atq, cart = _extrair_estatisticas(jogo)
 
     odd_casa, odd_draw, odd_away = _encontrar_1x2(
         mercados
     )
 
-# =================================================
-# Q PRÉ-LIVE
-# W1 x W2
-# =================================================
+    # =================================================
+    # Q PRÉ-LIVE
+    # W1 x W2
+    # =================================================
 
-q_pre_live = 0.0
+    q_pre_live = 0.0
 
-if odd_casa > 0 and odd_away > 0:
+    if odd_casa > 0 and odd_away > 0:
+        q_pre_live = (
+            odd_casa * odd_away
+        ) ** 0.5
 
-    q_pre_live = (
-        odd_casa * odd_away
-    ) ** 0.5
+    resultado = {
+        "event_id": event_id,
 
+        "odd_home": odd_casa,
+        "odd_draw": odd_draw,
+        "odd_away": odd_away,
 
-resultado = {
-    "event_id": event_id,
+        "odd_casa": odd_casa,
+        "odd_atual": odd_draw,
+        "odd_empate": odd_draw,
+        "odd_visitante": odd_away,
 
-    "odd_home": odd_casa,
-    "odd_draw": odd_draw,
-    "odd_away": odd_away,
+        "odd_pre_live": q_pre_live,
 
-    "odd_casa": odd_casa,
-    "odd_atual": odd_draw,
-    "odd_empate": odd_draw,
-    "odd_visitante": odd_away,
+        "minuto": _extrair_minuto(jogo),
+        "gols": placar_casa + placar_fora,
+        "escanteios": esc,
+        "cartoes": cart,
+        "finalizacoes": fin,
+        "ataques_perigosos": atq,
 
-    "odd_pre_live": q_pre_live,
+        "mercados_encontrados": [],
+        "mercados_disponiveis": [],
+        "todos": [],
+        "odds_ft": [],
+        "odds_ht": [],
+        "odds_corners": [],
+        "odds_cards": [],
+    }
 
-    "minuto": _extrair_minuto(jogo),
-    "gols": placar_casa + placar_fora,
-    "escanteios": esc,
-    "cartoes": cart,
-    "finalizacoes": fin,
-    "ataques_perigosos": atq,
-
-    "mercados_encontrados": [],
-    "mercados_disponiveis": [],
-    "todos": [],
-    "odds_ft": [],
-    "odds_ht": [],
-    "odds_corners": [],
-    "odds_cards": [],
-}
-
-for mercado in mercados:
+    for mercado in mercados:
         if not isinstance(mercado, dict):
             continue
 
@@ -724,12 +781,17 @@ for mercado in mercados:
 
         item = {
             "name": nome,
-            "updatedAt": mercado.get("updatedAt"),
+            "updatedAt": mercado.get(
+                "updatedAt"
+            ),
             "odds": _linhas_odds(mercado),
         }
 
         resultado["todos"].append(item)
-        resultado["mercados_disponiveis"].append(nome)
+
+        resultado[
+            "mercados_disponiveis"
+        ].append(nome)
 
         nome_lower = nome.lower()
 
@@ -764,10 +826,14 @@ for mercado in mercados:
         )
     )
 
-    if odd_casa > 0 or odd_draw > 0 or odd_away > 0:
-        resultado["mercados_encontrados"].append(
-            "1X2"
-        )
+    if (
+        odd_casa > 0
+        or odd_draw > 0
+        or odd_away > 0
+    ):
+        resultado[
+            "mercados_encontrados"
+        ].append("1X2")
 
     print(
         "ODDS 1X2 | "
