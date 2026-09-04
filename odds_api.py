@@ -755,7 +755,7 @@ for mercado in mercados:
 
         resultado[destino].append(item)
 
-    resultado["mercados_disponiveis"] = list(
+resultado["mercados_disponiveis"] = list(
         dict.fromkeys(
             resultado["mercados_disponiveis"]
         )
