@@ -591,9 +591,10 @@ def capturar_referencia_pre_live():
                 f"EMPATE={controle.get('odd_pre_live')} | "
                 f"VISITANTE={controle.get('odd_visitante_pre_live')}"
             )
-# ------------------------------------------------
+# ------------------------------------------------------------
 # ENVIAR PRÉ-LIVE PARA O TELEGRAM
-# ------------------------------------------------
+# ------------------------------------------------------------
+
 texto_pre_live = (
     "🧪 PRÉ-LIVE | IPM RADAR\n\n"
     f"⚽ {jogo.get('home', '')} x "
