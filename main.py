@@ -619,7 +619,7 @@ except Exception as erro:
         "ERRO AO ENVIAR PRÉ-LIVE:",
         type(erro).__name__,
         erro
-            )
+    )
 
 
 # ============================================================
