@@ -623,13 +623,13 @@ def capturar_referencia_pre_live():
 
                 enviar_telegram(texto_pre_live)
 
-        except Exception as erro:
+    except Exception as erro:
 
-            print(
-                "ERRO AO CAPTURAR PRÉ-LIVE:",
-                type(erro).__name__,
-                erro
-            )
+        print(
+            "ERRO AO CAPTURAR PRÉ-LIVE:",
+            type(erro).__name__,
+            erro
+        )
         
 # ============================================================
 # REGISTRAR TRAJETÓRIA
