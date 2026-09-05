@@ -601,7 +601,7 @@ def capturar_referencia_pre_live():
 
              if not (2.5 <= Q <= 3.0):
                  print(
-                    "PRÉ-LIVE FORA DO FILTRO Q | "
+                "PRÉ-LIVE FORA DO FILTRO Q | "
                 f"{jogo.get('home', '')} x "
                 f"{jogo.get('away', '')} | "
                 f"Q={Q:.2f}"
