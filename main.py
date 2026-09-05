@@ -607,7 +607,7 @@ def capturar_referencia_pre_live():
                 )
                 continue
 
-        texto_pre_live = (
+    texto_pre_live = (
                 "📝 PRÉ-LIVE | IPM RADAR\n\n"
                 f"⚽ {jogo.get('home', '')} x "
                 f"{jogo.get('away', '')}\n\n"
@@ -618,10 +618,10 @@ def capturar_referencia_pre_live():
                 f"🆔 ID: {jogo.get('id', '')}"
                 )
 
-                        try:
-            enviar_telegram(texto_pre_live)
-        except Exception as e:
-            print(f"ERRO AO ENVIAR PRÉ-LIVE: {e}")
+    try:
+        enviar_telegram(texto_pre_live)
+    except Exception as e:
+        print(f"ERRO AO ENVIAR PRÉ-LIVE: {e}")
 # ============================================================
 # REGISTRAR TRAJETÓRIA
 # ============================================================
