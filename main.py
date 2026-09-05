@@ -708,38 +708,6 @@ def registrar_trajetoria(controle, resultado):
         controle["trajetoria"][-100:]
     )
 
-        # ----------------------------------------------------
-        # NOVO
-        # ----------------------------------------------------
-
-        "var_10min": resultado.get(
-            "var_10min",
-            0.0
-        ),
-
-        "sinal_pre_entrada": resultado.get(
-            "sinal_pre_entrada",
-            "NEUTRO"
-        ),
-
-        "gols": resultado.get(
-            "gols",
-            0
-        ),
-    }
-
-    trajetoria = controle.get(
-        "trajetoria",
-        []
-    )
-
-    if not isinstance(
-        trajetoria,
-        list
-    ):
-
-        trajetoria = []
-
     # --------------------------------------------------------
     # Se já existe registro do mesmo minuto,
     # substitui pelo mais recente.
