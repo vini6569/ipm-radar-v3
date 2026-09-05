@@ -772,6 +772,7 @@ def capturar_referencia_pre_live():
                     f"{controle.get('odd_pre_live')}\n"
                     f"✈️ VISITANTE: "
                     f"{controle.get('odd_visitante_pre_live')}\n"
+                    f"📐 Q: {Q:.2f}\n"
                     f"🆔 ID: {jogo.get('id', '')}\n"
                 )
 
