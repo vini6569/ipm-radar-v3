@@ -637,10 +637,7 @@ def capturar_referencia_pre_live():
 # REGISTRAR TRAJETÓRIA
 # ============================================================
 
-def registrar_trajetoria(
-    controle,
-    resultado,
-):
+def registrar_trajetoria(controle, resultado):
 
     if not isinstance(controle, dict):
         return
@@ -649,66 +646,53 @@ def registrar_trajetoria(
         return
 
     ponto = {
-        "hora": datetime.now().strftime("%H:%M:%S"),
-
-        "minuto": resultado.get(
-            "minuto",
-            0
-        ),
-
-        "odd_casa": resultado.get(
-            "odd_casa",
-            0.0
-        ),
-
+        "minuto": resultado.get("minuto", 0),
+        "ipm": resultado.get("ipm", 0.0),
+        "odd_casa": resultado.get("odd_casa", 0.0),
         "odd_empate": resultado.get(
             "odd_empate",
-            resultado.get(
-                "odd_atual",
-                0.0
-            )
+            resultado.get("odd_atual", 0.0)
         ),
-
         "odd_visitante": resultado.get(
             "odd_visitante",
             0.0
         ),
-
-        "ipm": resultado.get(
-            "ipm",
+        "variacao_casa": resultado.get(
+            "variacao_casa",
             0.0
         ),
-
         "variacao_empate": resultado.get(
             "variacao_empate",
             0.0
         ),
-
+        "variacao_visitante": resultado.get(
+            "variacao_visitante",
+            0.0
+        ),
         "variacao_pre_live": resultado.get(
             "variacao_pre_live",
             0.0
         ),
-
+        "variacao_ciclo": resultado.get(
+            "variacao_ciclo",
+            0.0
+        ),
         "var_10min": resultado.get(
             "var_10min",
             0.0
         ),
-
         "sinal_pre_entrada": resultado.get(
             "sinal_pre_entrada",
             "NEUTRO"
         ),
-
         "odd_45": resultado.get(
             "odd_45",
             0.0
         ),
-
         "diferenca_45": resultado.get(
             "diferenca_45",
             0.0
         ),
-
         "gols": resultado.get(
             "gols",
             0
@@ -718,9 +702,7 @@ def registrar_trajetoria(
     if "trajetoria" not in controle:
         controle["trajetoria"] = []
 
-    controle["trajetoria"].append(
-        ponto
-    )
+    controle["trajetoria"].append(ponto)
 
     controle["trajetoria"] = (
         controle["trajetoria"][-100:]
