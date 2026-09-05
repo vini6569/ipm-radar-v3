@@ -596,13 +596,11 @@ def capturar_referencia_pre_live():
             # ENVIAR PRÉ-LIVE PARA O TELEGRAM
             # ============================================================
 
-            if w1 > 0 and w2 > 0:
-
-                Q = (2 * w1 * w2) / (w1 + w2)
-
-                if not (2.5 <= Q <= 3.0):
-
-                    print(
+            if (
+                controle.get("odd_casa_pre_live") is not None
+                and controle.get("odd_pre_live") is not None
+                and controle.get("odd_visitante_pre_live") is not None
+            ):
                         "PRÉ-LIVE FORA DO FILTRO | "
                         f"{jogo.get('home', '')} x "
                         f"{jogo.get('away', '')} | "
