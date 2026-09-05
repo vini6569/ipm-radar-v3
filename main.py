@@ -591,7 +591,7 @@ def capturar_referencia_pre_live():
                 f"EMPATE={controle.get('odd_pre_live')} | "
                 f"VISITANTE={controle.get('odd_visitante_pre_live')}"
             )
-                        )
+               
 
     except Exception as erro:
 
@@ -599,8 +599,7 @@ def capturar_referencia_pre_live():
             "ERRO AO PROCESSAR JOGOS:",
             type(erro).__name__,
             erro
-        )
-
+        )         
 
 # ============================================================
 # CAPTURAR REFERÊNCIA PRÉ-LIVE
@@ -787,7 +786,8 @@ def capturar_referencia_pre_live():
             type(erro).__name__,
             erro
         )
-        
+
+  
 # ============================================================
 # REGISTRAR TRAJETÓRIA
 # ============================================================
