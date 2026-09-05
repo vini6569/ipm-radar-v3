@@ -591,6 +591,15 @@ def capturar_referencia_pre_live():
                 f"EMPATE={controle.get('odd_pre_live')} | "
                 f"VISITANTE={controle.get('odd_visitante_pre_live')}"
             )
+                        )
+
+    except Exception as erro:
+
+        print(
+            "ERRO AO PROCESSAR JOGOS:",
+            type(erro).__name__,
+            erro
+        )
 
 
 # ============================================================
