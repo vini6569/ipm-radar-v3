@@ -601,13 +601,6 @@ def capturar_referencia_pre_live():
                 and controle.get("odd_pre_live") is not None
                 and controle.get("odd_visitante_pre_live") is not None
             ):
-                        "PRÉ-LIVE FORA DO FILTRO | "
-                        f"{jogo.get('home', '')} x "
-                        f"{jogo.get('away', '')} | "
-                        f"Q={Q:.2f}"
-                    )
-
-                    continue
 
                 texto_pre_live = (
                     "📝 PRÉ-LIVE | IPM RADAR\n\n"
@@ -615,19 +608,11 @@ def capturar_referencia_pre_live():
                     f"🏠 CASA: {controle.get('odd_casa_pre_live')}\n"
                     f"🤝 EMPATE: {controle.get('odd_pre_live')}\n"
                     f"✈️ VISITANTE: {controle.get('odd_visitante_pre_live')}\n"
-                    f"📐 Q: {Q:.2f}\n"
                     f"🆔 ID: {jogo.get('id', '')}\n"
                 )
 
                 enviar_telegram(texto_pre_live)
-
-    except Exception as erro:
-
-        print(
-            "ERRO AO CAPTURAR PRÉ-LIVE:",
-            type(erro).__name__,
-            erro
-        )
+                
         
 # ============================================================
 # REGISTRAR TRAJETÓRIA
