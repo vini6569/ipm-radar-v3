@@ -596,54 +596,51 @@ def capturar_referencia_pre_live():
             # ENVIAR PRÉ-LIVE PARA O TELEGRAM
             # ------------------------------------------------------------
         
-            if w1 > 0 and w2 > 0:
-             Q = (2 * w1 * w2) / (w1 + w2)
+                if w1 > 0 and w2 > 0:
+        Q = (2 * w1 * w2) / (w1 + w2)
 
-             if not (2.5 <= Q <= 3.0):
-                 print(
+        if not (2.5 <= Q <= 3.0):
+            print(
                 "PRÉ-LIVE FORA DO FILTRO Q | "
                 f"{jogo.get('home', '')} x "
                 f"{jogo.get('away', '')} | "
                 f"Q={Q:.2f}"
-             )
-             continue  
+            )
+            continue
 
-                 texto_pre_live = (
-                "🧪 PRÉ-LIVE | IPM RADAR\n\n"
-                f"⚽ {jogo.get('home', '')} x "
-                f"{jogo.get('away', '')}\n\n"
-                f"🏠 CASA: {controle.get('odd_casa_pre_live')}\n"
-                f"🤝 EMPATE: {controle.get('odd_pre_live')}\n"
-                f"✈️ VISITANTE: {controle.get('odd_visitante_pre_live')}\n"
-                f"📐 Q: {Q:.2f}\n"
-                f"🆔 ID: {jogo.get('id')}"
+        texto_pre_live = (
+            "🧪 PRÉ-LIVE | IPM RADAR\n\n"
+            f"⚽ {jogo.get('home', '')} x "
+            f"{jogo.get('away', '')}\n\n"
+            f"🏠 CASA: {controle.get('odd_casa_pre_live', 0)}\n"
+            f"🤝 EMPATE: {controle.get('odd_pre_live', 0)}\n"
+            f"✈️ VISITANTE: {controle.get('odd_visitante_pre_live', 0)}\n"
+            f"📐 Q: {Q:.2f}\n"
+            f"🆔 ID: {jogo.get('id')}"
+        )
+
+        try:
+            enviar_telegram(texto_pre_live)
+
+            print(
+                "TELEGRAM PRÉ-LIVE ENVIADO | "
+                f"{jogo.get('home', '')} x "
+                f"{jogo.get('away', '')}"
             )
 
-            try:
+        except Exception as erro:
+            print(
+                "ERRO AO ENVIAR PRÉ-LIVE:",
+                type(erro).__name__,
+                erro
+            )
 
-                enviar_telegram(texto_pre_live)
-
-                print(
-                    "TELEGRAM PRÉ-LIVE ENVIADO | "
-                    f"{jogo.get('home', '')} x "
-                    f"{jogo.get('away', '')}"
-                )
-
-            except Exception as erro:
-
-                print(
-                    "ERRO AO ENVIAR PRÉ-LIVE:",
-                    type(erro).__name__,
-                    erro
-                )
-
-    except Exception as erro:
-
-        print(
-            "ERRO AO CAPTURAR PRÉ-LIVE:",
-            type(erro).__name__,
-            erro
-        )
+except Exception as erro:
+    print(
+        "ERRO AO CAPTURAR PRÉ-LIVE:",
+        type(erro).__name__,
+        erro
+    )
 
 
 # ============================================================
