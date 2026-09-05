@@ -607,7 +607,7 @@ def capturar_referencia_pre_live():
                 )
                 continue
 
-       texto_pre_live = (
+    texto_pre_live = (
                 "📝 PRÉ-LIVE | IPM RADAR\n\n"
                 f"⚽ {jogo.get('home', '')} x "
                 f"{jogo.get('away', '')}\n\n"
