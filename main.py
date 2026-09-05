@@ -592,59 +592,45 @@ def capturar_referencia_pre_live():
                 f"VISITANTE={controle.get('odd_visitante_pre_live')}"
             )
 
-# ------------------------------------------------------------
-# ENVIAR PRÉ-LIVE PARA O TELEGRAM
-# ------------------------------------------------------------
-        if w1 > 0 and w2 > 0:
-            Q = (2 * w1 * w2) / (w1 + w2)
+            # ============================================================
+            # ENVIAR PRÉ-LIVE PARA O TELEGRAM
+            # ============================================================
 
-            if not (2.5 <= Q <= 3.0):
-                print(
-                    "PRÉ-LIVE FORA DO FILTRO Q | "
-                    f"{jogo.get('home', '')} x "
-                    f"{jogo.get('away', '')} | "
-                    f"Q={Q:.2f}"
+            if w1 > 0 and w2 > 0:
+
+                Q = (2 * w1 * w2) / (w1 + w2)
+
+                if not (2.5 <= Q <= 3.0):
+
+                    print(
+                        "PRÉ-LIVE FORA DO FILTRO | "
+                        f"{jogo.get('home', '')} x "
+                        f"{jogo.get('away', '')} | "
+                        f"Q={Q:.2f}"
+                    )
+
+                    continue
+
+                texto_pre_live = (
+                    "📝 PRÉ-LIVE | IPM RADAR\n\n"
+                    f"⚽ {jogo.get('home', '')} x {jogo.get('away', '')}\n"
+                    f"🏠 CASA: {controle.get('odd_casa_pre_live')}\n"
+                    f"🤝 EMPATE: {controle.get('odd_pre_live')}\n"
+                    f"✈️ VISITANTE: {controle.get('odd_visitante_pre_live')}\n"
+                    f"📐 Q: {Q:.2f}\n"
+                    f"🆔 ID: {jogo.get('id', '')}\n"
                 )
-                continue
 
-    texto_pre_live = (
-                "📝 PRÉ-LIVE | IPM RADAR\n\n"
-                f"⚽ {jogo.get('home', '')} x "
-                f"{jogo.get('away', '')}\n\n"
-                f"🏠 CASA: {controle.get('odd_casa_pre_live')}\n"
-                f"🤝 EMPATE: {controle.get('odd_pre_live')}\n"
-                f"✈️ VISITANTE: {controle.get('odd_visitante_pre_live')}\n"
-                f"📐 Q: {Q:.2f}\n"
-                f"🆔 ID: {jogo.get('id', '')}"
-                )
+                enviar_telegram(texto_pre_live)
 
-                        print(
-                "PRE-LIVE | "
-                f"{jogo.get('home', '')} x "
-                f"{jogo.get('away', '')} | "
-                f"CASA={controle.get('odd_casa_pre_live')} | "
-                f"EMPATE={controle.get('odd_pre_live')} | "
-                f"VISITANTE={controle.get('odd_visitante_pre_live')}"
+        except Exception as erro:
+
+            print(
+                "ERRO AO CAPTURAR PRÉ-LIVE:",
+                type(erro).__name__,
+                erro
             )
-                        texto_pre_live = (
-                "📝 PRÉ-LIVE | IPM RADAR\n\n"
-                f"⚽ {jogo.get('home', '')} x "
-                f"{jogo.get('away', '')}\n"
-                f"🏠 CASA: {controle.get('odd_casa_pre_live')}\n"
-                f"🤝 EMPATE: {controle.get('odd_pre_live')}\n"
-                f"✈️ VISITANTE: {controle.get('odd_visitante_pre_live')}\n"
-                f"📐 Q: {Q:.2f}\n"
-                f"🆔 ID: {jogo.get('id', '')}"
-            )
-
-            enviar_telegram(texto_pre_live)
-
-    except Exception as erro:
-        print(
-            "ERRO AO CAPTURAR PRÉ-LIVE:",
-            type(erro).__name__,
-            erro
-        )
+        
 # ============================================================
 # REGISTRAR TRAJETÓRIA
 # ============================================================
