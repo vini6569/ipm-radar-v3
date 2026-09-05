@@ -592,6 +592,7 @@ def capturar_referencia_pre_live():
                 f"VISITANTE={controle.get('odd_visitante_pre_live')}"
             )
 
+
 # ============================================================
 # CAPTURAR REFERÊNCIA PRÉ-LIVE
 # ============================================================
