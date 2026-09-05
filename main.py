@@ -595,7 +595,8 @@ def capturar_referencia_pre_live():
             # ------------------------------------------------------------
             # ENVIAR PRÉ-LIVE PARA O TELEGRAM
             # ------------------------------------------------------------
-                    Q = 0.0
+        
+        Q = 0.0
 
         w1 = float(controle.get("odd_casa_pre_live", 0) or 0)
         w2 = float(controle.get("odd_visitante_pre_live", 0) or 0)
