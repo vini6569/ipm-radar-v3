@@ -639,39 +639,6 @@ def capturar_referencia_pre_live():
 
 def registrar_trajetoria(
     controle,
-    resultado
-):
-
-    ponto = {
-        "minuto": resultado.get(
-            "minuto",
-            0
-        ),
-
-        "ipm": resultado.get(
-            "ipm",
-            0.0
-        ),
-            ponto = {
-        "minuto": resultado.get("minuto", 0),
-        "ipm": resultado.get("ipm", 0.0),
-        "odd_casa": resultado.get("odd_casa", 0.0),
-        "odd_empate": resultado.get("odd_empate", 0.0),
-        "odd_visitante": resultado.get("odd_visitante", 0.0),
-        "variacao_casa": resultado.get("variacao_casa", 0.0),
-        "variacao_empate": resultado.get("variacao_empate", 0.0),
-        "variacao_visitante": resultado.get("variacao_visitante", 0.0),
-        "variacao_pre_live": resultado.get("variacao_pre_live", 0.0),
-        "variacao_ciclo": resultado.get("variacao_ciclo", 0.0),
-        "gols": resultado.get("gols", 0),
-    }
-
-# ============================================================
-# REGISTRAR TRAJETÓRIA
-# ============================================================
-
-def registrar_trajetoria(
-    controle,
     resultado,
 ):
 
