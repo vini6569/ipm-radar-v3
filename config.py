@@ -147,7 +147,7 @@ VARIACAO_MINIMA_TRAJETORIA = float(
 PRE_LIVE_JANELA_MINUTOS = int(
     os.getenv(
         "PRE_LIVE_JANELA_MINUTOS",
-        "15",
+        "180",
     )
 )
 
