@@ -572,7 +572,7 @@ def capturar_referencia_pre_live():
                     "pre_live_fallback"
                 ] = False
 
-                        if (
+            if (
                 controle.get(
                     "odd_visitante_pre_live"
                 ) is None
@@ -607,6 +607,7 @@ def capturar_referencia_pre_live():
             )
 
             try:
+
                 enviar_telegram(texto_pre_live)
 
                 print(
@@ -616,11 +617,20 @@ def capturar_referencia_pre_live():
                 )
 
             except Exception as erro:
+
                 print(
                     "ERRO AO ENVIAR PRÉ-LIVE:",
                     type(erro).__name__,
                     erro
                 )
+
+    except Exception as erro:
+
+        print(
+            "ERRO AO CAPTURAR PRÉ-LIVE:",
+            type(erro).__name__,
+            erro
+        )
 
 
 # ============================================================
