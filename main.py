@@ -618,9 +618,11 @@ def capturar_referencia_pre_live():
                 f"🆔 ID: {jogo.get('id', '')}"
                 )
 
-            
+        texto_pre_live = (
+        ...
+    )
 
-        enviar_telegram(texto_pre_live)
+    enviar_telegram(texto_pre_live)
 
 # ============================================
 # REGISTRAR TRAJETÓRIA
