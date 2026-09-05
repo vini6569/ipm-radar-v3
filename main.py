@@ -595,6 +595,15 @@ def capturar_referencia_pre_live():
             # ------------------------------------------------------------
             # ENVIAR PRÉ-LIVE PARA O TELEGRAM
             # ------------------------------------------------------------
+            Q = 0.0
+            w1 = 
+            float(controle.get("odd_casa_pre_live
+            ") or 0)
+            w2 = float(controle.get("odd_visitante_pre_live
+            ") or 0)
+            
+            if w1 > 0 and w2 > 0:
+                Q = (2 * w1 * w2) / (w1 + w2)
 
             texto_pre_live = (
                 "🧪 PRÉ-LIVE | IPM RADAR\n\n"
@@ -603,6 +612,7 @@ def capturar_referencia_pre_live():
                 f"🏠 CASA: {controle.get('odd_casa_pre_live')}\n"
                 f"🤝 EMPATE: {controle.get('odd_pre_live')}\n"
                 f"✈️ VISITANTE: {controle.get('odd_visitante_pre_live')}\n"
+                f"📐 Q: {Q:.2f}\n"
                 f"🆔 ID: {jogo.get('id')}"
             )
 
