@@ -641,7 +641,17 @@ def registrar_trajetoria(
     controle,
     resultado
 ):
-   
+
+    ponto = {
+        "minuto": resultado.get(
+            "minuto",
+            0
+        ),
+
+        "ipm": resultado.get(
+            "ipm",
+            0.0
+        ),
 
 # ============================================================
 # REGISTRAR TRAJETÓRIA
