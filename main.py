@@ -672,19 +672,21 @@ def registrar_trajetoria(
 
 def registrar_trajetoria(
     controle,
-    resultado
+    resultado,
 ):
 
+    if not isinstance(controle, dict):
+        return
+
+    if not isinstance(resultado, dict):
+        return
+
     ponto = {
+        "hora": datetime.now().strftime("%H:%M:%S"),
 
         "minuto": resultado.get(
             "minuto",
             0
-        ),
-
-        "ipm": resultado.get(
-            "ipm",
-            0.0
         ),
 
         "odd_casa": resultado.get(
@@ -694,7 +696,10 @@ def registrar_trajetoria(
 
         "odd_empate": resultado.get(
             "odd_empate",
-            0.0
+            resultado.get(
+                "odd_atual",
+                0.0
+            )
         ),
 
         "odd_visitante": resultado.get(
@@ -702,8 +707,8 @@ def registrar_trajetoria(
             0.0
         ),
 
-        "variacao_casa": resultado.get(
-            "variacao_casa",
+        "ipm": resultado.get(
+            "ipm",
             0.0
         ),
 
@@ -712,20 +717,47 @@ def registrar_trajetoria(
             0.0
         ),
 
-        "variacao_visitante": resultado.get(
-            "variacao_visitante",
-            0.0
-        ),
-
         "variacao_pre_live": resultado.get(
             "variacao_pre_live",
             0.0
         ),
 
-        "variacao_ciclo": resultado.get(
-            "variacao_ciclo",
+        "var_10min": resultado.get(
+            "var_10min",
             0.0
         ),
+
+        "sinal_pre_entrada": resultado.get(
+            "sinal_pre_entrada",
+            "NEUTRO"
+        ),
+
+        "odd_45": resultado.get(
+            "odd_45",
+            0.0
+        ),
+
+        "diferenca_45": resultado.get(
+            "diferenca_45",
+            0.0
+        ),
+
+        "gols": resultado.get(
+            "gols",
+            0
+        ),
+    }
+
+    if "trajetoria" not in controle:
+        controle["trajetoria"] = []
+
+    controle["trajetoria"].append(
+        ponto
+    )
+
+    controle["trajetoria"] = (
+        controle["trajetoria"][-100:]
+    )
 
         # ----------------------------------------------------
         # NOVO
