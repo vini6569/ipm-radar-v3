@@ -593,6 +593,157 @@ def capturar_referencia_pre_live():
             )
 
             # ============================================================
+# CAPTURAR REFERÊNCIA PRÉ-LIVE
+# ============================================================
+
+def capturar_referencia_pre_live():
+
+    try:
+
+        jogos = (
+            buscar_jogos_pre_live()
+            or []
+        )
+
+        print(
+            f"PRE-LIVE ENCONTRADOS: {len(jogos)}"
+        )
+
+        if not jogos:
+            return
+
+        odds = (
+            buscar_odds_multiplos(
+                jogos
+            )
+            or []
+        )
+
+        print(
+            f"PRE-LIVE ODDS RECEBIDAS: {len(odds)}"
+        )
+
+        for jogo in jogos:
+
+            if (
+                not isinstance(jogo, dict)
+                or jogo.get("id") is None
+            ):
+                continue
+
+            mercados = (
+                extrair_mercados(
+                    jogo,
+                    odds
+                )
+                or {}
+            )
+
+            try:
+
+                odd_casa = float(
+                    mercados.get(
+                        "odd_casa",
+                        0.0
+                    )
+                    or 0.0
+                )
+
+                odd_draw = float(
+                    mercados.get(
+                        "odd_draw",
+                        0.0
+                    )
+                    or mercados.get(
+                        "odd_empate",
+                        0.0
+                    )
+                    or 0.0
+                )
+
+                odd_visitante = float(
+                    mercados.get(
+                        "odd_visitante",
+                        0.0
+                    )
+                    or 0.0
+                )
+
+            except (
+                TypeError,
+                ValueError
+            ):
+                continue
+
+            if (
+                odd_casa <= 0
+                and odd_draw <= 0
+                and odd_visitante <= 0
+            ):
+
+                print(
+                    "PRE-LIVE SEM ODDS | "
+                    f"{jogo.get('home', '')} x "
+                    f"{jogo.get('away', '')}"
+                )
+
+                continue
+
+            controle = obter_controle(
+                jogo["id"]
+            )
+
+            if (
+                controle.get(
+                    "odd_casa_pre_live"
+                ) is None
+                and odd_casa > 0
+            ):
+
+                controle[
+                    "odd_casa_pre_live"
+                ] = odd_casa
+
+            if (
+                controle.get(
+                    "odd_pre_live"
+                ) is None
+                and 2.50 <= odd_draw <= 3.00
+            ):
+
+                controle[
+                    "odd_pre_live"
+                ] = odd_draw
+
+                controle[
+                    "pre_live_capturada_em"
+                ] = horario_atual().isoformat()
+
+                controle[
+                    "pre_live_fallback"
+                ] = False
+
+            if (
+                controle.get(
+                    "odd_visitante_pre_live"
+                ) is None
+                and odd_visitante > 0
+            ):
+
+                controle[
+                    "odd_visitante_pre_live"
+                ] = odd_visitante
+
+            print(
+                "PRE-LIVE | "
+                f"{jogo.get('home', '')} x "
+                f"{jogo.get('away', '')} | "
+                f"CASA={controle.get('odd_casa_pre_live')} | "
+                f"EMPATE={controle.get('odd_pre_live')} | "
+                f"VISITANTE={controle.get('odd_visitante_pre_live')}"
+            )
+
+            # ============================================================
             # ENVIAR PRÉ-LIVE PARA O TELEGRAM
             # ============================================================
 
@@ -604,15 +755,28 @@ def capturar_referencia_pre_live():
 
                 texto_pre_live = (
                     "📝 PRÉ-LIVE | IPM RADAR\n\n"
-                    f"⚽ {jogo.get('home', '')} x {jogo.get('away', '')}\n"
-                    f"🏠 CASA: {controle.get('odd_casa_pre_live')}\n"
-                    f"🤝 EMPATE: {controle.get('odd_pre_live')}\n"
-                    f"✈️ VISITANTE: {controle.get('odd_visitante_pre_live')}\n"
+                    f"⚽ {jogo.get('home', '')} x "
+                    f"{jogo.get('away', '')}\n"
+                    f"🏠 CASA: "
+                    f"{controle.get('odd_casa_pre_live')}\n"
+                    f"🤝 EMPATE: "
+                    f"{controle.get('odd_pre_live')}\n"
+                    f"✈️ VISITANTE: "
+                    f"{controle.get('odd_visitante_pre_live')}\n"
                     f"🆔 ID: {jogo.get('id', '')}\n"
                 )
 
-                enviar_telegram(texto_pre_live)
-                
+                enviar_telegram(
+                    texto_pre_live
+                )
+
+    except Exception as erro:
+
+        print(
+            "ERRO AO CAPTURAR PRÉ-LIVE:",
+            type(erro).__name__,
+            erro
+        )
         
 # ============================================================
 # REGISTRAR TRAJETÓRIA
