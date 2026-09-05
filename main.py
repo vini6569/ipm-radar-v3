@@ -618,11 +618,7 @@ def capturar_referencia_pre_live():
                 f"🆔 ID: {jogo.get('id', '')}"
                 )
 
-            texto_pre_live = (
-            "📝 PRÉ-LIVE | IPM RADAR\n\n"
-            ...
-            f"🆔 ID: {jogo.get('id', '')}"
-        )
+            
 
         enviar_telegram(texto_pre_live)
 
