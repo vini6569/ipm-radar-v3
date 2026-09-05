@@ -626,20 +626,25 @@ def capturar_referencia_pre_live():
                 f"EMPATE={controle.get('odd_pre_live')} | "
                 f"VISITANTE={controle.get('odd_visitante_pre_live')}"
             )
+                        texto_pre_live = (
+                "📝 PRÉ-LIVE | IPM RADAR\n\n"
+                f"⚽ {jogo.get('home', '')} x "
+                f"{jogo.get('away', '')}\n"
+                f"🏠 CASA: {controle.get('odd_casa_pre_live')}\n"
+                f"🤝 EMPATE: {controle.get('odd_pre_live')}\n"
+                f"✈️ VISITANTE: {controle.get('odd_visitante_pre_live')}\n"
+                f"📐 Q: {Q:.2f}\n"
+                f"🆔 ID: {jogo.get('id', '')}"
+            )
+
+            enviar_telegram(texto_pre_live)
 
     except Exception as erro:
-
         print(
             "ERRO AO CAPTURAR PRÉ-LIVE:",
             type(erro).__name__,
             erro
         )
-
-# ============================================
-# REGISTRAR TRAJETÓRIA
-# ============================================
-
-def registrar_trajetoria(controle, resultado):
 # ============================================================
 # REGISTRAR TRAJETÓRIA
 # ============================================================
