@@ -557,7 +557,7 @@ def capturar_referencia_pre_live():
                 controle.get(
                     "odd_pre_live"
                 ) is None
-                and odd_draw > 0
+                and 2.50 <= odd_draw <= 3.00
             ):
 
                 controle[
