@@ -599,7 +599,7 @@ def capturar_referencia_pre_live():
             if w1 > 0 and w2 > 0:
              Q = (2 * w1 * w2) / (w1 + w2)
 
-             if not (2.50 <= Q <= 3.00):
+             if not (2.5 <= Q <= 3.0):
                  print(
                     "PRÉ-LIVE FORA DO FILTRO Q | "
                 f"{jogo.get('home', '')} x "
