@@ -596,17 +596,17 @@ def capturar_referencia_pre_live():
             # ENVIAR PRÉ-LIVE PARA O TELEGRAM
             # ------------------------------------------------------------
         
-                        if w1 > 0 and w2 > 0:
-            Q = (2 * w1 * w2) / (w1 + w2)
+                            if w1 > 0 and w2 > 0:
+        Q = (2 * w1 * w2) / (w1 + w2)
 
-            if not (2.5 <= Q <= 3.0):
-                print(
-                    "PRÉ-LIVE FORA DO FILTRO Q | "
-                    f"{jogo.get('home', '')} x "
-                    f"{jogo.get('away', '')} | "
-                    f"Q={Q:.2f}"
-                )
-                continue
+        if not (2.5 <= Q <= 3.0):
+            print(
+                "PRÉ-LIVE FORA DO FILTRO Q | "
+                f"{jogo.get('home', '')} x "
+                f"{jogo.get('away', '')} | "
+                f"Q={Q:.2f}"
+            )
+            continue
 
     texto_pre_live = (
         "🧪 PRÉ-LIVE | IPM RADAR\n\n"
