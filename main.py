@@ -618,10 +618,10 @@ def capturar_referencia_pre_live():
                 f"🆔 ID: {jogo.get('id', '')}"
             )
 
-    try:
-                enviar_telegram(texto_pre_live)
-            except Exception as e:
-                print(f"ERRO AO ENVIAR PRÉ-LIVE: {e}")
+        try:
+               enviar_telegram(texto_pre_live)
+        except Exception as e:
+                            print(f"ERRO AO ENVIAR PRÉ-LIVE: {e}")
 # ============================================================
 # REGISTRAR TRAJETÓRIA
 # ============================================================
