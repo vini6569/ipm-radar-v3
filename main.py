@@ -618,11 +618,22 @@ def capturar_referencia_pre_live():
                 f"🆔 ID: {jogo.get('id', '')}"
                 )
 
-        texto_pre_live = (
-        ...
-    )
+                        print(
+                "PRE-LIVE | "
+                f"{jogo.get('home', '')} x "
+                f"{jogo.get('away', '')} | "
+                f"CASA={controle.get('odd_casa_pre_live')} | "
+                f"EMPATE={controle.get('odd_pre_live')} | "
+                f"VISITANTE={controle.get('odd_visitante_pre_live')}"
+            )
 
-    enviar_telegram(texto_pre_live)
+    except Exception as erro:
+
+        print(
+            "ERRO AO CAPTURAR PRÉ-LIVE:",
+            type(erro).__name__,
+            erro
+        )
 
 # ============================================
 # REGISTRAR TRAJETÓRIA
