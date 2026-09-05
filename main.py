@@ -654,14 +654,7 @@ def registrar_trajetoria(
             0.0
         ),
 
-        "ipm": resultado.get(
-            "ipm",
-            0.0
-        ),
-
-    
-
-
+        
 
 # ============================================================
 # REGISTRAR TRAJETÓRIA
