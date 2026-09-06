@@ -54,7 +54,7 @@ PRE_LIVE_JANELA_MINUTOS = max(
 Q_MIN = float(
     os.getenv(
         "Q_PRE_LIVE_MINIMO",
-        "2.50",
+        "2.30",
     )
 )
 
