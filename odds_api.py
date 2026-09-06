@@ -356,7 +356,7 @@ def buscar_jogos_pre_live():
 
     limite = (
         agora.timestamp()
-        + PRE_LIVE_JANELA_MINUTOS * 180
+        + PRE_LIVE_JANELA_MINUTOS * 60
     )
 
     proximos = []
