@@ -649,42 +649,33 @@ def capturar_referencia_pre_live():
             erro
         )
 
-            # ============================================================
-            # ENVIAR PRÉ-LIVE PARA O TELEGRAM
-            # ============================================================
+# ============================================================
+# ENVIAR PRÉ-LIVE PARA O TELEGRAM
+# ============================================================
 
-            if (
-                controle.get("odd_casa_pre_live") is not None
-                and controle.get("odd_pre_live") is not None
-                and controle.get("odd_visitante_pre_live") is not None
-            ):
+if (
+    controle.get("odd_casa_pre_live") is not None
+    and controle.get("odd_visitante_pre_live") is not None
+    and controle.get("q_pre_live") is not None
+):
 
-                texto_pre_live = (
-                    "📝 PRÉ-LIVE | IPM RADAR\n\n"
-                    f"⚽ {jogo.get('home', '')} x "
-                    f"{jogo.get('away', '')}\n"
-                    f"🏠 CASA: "
-                    f"{controle.get('odd_casa_pre_live')}\n"
-                    f"🤝 EMPATE: "
-                    f"{controle.get('odd_pre_live')}\n"
-                    f"✈️ VISITANTE: "
-                    f"{controle.get('odd_visitante_pre_live')}\n"
-                    f"📐 Q: {Q:.2f}\n"
-                    f"🆔 ID: {jogo.get('id', '')}\n"
-                )
+    texto_pre_live = (
+        "📝 PRÉ-LIVE | IPM RADAR\n\n"
+        f"⚽ {jogo.get('home', '')} x "
+        f"{jogo.get('away', '')}\n"
+        f"🏠 CASA: "
+        f"{controle.get('odd_casa_pre_live')}\n"
+        f"✈️ VISITANTE: "
+        f"{controle.get('odd_visitante_pre_live')}\n"
+        f"📐 Q: "
+        f"{controle.get('q_pre_live'):.2f}\n"
+        f"🆔 ID: {jogo.get('id', '')}\n"
+    )
 
-                enviar_telegram(
-                    texto_pre_live
-                )
-
-    except Exception as erro:
-
-        print(
-            "ERRO AO CAPTURAR PRÉ-LIVE:",
-            type(erro).__name__,
-            erro
-        )
-
+    enviar_telegram(
+        texto_pre_live
+    )
+               
   
 # ============================================================
 # REGISTRAR TRAJETÓRIA
