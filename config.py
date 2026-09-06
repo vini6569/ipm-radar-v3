@@ -151,6 +151,24 @@ PRE_LIVE_JANELA_MINUTOS = int(
     )
 )
 
+# ============================================================
+# Q PRÉ-LIVE — AJUSTÁVEL
+# ============================================================
+
+Q_MIN = float(
+    os.getenv(
+        "Q_MIN",
+        "2.50",
+    )
+)
+
+Q_MAX = float(
+    os.getenv(
+        "Q_MAX",
+        "3.00",
+    )
+)
+
 FUSO_HORARIO = ZoneInfo(
     os.getenv(
         "FUSO_HORARIO",
@@ -195,4 +213,5 @@ def horario_ativo():
     return (
         agora >= HORA_INICIO
         or agora < HORA_FIM
-)
+    )
+    
