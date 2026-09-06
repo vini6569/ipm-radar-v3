@@ -552,54 +552,7 @@ def capturar_referencia_pre_live():
                 controle[
                     "odd_casa_pre_live"
                 ] = odd_casa
-
-            if (
-                controle.get(
-                    "odd_pre_live"
-                ) is None
-                and 2.50 <= odd_draw <= 3.00
-            ):
-
-                controle[
-                    "odd_pre_live"
-                ] = odd_draw
-
-                controle[
-                    "pre_live_capturada_em"
-                ] = horario_atual().isoformat()
-
-                controle[
-                    "pre_live_fallback"
-                ] = False
-
-            if (
-                controle.get(
-                    "odd_visitante_pre_live"
-                ) is None
-                and odd_visitante > 0
-            ):
-
-                controle[
-                    "odd_visitante_pre_live"
-                ] = odd_visitante
-
-            print(
-                "PRE-LIVE | "
-                f"{jogo.get('home', '')} x "
-                f"{jogo.get('away', '')} | "
-                f"CASA={controle.get('odd_casa_pre_live')} | "
-                f"EMPATE={controle.get('odd_pre_live')} | "
-                f"VISITANTE={controle.get('odd_visitante_pre_live')}"
-            )
-               
-
-    except Exception as erro:
-
-        print(
-            "ERRO AO PROCESSAR JOGOS:",
-            type(erro).__name__,
-            erro
-        )         
+      
 
 # ============================================================
 # CAPTURAR REFERÊNCIA PRÉ-LIVE
