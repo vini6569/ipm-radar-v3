@@ -542,18 +542,6 @@ def capturar_referencia_pre_live():
                 jogo["id"]
             )
 
-            if (
-                controle.get(
-                    "odd_casa_pre_live"
-                ) is None
-                and odd_casa > 0
-            ):
-
-                controle[
-                    "odd_casa_pre_live"
-                ] = odd_casa
-      
-
 # ============================================================
 # CAPTURAR REFERÊNCIA PRÉ-LIVE
 # ============================================================
@@ -668,22 +656,163 @@ def capturar_referencia_pre_live():
 
             if (
                 controle.get(
-                    "odd_pre_live"
+# ============================================================
+# CAPTURAR REFERÊNCIA PRÉ-LIVE
+# ============================================================
+
+def capturar_referencia_pre_live():
+
+    try:
+
+        jogos = (
+            buscar_jogos_pre_live()
+            or []
+        )
+
+        print(
+            f"PRE-LIVE ENCONTRADOS: {len(jogos)}"
+        )
+
+        if not jogos:
+            return
+
+        odds = (
+            buscar_odds_multiplos(
+                jogos
+            )
+            or []
+        )
+
+        print(
+            f"PRE-LIVE ODDS RECEBIDAS: {len(odds)}"
+        )
+
+        for jogo in jogos:
+
+            if (
+                not isinstance(
+                    jogo,
+                    dict
+                )
+                or jogo.get("id") is None
+            ):
+                continue
+
+            mercados = (
+                extrair_mercados(
+                    jogo,
+                    odds
+                )
+                or {}
+            )
+
+            try:
+
+                odd_casa = float(
+                    mercados.get(
+                        "odd_casa",
+                        0.0
+                    )
+                    or 0.0
+                )
+
+                odd_draw = float(
+                    mercados.get(
+                        "odd_draw",
+                        0.0
+                    )
+                    or mercados.get(
+                        "odd_empate",
+                        0.0
+                    )
+                    or 0.0
+                )
+
+                odd_visitante = float(
+                    mercados.get(
+                        "odd_visitante",
+                        0.0
+                    )
+                    or 0.0
+                )
+
+            except (
+                TypeError,
+                ValueError
+            ):
+                continue
+
+            if (
+                odd_casa <= 0
+                and odd_visitante <= 0
+            ):
+
+                print(
+                    "PRE-LIVE SEM ODDS | "
+                    f"{jogo.get('home', '')} x "
+                    f"{jogo.get('away', '')}"
+                )
+
+                continue
+
+            # ========================================================
+            # CÁLCULO DO Q
+            # ========================================================
+
+            Q = 0.0
+
+            if (
+                odd_casa > 0
+                and odd_visitante > 0
+            ):
+
+                Q = (
+                    2
+                    * odd_casa
+                    * odd_visitante
+                ) / (
+                    odd_casa
+                    + odd_visitante
+                )
+
+            # ========================================================
+            # FILTRO DO Q
+            # SOMENTE 2.50 ATÉ 3.00
+            # ========================================================
+
+            if not (
+                2.50 <= Q <= 3.00
+            ):
+
+                print(
+                    "PRE-LIVE FORA DO FILTRO | "
+                    f"{jogo.get('home', '')} x "
+                    f"{jogo.get('away', '')} | "
+                    f"CASA={odd_casa:.3f} | "
+                    f"VISITANTE={odd_visitante:.3f} | "
+                    f"Q={Q:.2f}"
+                )
+
+                continue
+
+            controle = obter_controle(
+                jogo["id"]
+            )
+
+            # ========================================================
+            # SALVAR ODDS DE CASA E VISITANTE
+            # ========================================================
+
+            if (
+                controle.get(
+                    "odd_casa_pre_live"
                 ) is None
-                and 2.50 <= odd_draw <= 3.00
+                and odd_casa > 0
             ):
 
                 controle[
-                    "odd_pre_live"
-                ] = odd_draw
-
-                controle[
-                    "pre_live_capturada_em"
-                ] = horario_atual().isoformat()
-
-                controle[
-                    "pre_live_fallback"
-                ] = False
+                    "odd_casa_pre_live"
+                ] = odd_casa
 
             if (
                 controle.get(
@@ -696,14 +825,48 @@ def capturar_referencia_pre_live():
                     "odd_visitante_pre_live"
                 ] = odd_visitante
 
+            # ========================================================
+            # SALVAR Q COMO REFERÊNCIA PRÉ-LIVE
+            # ========================================================
+
+            if (
+                controle.get(
+                    "odd_pre_live"
+                ) is None
+            ):
+
+                controle[
+                    "odd_pre_live"
+                ] = Q
+
+                controle[
+                    "pre_live_capturada_em"
+                ] = horario_atual().isoformat()
+
+                controle[
+                    "pre_live_fallback"
+                ] = False
+
+            # ========================================================
+            # LOG PRÉ-LIVE
+            # ========================================================
+
             print(
                 "PRE-LIVE | "
                 f"{jogo.get('home', '')} x "
                 f"{jogo.get('away', '')} | "
                 f"CASA={controle.get('odd_casa_pre_live')} | "
-                f"EMPATE={controle.get('odd_pre_live')} | "
-                f"VISITANTE={controle.get('odd_visitante_pre_live')}"
+                f"VISITANTE={controle.get('odd_visitante_pre_live')} | "
+                f"Q={controle.get('odd_pre_live'):.2f}"
             )
+
+    except Exception as erro:
+
+        print(
+            "ERRO AO PROCESSAR JOGOS:",
+            type(erro).__name__,
+            erro
+        )
 
             # ============================================================
             # ENVIAR PRÉ-LIVE PARA O TELEGRAM
