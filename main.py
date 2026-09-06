@@ -863,6 +863,10 @@ def registrar_trajetoria(controle, resultado):
     controle["trajetoria"] = (
         controle["trajetoria"][-100:]
     )
+    trajetoria = controle.get(
+    "trajetoria",
+    []
+    )
 
     # --------------------------------------------------------
     # Se já existe registro do mesmo minuto,
