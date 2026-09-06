@@ -18,7 +18,6 @@ import os
 import time
 
 from config import (
-    horario_atual,
     horario_ativo,
 )
 
@@ -66,153 +65,16 @@ Q_MAX = float(
     )
 )
 
+# Telegram aceita mensagens de até 4096 caracteres.
+# Usamos uma margem para evitar rejeição.
+TELEGRAM_MAX_CARACTERES = 3800
+
 
 # ============================================================
 # MEMÓRIA
 # ============================================================
 
 ULTIMA_LISTA = None
-
-
-# ============================================================
-# FORMATAR TELEGRAM
-# ============================================================
-
-def montar_mensagem(resultados):
-
-    linhas = [
-        "🧪 PRÉ-LIVE — IPM RADAR",
-        "",
-        (
-            f"⏱️ Janela: agora → "
-            f"+{PRE_LIVE_JANELA_MINUTOS} min"
-        ),
-        (
-            f"📐 Q: {Q_MIN:.2f} até "
-            f"{Q_MAX:.2f}"
-        ),
-        "",
-    ]
-
-    ultimo_dia = None
-
-    for jogo in resultados:
-
-        data = jogo.get(
-            "data",
-            "",
-        )
-
-        if data != ultimo_dia:
-
-            if ultimo_dia is not None:
-                linhas.append("")
-
-            linhas.append(
-                f"📅 {data}"
-            )
-
-            ultimo_dia = data
-
-        casa = jogo.get(
-            "casa",
-            "Casa",
-        )
-
-        fora = jogo.get(
-            "fora",
-            "Fora",
-        )
-
-        horario = jogo.get(
-            "horario",
-            "--:--",
-        )
-
-        odd_casa = float(
-            jogo.get(
-                "odd_casa",
-                0,
-            )
-            or 0
-        )
-
-        odd_empate = float(
-            jogo.get(
-                "odd_empate",
-                0,
-            )
-            or 0
-        )
-
-        odd_visitante = float(
-            jogo.get(
-                "odd_visitante",
-                0,
-            )
-            or 0
-        )
-
-        q = float(
-            jogo.get(
-                "odd_pre_live",
-                0,
-            )
-            or 0
-        )
-
-        prob_x = float(
-            jogo.get(
-                "probabilidade_x",
-                0,
-            )
-            or 0
-        )
-
-        prob_norm = float(
-            jogo.get(
-                "probabilidade_x_normalizada",
-                0,
-            )
-            or 0
-        )
-
-        linhas.extend(
-            [
-                "",
-                (
-                    f"⚽ {horario} | "
-                    f"{casa} x {fora}"
-                ),
-                (
-                    f"🏠 {odd_casa:.2f} | "
-                    f"🤝 X {odd_empate:.2f} | "
-                    f"🚌 {odd_visitante:.2f}"
-                ),
-                f"📐 Q: {q:.2f}",
-                f"📊 P(X): {prob_x:.2f}%",
-                (
-                    f"📊 P(X) normalizada: "
-                    f"{prob_norm:.2f}%"
-                ),
-            ]
-        )
-
-    linhas.extend(
-        [
-            "",
-            (
-                "🤖 IPM-RADAR | "
-                "OBSERVAÇÃO PRÉ-LIVE"
-            ),
-            (
-                "⚠️ Informação estatística — "
-                "não realiza apostas automaticamente."
-            ),
-        ]
-    )
-
-    return "\n".join(linhas)
 
 
 # ============================================================
@@ -229,7 +91,7 @@ def filtrar_por_q(resultados):
             q = float(
                 jogo.get(
                     "odd_pre_live",
-                    0,
+                    jogo.get("q", 0),
                 )
                 or 0
             )
@@ -244,6 +106,219 @@ def filtrar_por_q(resultados):
             aprovados.append(jogo)
 
     return aprovados
+
+
+# ============================================================
+# FORMATAR UM JOGO
+# ============================================================
+
+def formatar_jogo(jogo):
+
+    data = jogo.get(
+        "data",
+        "",
+    )
+
+    casa = jogo.get(
+        "casa",
+        "Casa",
+    )
+
+    fora = jogo.get(
+        "fora",
+        "Fora",
+    )
+
+    horario = jogo.get(
+        "horario",
+        "--:--",
+    )
+
+    odd_casa = float(
+        jogo.get(
+            "odd_casa",
+            0,
+        )
+        or 0
+    )
+
+    odd_empate = float(
+        jogo.get(
+            "odd_empate",
+            0,
+        )
+        or 0
+    )
+
+    odd_visitante = float(
+        jogo.get(
+            "odd_visitante",
+            0,
+        )
+        or 0
+    )
+
+    q = float(
+        jogo.get(
+            "odd_pre_live",
+            jogo.get("q", 0),
+        )
+        or 0
+    )
+
+    prob_x = float(
+        jogo.get(
+            "probabilidade_x",
+            0,
+        )
+        or 0
+    )
+
+    prob_norm = float(
+        jogo.get(
+            "probabilidade_x_normalizada",
+            0,
+        )
+        or 0
+    )
+
+    return [
+        data,
+        "",
+        (
+            f"⚽ {horario} | "
+            f"{casa} x {fora}"
+        ),
+        (
+            f"🏠 {odd_casa:.2f} | "
+            f"🤝 X {odd_empate:.2f} | "
+            f"🚌 {odd_visitante:.2f}"
+        ),
+        f"📐 Q: {q:.2f}",
+        f"📊 P(X): {prob_x:.2f}%",
+        (
+            f"📊 P(X) normalizada: "
+            f"{prob_norm:.2f}%"
+        ),
+    ]
+
+
+# ============================================================
+# MONTAR CABEÇALHO
+# ============================================================
+
+def cabecalho_mensagem():
+
+    return [
+        "🧪 PRÉ-LIVE — IPM RADAR",
+        "",
+        (
+            f"⏱️ Janela: agora → "
+            f"+{PRE_LIVE_JANELA_MINUTOS} min"
+        ),
+        (
+            f"📐 Q: {Q_MIN:.2f} até "
+            f"{Q_MAX:.2f}"
+        ),
+        "",
+    ]
+
+
+# ============================================================
+# MONTAR RODAPÉ
+# ============================================================
+
+def rodape_mensagem():
+
+    return [
+        "",
+        "────────────────────",
+        (
+            "🤖 IPM-RADAR | "
+            "OBSERVAÇÃO PRÉ-LIVE"
+        ),
+        (
+            "⚠️ Informação estatística — "
+            "não realiza apostas automaticamente."
+        ),
+    ]
+
+
+# ============================================================
+# DIVIDIR LISTA EM MENSAGENS
+# ============================================================
+
+def montar_mensagens(resultados):
+
+    mensagens = []
+
+    linhas = cabecalho_mensagem()
+    ultimo_dia = None
+
+    for jogo in resultados:
+
+        bloco = formatar_jogo(jogo)
+        data = bloco[0]
+
+        if data != ultimo_dia:
+
+            if ultimo_dia is not None:
+                linhas.append("")
+
+            linhas.append(
+                f"📅 {data}"
+            )
+
+            ultimo_dia = data
+
+        linhas_jogo = bloco[1:]
+
+        candidato = "\n".join(
+            linhas + linhas_jogo
+        )
+
+        if (
+            len(candidato)
+            + 250
+            > TELEGRAM_MAX_CARACTERES
+            and len(linhas) > len(
+                cabecalho_mensagem()
+            )
+        ):
+
+            linhas.extend(
+                rodape_mensagem()
+            )
+
+            mensagens.append(
+                "\n".join(linhas)
+            )
+
+            linhas = (
+                cabecalho_mensagem()
+                + [f"📅 {data}"]
+                + linhas_jogo
+            )
+
+        else:
+
+            linhas.extend(
+                linhas_jogo
+            )
+
+    if len(linhas) > len(
+        cabecalho_mensagem()
+    ):
+
+        linhas.extend(
+            rodape_mensagem()
+        )
+
+        mensagens.append(
+            "\n".join(linhas)
+        )
+
+    return mensagens
 
 
 # ============================================================
@@ -301,18 +376,15 @@ def executar_pre_live():
 
         return
 
-    mensagem = montar_mensagem(
-        aprovados
-    )
-
-    # Evita repetir exatamente a mesma lista
-    # em todos os ciclos de 5 minutos.
     global ULTIMA_LISTA
 
     assinatura = tuple(
         (
             jogo.get("event_id"),
-            jogo.get("odd_pre_live"),
+            jogo.get(
+                "odd_pre_live",
+                jogo.get("q"),
+            ),
             jogo.get("odd_empate"),
         )
         for jogo in aprovados
@@ -327,18 +399,50 @@ def executar_pre_live():
 
         return
 
-    sucesso = enviar_mensagem(
-        mensagem
+    mensagens = montar_mensagens(
+        aprovados
     )
 
-    if sucesso:
-        ULTIMA_LISTA = assinatura
+    print(
+        "MENSAGENS TELEGRAM A ENVIAR:",
+        len(mensagens),
+    )
+
+    enviados = 0
+
+    for numero, mensagem in enumerate(
+        mensagens,
+        start=1,
+    ):
+
         print(
-            "✅ LISTA PRÉ-LIVE ENVIADA."
+            f"ENVIANDO TELEGRAM "
+            f"{numero}/{len(mensagens)} | "
+            f"{len(mensagem)} caracteres"
         )
-    else:
+
+        sucesso = enviar_mensagem(
+            mensagem
+        )
+
+        if not sucesso:
+
+            print(
+                f"❌ FALHA NA MENSAGEM "
+                f"{numero}/{len(mensagens)}."
+            )
+
+            return
+
+        enviados += 1
+
+    if enviados == len(mensagens):
+
+        ULTIMA_LISTA = assinatura
+
         print(
-            "❌ FALHA NO ENVIO DA PRÉ-LIVE."
+            "✅ LISTA PRÉ-LIVE ENVIADA "
+            "COMPLETAMENTE."
         )
 
 
