@@ -1,37 +1,26 @@
 # ============================================================
-# MAIN - IPM RADAR | PRÉ-LIVE REDUZIDO
-# ============================================================
-#
-# Objetivo:
-#   - Trabalhar somente a PRÉ-LIVE por enquanto.
-#   - Janela mínima: 180 minutos.
-#   - Janela configurável para cima.
-#   - Q configurável.
-#   - Consulta a cada 300 segundos.
-#   - Envia a lista aprovada para o Telegram.
-#
-# O IPM LIVE fica preservado nos demais módulos/projeto.
-# Este arquivo não gera entrada e não realiza apostas.
+# MAIN - IPM RADAR | PRÉ-LIVE + MONITORAMENTO
 # ============================================================
 
 import os
 import time
+from datetime import datetime, timezone
 
-from config import (
-    horario_ativo,
+from config import horario_ativo
+
+from scanner_pre_live import escanear_pre_live
+
+from odds_api import (
+    buscar_jogos_ao_vivo_por_ids,
+    buscar_odds_multiplos,
+    extrair_mercados,
 )
 
-from scanner_pre_live import (
-    escanear_pre_live,
-)
-
-from telegram import (
-    enviar_mensagem,
-)
+from telegram import enviar_mensagem
 
 
 # ============================================================
-# CONFIGURAÇÕES AJUSTÁVEIS
+# CONFIGURAÇÕES
 # ============================================================
 
 INTERVALO_RADAR = int(
@@ -39,16 +28,6 @@ INTERVALO_RADAR = int(
         "INTERVALO_RADAR",
         "300",
     )
-)
-
-PRE_LIVE_JANELA_MINUTOS = max(
-    180,
-    int(
-        os.getenv(
-            "PRE_LIVE_JANELA_MINUTOS",
-            "180",
-        )
-    ),
 )
 
 Q_MIN = float(
@@ -65,8 +44,17 @@ Q_MAX = float(
     )
 )
 
-# Telegram aceita mensagens de até 4096 caracteres.
-# Usamos uma margem para evitar rejeição.
+VARIACAO_MINIMA = float(
+    os.getenv(
+        "PRE_ENTRADA_VARIACAO",
+        "20.0",
+    )
+)
+
+JANELA_VARIACAO_MINUTOS = 10
+
+CONFIRMACAO_MINUTOS = 5
+
 TELEGRAM_MAX_CARACTERES = 3800
 
 
@@ -75,6 +63,10 @@ TELEGRAM_MAX_CARACTERES = 3800
 # ============================================================
 
 ULTIMA_LISTA = None
+
+JOGOS_MONITORADOS = {}
+
+SINAIS_PRE_ENTRADA = {}
 
 
 # ============================================================
@@ -88,6 +80,7 @@ def filtrar_por_q(resultados):
     for jogo in resultados:
 
         try:
+
             q = float(
                 jogo.get(
                     "odd_pre_live",
@@ -96,10 +89,8 @@ def filtrar_por_q(resultados):
                 or 0
             )
 
-        except (
-            TypeError,
-            ValueError,
-        ):
+        except (TypeError, ValueError):
+
             continue
 
         if Q_MIN <= q <= Q_MAX:
@@ -109,216 +100,461 @@ def filtrar_por_q(resultados):
 
 
 # ============================================================
-# FORMATAR UM JOGO
+# REGISTRAR JOGOS PRÉ-LIVE
 # ============================================================
 
-def formatar_jogo(jogo):
+def registrar_jogos_monitorados(jogos):
 
-    data = jogo.get(
-        "data",
-        "",
+    agora = time.time()
+
+    for jogo in jogos:
+
+        event_id = jogo.get("event_id")
+
+        if event_id is None:
+            continue
+
+        event_id = str(event_id)
+
+        if event_id not in JOGOS_MONITORADOS:
+
+            JOGOS_MONITORADOS[event_id] = {
+                "event_id": event_id,
+                "casa": jogo.get(
+                    "casa",
+                    "Casa",
+                ),
+                "fora": jogo.get(
+                    "fora",
+                    "Fora",
+                ),
+                "q": float(
+                    jogo.get(
+                        "q",
+                        0,
+                    )
+                    or 0
+                ),
+                "odd_pre_live": float(
+                    jogo.get(
+                        "odd_empate",
+                        0,
+                    )
+                    or 0
+                ),
+                "criado_em": agora,
+                "historico": [],
+                "primeiro_sinal": None,
+                "confirmado": False,
+            }
+
+
+# ============================================================
+# REGISTRAR ODD X
+# ============================================================
+
+def registrar_odd_x(event_id, odd_x):
+
+    if odd_x <= 0:
+        return
+
+    jogo = JOGOS_MONITORADOS.get(
+        str(event_id)
     )
 
-    casa = jogo.get(
-        "casa",
-        "Casa",
+    if not jogo:
+        return
+
+    agora = time.time()
+
+    jogo["historico"].append(
+        {
+            "timestamp": agora,
+            "odd_x": odd_x,
+        }
     )
 
-    fora = jogo.get(
-        "fora",
-        "Fora",
-    )
-
-    horario = jogo.get(
-        "horario",
-        "--:--",
-    )
-
-    odd_casa = float(
-        jogo.get(
-            "odd_casa",
-            0,
+    limite = (
+        agora
+        - (
+            JANELA_VARIACAO_MINUTOS
+            * 60
         )
-        or 0
     )
 
-    odd_empate = float(
-        jogo.get(
-            "odd_empate",
-            0,
-        )
-        or 0
-    )
-
-    odd_visitante = float(
-        jogo.get(
-            "odd_visitante",
-            0,
-        )
-        or 0
-    )
-
-    q = float(
-        jogo.get(
-            "odd_pre_live",
-            jogo.get("q", 0),
-        )
-        or 0
-    )
-
-    prob_x = float(
-        jogo.get(
-            "probabilidade_x",
-            0,
-        )
-        or 0
-    )
-
-    prob_norm = float(
-        jogo.get(
-            "probabilidade_x_normalizada",
-            0,
-        )
-        or 0
-    )
-
-    return [
-        data,
-        "",
-        (
-            f"⚽ {horario} | "
-            f"{casa} x {fora}"
-        ),
-        (
-            f"🏠 {odd_casa:.2f} | "
-            f"🤝 X {odd_empate:.2f} | "
-            f"🚌 {odd_visitante:.2f}"
-        ),
-        f"📐 Q: {q:.2f}",
-        f"📊 P(X): {prob_x:.2f}%",
-        (
-            f"📊 P(X) normalizada: "
-            f"{prob_norm:.2f}%"
-        ),
+    jogo["historico"] = [
+        ponto
+        for ponto in jogo["historico"]
+        if ponto["timestamp"] >= limite
     ]
 
 
 # ============================================================
-# MONTAR CABEÇALHO
+# ENCONTRAR ODD DE 10 MINUTOS
 # ============================================================
 
-def cabecalho_mensagem():
+def obter_odd_base_10_min(event_id):
 
-    return [
-        "🧪 PRÉ-LIVE — IPM RADAR",
-        "",
-        (
-            f"⏱️ Janela: agora → "
-            f"+{PRE_LIVE_JANELA_MINUTOS} min"
-        ),
-        (
-            f"📐 Q: {Q_MIN:.2f} até "
-            f"{Q_MAX:.2f}"
-        ),
-        "",
-    ]
+    jogo = JOGOS_MONITORADOS.get(
+        str(event_id)
+    )
 
+    if not jogo:
+        return 0.0
 
-# ============================================================
-# MONTAR RODAPÉ
-# ============================================================
+    historico = jogo.get(
+        "historico",
+        [],
+    )
 
-def rodape_mensagem():
+    if len(historico) < 2:
+        return 0.0
 
-    return [
-        "",
-        "────────────────────",
-        (
-            "🤖 IPM-RADAR | "
-            "OBSERVAÇÃO PRÉ-LIVE"
-        ),
-        (
-            "⚠️ Informação estatística — "
-            "não realiza apostas automaticamente."
-        ),
-    ]
+    agora = time.time()
 
+    alvo = (
+        agora
+        - (
+            JANELA_VARIACAO_MINUTOS
+            * 60
+        )
+    )
 
-# ============================================================
-# DIVIDIR LISTA EM MENSAGENS
-# ============================================================
+    melhor = None
 
-def montar_mensagens(resultados):
+    for ponto in historico:
 
-    mensagens = []
-
-    linhas = cabecalho_mensagem()
-    ultimo_dia = None
-
-    for jogo in resultados:
-
-        bloco = formatar_jogo(jogo)
-        data = bloco[0]
-
-        if data != ultimo_dia:
-
-            if ultimo_dia is not None:
-                linhas.append("")
-
-            linhas.append(
-                f"📅 {data}"
-            )
-
-            ultimo_dia = data
-
-        linhas_jogo = bloco[1:]
-
-        candidato = "\n".join(
-            linhas + linhas_jogo
+        distancia = abs(
+            ponto["timestamp"]
+            - alvo
         )
 
-        if (
-            len(candidato)
-            + 250
-            > TELEGRAM_MAX_CARACTERES
-            and len(linhas) > len(
-                cabecalho_mensagem()
-            )
-        ):
-
-            linhas.extend(
-                rodape_mensagem()
+        if melhor is None:
+            melhor = (
+                distancia,
+                ponto,
             )
 
-            mensagens.append(
-                "\n".join(linhas)
+        elif distancia < melhor[0]:
+            melhor = (
+                distancia,
+                ponto,
             )
 
-            linhas = (
-                cabecalho_mensagem()
-                + [f"📅 {data}"]
-                + linhas_jogo
-            )
+    if melhor is None:
+        return 0.0
 
-        else:
+    return float(
+        melhor[1]["odd_x"]
+    )
 
-            linhas.extend(
-                linhas_jogo
-            )
 
-    if len(linhas) > len(
-        cabecalho_mensagem()
+# ============================================================
+# CALCULAR VARIAÇÃO
+# ============================================================
+
+def calcular_variacao(
+    odd_base,
+    odd_atual,
+):
+
+    if (
+        odd_base <= 0
+        or odd_atual <= 0
     ):
+        return 0.0
 
-        linhas.extend(
-            rodape_mensagem()
+    return (
+        (
+            odd_atual
+            - odd_base
+        )
+        / odd_base
+    ) * 100.0
+
+
+# ============================================================
+# DIREÇÃO
+# ============================================================
+
+def identificar_direcao(
+    variacao,
+):
+
+    if variacao >= VARIACAO_MINIMA:
+        return "POSITIVO"
+
+    if variacao <= -VARIACAO_MINIMA:
+        return "NEGATIVO"
+
+    return None
+
+
+# ============================================================
+# PRIMEIRO SINAL
+# ============================================================
+
+def verificar_primeiro_sinal(
+    event_id,
+    minuto,
+    odd_x,
+):
+
+    jogo = JOGOS_MONITORADOS.get(
+        str(event_id)
+    )
+
+    if not jogo:
+        return
+
+    if jogo["primeiro_sinal"] is not None:
+        return
+
+    odd_base = obter_odd_base_10_min(
+        event_id
+    )
+
+    if odd_base <= 0:
+        return
+
+    variacao = calcular_variacao(
+        odd_base,
+        odd_x,
+    )
+
+    direcao = identificar_direcao(
+        variacao
+    )
+
+    if direcao is None:
+        return
+
+    jogo["primeiro_sinal"] = {
+        "timestamp": time.time(),
+        "minuto": minuto,
+        "odd_base": odd_base,
+        "odd_x": odd_x,
+        "variacao": variacao,
+        "direcao": direcao,
+    }
+
+    print(
+        "🚨 PRIMEIRO SINAL | "
+        f"{jogo['casa']} x "
+        f"{jogo['fora']} | "
+        f"{direcao} | "
+        f"{variacao:+.2f}%"
+    )
+
+
+# ============================================================
+# CONFIRMAÇÃO APÓS 5 MINUTOS
+# ============================================================
+
+def verificar_confirmacao(
+    event_id,
+    minuto,
+    odd_x,
+):
+
+    jogo = JOGOS_MONITORADOS.get(
+        str(event_id)
+    )
+
+    if not jogo:
+        return None
+
+    sinal = jogo.get(
+        "primeiro_sinal"
+    )
+
+    if not sinal:
+        return None
+
+    if jogo.get("confirmado"):
+        return None
+
+    agora = time.time()
+
+    passado = (
+        agora
+        - sinal["timestamp"]
+    )
+
+    if passado < (
+        CONFIRMACAO_MINUTOS * 60
+    ):
+        return None
+
+    variacao = calcular_variacao(
+        sinal["odd_base"],
+        odd_x,
+    )
+
+    direcao_atual = identificar_direcao(
+        variacao
+    )
+
+    if direcao_atual != sinal["direcao"]:
+
+        print(
+            "❌ SINAL NÃO CONFIRMADO | "
+            f"{jogo['casa']} x "
+            f"{jogo['fora']} | "
+            f"direção mudou."
         )
 
-        mensagens.append(
-            "\n".join(linhas)
+        jogo["primeiro_sinal"] = None
+
+        return None
+
+    jogo["confirmado"] = True
+
+    resultado = {
+        "event_id": event_id,
+        "casa": jogo["casa"],
+        "fora": jogo["fora"],
+        "minuto": minuto,
+        "direcao": direcao_atual,
+        "variacao_inicial": sinal[
+            "variacao"
+        ],
+        "variacao_confirmada": variacao,
+        "odd_x": odd_x,
+    }
+
+    print(
+        "🚨 PRÉ-ENTRADA CONFIRMADA | "
+        f"{jogo['casa']} x "
+        f"{jogo['fora']} | "
+        f"{direcao_atual}"
+    )
+
+    return resultado
+
+
+# ============================================================
+# PROCESSAR LIVE
+# ============================================================
+
+def processar_live():
+
+    ids = list(
+        JOGOS_MONITORADOS.keys()
+    )
+
+    if not ids:
+        return
+
+    jogos_live = (
+        buscar_jogos_ao_vivo_por_ids(
+            ids
+        )
+        or []
+    )
+
+    if not jogos_live:
+        return
+
+    odds = (
+        buscar_odds_multiplos(
+            jogos_live
+        )
+        or []
+    )
+
+    for jogo in jogos_live:
+
+        event_id = jogo.get("id")
+
+        if event_id is None:
+            continue
+
+        mercados = (
+            extrair_mercados(
+                jogo,
+                odds,
+            )
+            or {}
         )
 
-    return mensagens
+        odd_x = float(
+            mercados.get(
+                "odd_empate",
+                0,
+            )
+            or 0
+        )
+
+        if odd_x <= 0:
+            continue
+
+        minuto = int(
+            mercados.get(
+                "minuto",
+                0,
+            )
+            or 0
+        )
+
+        registrar_odd_x(
+            event_id,
+            odd_x
+        )
+
+        verificar_primeiro_sinal(
+            event_id,
+            minuto,
+            odd_x,
+        )
+
+        confirmacao = (
+            verificar_confirmacao(
+                event_id,
+                minuto,
+                odd_x,
+            )
+        )
+
+        if confirmacao:
+
+            enviar_mensagem(
+                formatar_pre_entrada(
+                    confirmacao
+                )
+            )
+
+
+# ============================================================
+# MENSAGEM DA PRÉ-ENTRADA
+# ============================================================
+
+def formatar_pre_entrada(
+    dados
+):
+
+    return (
+        "🚨 PRÉ-ENTRADA CONFIRMADA\n"
+        "\n"
+        f"⚽ {dados['casa']} x "
+        f"{dados['fora']}\n"
+        f"⏱️ Minuto: "
+        f"{dados['minuto']}'\n"
+        "\n"
+        "📊 MONITORAMENTO DA ODD X\n"
+        f"📉 Primeiro sinal: "
+        f"{dados['variacao_inicial']:+.2f}%\n"
+        f"📈 Confirmação: "
+        f"{dados['variacao_confirmada']:+.2f}%\n"
+        f"🎯 Odd X atual: "
+        f"{dados['odd_x']:.2f}\n"
+        f"🚦 Direção: "
+        f"{dados['direcao']}\n"
+        "\n"
+        "🧪 LABORATÓRIO IPM\n"
+        "⚠️ Sinal estatístico para "
+        "observação. Não realiza apostas."
+    )
 
 
 # ============================================================
@@ -331,14 +567,12 @@ def executar_pre_live():
     print("=" * 72)
     print("🧪 PRÉ-LIVE | IPM RADAR")
     print(
-        f"JANELA: {PRE_LIVE_JANELA_MINUTOS} MIN"
-    )
-    print(
         f"Q: {Q_MIN:.2f} → {Q_MAX:.2f}"
     )
     print("=" * 72)
 
     try:
+
         resultados = (
             escanear_pre_live()
             or []
@@ -347,7 +581,7 @@ def executar_pre_live():
     except Exception as erro:
 
         print(
-            "ERRO NO SCANNER PRÉ-LIVE:",
+            "ERRO NO SCANNER:",
             type(erro).__name__,
             erro,
         )
@@ -359,13 +593,8 @@ def executar_pre_live():
     )
 
     print(
-        "PRÉ-LIVE ANALISADOS:",
-        len(resultados),
-    )
-
-    print(
-        "PRÉ-LIVE NO Q:",
-        len(aprovados),
+        "JOGOS APROVADOS:",
+        len(aprovados)
     )
 
     if not aprovados:
@@ -376,16 +605,17 @@ def executar_pre_live():
 
         return
 
+    registrar_jogos_monitorados(
+        aprovados
+    )
+
     global ULTIMA_LISTA
 
     assinatura = tuple(
         (
             jogo.get("event_id"),
-            jogo.get(
-                "odd_pre_live",
-                jogo.get("q"),
-            ),
             jogo.get("odd_empate"),
+            jogo.get("q"),
         )
         for jogo in aprovados
     )
@@ -393,8 +623,7 @@ def executar_pre_live():
     if assinatura == ULTIMA_LISTA:
 
         print(
-            "Lista igual à anterior. "
-            "Telegram não reenviado."
+            "Lista igual à anterior."
         )
 
         return
@@ -403,47 +632,100 @@ def executar_pre_live():
         aprovados
     )
 
-    print(
-        "MENSAGENS TELEGRAM A ENVIAR:",
-        len(mensagens),
-    )
+    for mensagem in mensagens:
 
-    enviados = 0
-
-    for numero, mensagem in enumerate(
-        mensagens,
-        start=1,
-    ):
-
-        print(
-            f"ENVIANDO TELEGRAM "
-            f"{numero}/{len(mensagens)} | "
-            f"{len(mensagem)} caracteres"
-        )
-
-        sucesso = enviar_mensagem(
+        if enviar_mensagem(
             mensagem
-        )
-
-        if not sucesso:
+        ):
 
             print(
-                f"❌ FALHA NA MENSAGEM "
-                f"{numero}/{len(mensagens)}."
+                "✅ LISTA PRÉ-LIVE ENVIADA."
             )
 
-            return
+    ULTIMA_LISTA = assinatura
 
-        enviados += 1
 
-    if enviados == len(mensagens):
+# ============================================================
+# FORMATAR LISTA
+# ============================================================
 
-        ULTIMA_LISTA = assinatura
+def montar_mensagens(resultados):
 
-        print(
-            "✅ LISTA PRÉ-LIVE ENVIADA "
-            "COMPLETAMENTE."
+    mensagens = []
+
+    linhas = [
+        "🧪 PRÉ-LIVE — IPM RADAR",
+        "",
+        f"📐 Q: {Q_MIN:.2f} até {Q_MAX:.2f}",
+        "",
+    ]
+
+    ultimo_dia = None
+
+    for jogo in resultados:
+
+        data = jogo.get(
+            "data",
+            "",
         )
+
+        if data != ultimo_dia:
+
+            if ultimo_dia is not None:
+                linhas.append("")
+
+            linhas.append(
+                f"📅 {data}"
+            )
+
+            ultimo_dia = data
+
+        linhas.extend(
+            [
+                (
+                    f"⚽ {jogo.get('horario', '--:--')} | "
+                    f"{jogo.get('casa', 'Casa')} x "
+                    f"{jogo.get('fora', 'Fora')}"
+                ),
+                (
+                    f"🏠 {float(jogo.get('odd_casa', 0) or 0):.2f} | "
+                    f"🤝 X {float(jogo.get('odd_empate', 0) or 0):.2f} | "
+                    f"🚌 {float(jogo.get('odd_visitante', 0) or 0):.2f}"
+                ),
+                (
+                    f"📐 Q: "
+                    f"{float(jogo.get('q', 0) or 0):.2f}"
+                ),
+                (
+                    f"📊 P(X): "
+                    f"{float(jogo.get('probabilidade_x', 0) or 0):.2f}% | "
+                    f"P(X) N: "
+                    f"{float(jogo.get('probabilidade_x_normalizada', 0) or 0):.2f}%"
+                ),
+                "",
+            ]
+        )
+
+        if len("\n".join(linhas)) > 3500:
+
+            mensagens.append(
+                "\n".join(linhas)
+            )
+
+            linhas = [
+                "🧪 PRÉ-LIVE — IPM RADAR",
+                "",
+                f"📐 Q: {Q_MIN:.2f} até {Q_MAX:.2f}",
+                "",
+            ]
+
+    if len(linhas) > 4:
+
+        mensagens.append(
+            "\n".join(linhas)
+        )
+
+    return mensagens
 
 
 # ============================================================
@@ -453,18 +735,15 @@ def executar_pre_live():
 def loop_consulta():
 
     print(
-        "ROBO INICIADO | "
-        "IPM RADAR | PRÉ-LIVE"
+        "🤖 IPM RADAR INICIADO"
     )
 
     print(
-        f"JANELA MÍNIMA: "
-        f"{PRE_LIVE_JANELA_MINUTOS} MIN"
+        f"Q: {Q_MIN:.2f} → {Q_MAX:.2f}"
     )
 
     print(
-        f"INTERVALO: "
-        f"{INTERVALO_RADAR} S"
+        f"INTERVALO: {INTERVALO_RADAR}s"
     )
 
     while True:
@@ -474,9 +753,13 @@ def loop_consulta():
         try:
 
             if horario_ativo():
+
                 executar_pre_live()
 
+                processar_live()
+
             else:
+
                 print(
                     "Radar em período de pausa."
                 )
@@ -490,12 +773,14 @@ def loop_consulta():
             )
 
         decorrido = (
-            time.time() - inicio
+            time.time()
+            - inicio
         )
 
         espera = max(
             1,
-            INTERVALO_RADAR - decorrido,
+            INTERVALO_RADAR
+            - decorrido,
         )
 
         print(
@@ -513,5 +798,5 @@ def loop_consulta():
 # ============================================================
 
 if __name__ == "__main__":
+
     loop_consulta()
-    
