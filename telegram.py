@@ -41,7 +41,10 @@ CHAT_ID = os.getenv(
 def descobrir_chat_id():
 
     if not TOKEN:
-        print("❌ TELEGRAM_BOT_TOKEN não configurado.")
+        print(
+            "❌ TELEGRAM_BOT_TOKEN não configurado."
+        )
+
         return None
 
     url = (
@@ -69,15 +72,22 @@ def descobrir_chat_id():
             print(
                 "❌ ERRO AO CONSULTAR TELEGRAM:"
             )
+
             print(resultado)
 
             return None
 
-        updates = resultado.get("result", [])
+        updates = resultado.get(
+            "result",
+            []
+        )
 
         if not updates:
 
-            print("⚠️ Nenhuma mensagem encontrada.")
+            print(
+                "⚠️ Nenhuma mensagem encontrada."
+            )
+
             print(
                 "Envie primeiro uma mensagem "
                 "para o bot no Telegram."
@@ -87,17 +97,23 @@ def descobrir_chat_id():
 
         for update in reversed(updates):
 
-            mensagem = update.get("message")
+            mensagem = update.get(
+                "message"
+            )
 
             if not mensagem:
                 continue
 
-            chat = mensagem.get("chat")
+            chat = mensagem.get(
+                "chat"
+            )
 
             if not chat:
                 continue
 
-            chat_id = chat.get("id")
+            chat_id = chat.get(
+                "id"
+            )
 
             if chat_id:
 
@@ -116,7 +132,10 @@ def descobrir_chat_id():
 
     except Exception as erro:
 
-        print("❌ ERRO AO DESCOBRIR CHAT:")
+        print(
+            "❌ ERRO AO DESCOBRIR CHAT:"
+        )
+
         print(
             type(erro).__name__,
             erro
@@ -142,6 +161,7 @@ def enviar_mensagem(mensagem):
     chat_id = CHAT_ID
 
     if not chat_id:
+
         chat_id = descobrir_chat_id()
 
     if not chat_id:
@@ -193,7 +213,9 @@ def enviar_mensagem(mensagem):
                 .decode("utf-8")
             )
 
-        resultado = json.loads(retorno)
+        resultado = json.loads(
+            retorno
+        )
 
         if resultado.get("ok"):
 
@@ -206,6 +228,7 @@ def enviar_mensagem(mensagem):
         print(
             "❌ TELEGRAM RECUSOU A MENSAGEM:"
         )
+
         print(resultado)
 
         return False
@@ -215,7 +238,11 @@ def enviar_mensagem(mensagem):
         print(
             "❌ ERRO HTTP AO ENVIAR TELEGRAM:"
         )
-        print("Código:", erro.code)
+
+        print(
+            "Código:",
+            erro.code
+        )
 
         try:
 
@@ -228,6 +255,7 @@ def enviar_mensagem(mensagem):
             print(
                 "Resposta do Telegram:"
             )
+
             print(corpo)
 
         except Exception:
@@ -240,6 +268,7 @@ def enviar_mensagem(mensagem):
         print(
             "❌ ERRO AO ENVIAR TELEGRAM:"
         )
+
         print(
             type(erro).__name__,
             erro
@@ -288,7 +317,9 @@ def enviar_entrada(
         "não realiza apostas automaticamente."
     )
 
-    return enviar_mensagem(mensagem)
+    return enviar_mensagem(
+        mensagem
+    )
 
 
 # ============================================================
@@ -313,23 +344,37 @@ def enviar_ciclo(
         f"⚽ Total de gols: {gols_total}\n"
     )
 
-    if isinstance(dados, dict):
+    if isinstance(
+        dados,
+        dict
+    ):
 
-        ipm = dados.get("ipm")
-        mercado = dados.get("mercado")
-        odd = dados.get("odd")
+        ipm = dados.get(
+            "ipm"
+        )
+
+        mercado = dados.get(
+            "mercado"
+        )
+
+        odd = dados.get(
+            "odd"
+        )
 
         if ipm is not None:
+
             mensagem += (
                 f"\n🧠 IPM registrado: {ipm}"
             )
 
         if mercado:
+
             mensagem += (
                 f"\n🎯 Mercado: {mercado}"
             )
 
         if odd:
+
             mensagem += (
                 f"\n💰 Odd: {odd}"
             )
@@ -342,14 +387,18 @@ def enviar_ciclo(
         "🤖 IPM-RADAR-V3"
     )
 
-    return enviar_mensagem(mensagem)
+    return enviar_mensagem(
+        mensagem
+    )
 
 
 # ============================================================
 # ENVIAR RELATÓRIO DO LABORATÓRIO
 # ============================================================
 
-def enviar_relatorio(texto):
+def enviar_relatorio(
+    texto
+):
 
     mensagem = (
         "📊 RELATÓRIO — LABORATÓRIO IPM\n"
@@ -359,11 +408,30 @@ def enviar_relatorio(texto):
         "🤖 IPM-RADAR-V3"
     )
 
-    return enviar_mensagem(mensagem)
+    return enviar_mensagem(
+        mensagem
+    )
 
 
 # ============================================================
 # ENVIAR LISTA PRÉ-LIVE
+# ============================================================
+#
+# Agora mostra:
+#
+#   - Odds 1X2
+#   - Q
+#   - R
+#   - Equilíbrio
+#   - Índice de equilíbrio
+#   - Desequilíbrio
+#   - Padrão
+#   - P(X)
+#   - P(X) normalizada
+#
+# Os valores são recebidos diretamente
+# do scanner_pre_live.py.
+#
 # ============================================================
 
 def enviar_lista_pre_live(
@@ -381,15 +449,18 @@ def enviar_lista_pre_live(
         return False
 
     if q_min is None:
+
         q_min = Q_MIN
 
     if q_max is None:
+
         q_max = Q_MAX
 
     mensagem = (
         "🧪 IPM RADAR — PRÉ-LIVE\n"
         "\n"
         f"📐 Q: {q_min:.2f} até {q_max:.2f}\n"
+        "⚖️ EQUILÍBRIO / DESEQUILÍBRIO\n"
         "\n"
     )
 
@@ -406,7 +477,9 @@ def enviar_lista_pre_live(
         jogos_periodo = [
             jogo
             for jogo in jogos
-            if jogo.get("periodo") == periodo
+            if jogo.get(
+                "periodo"
+            ) == periodo
         ]
 
         if not jogos_periodo:
@@ -419,67 +492,189 @@ def enviar_lista_pre_live(
 
         for jogo in jogos_periodo:
 
-            casa = jogo.get("casa", "Casa")
-            fora = jogo.get("fora", "Fora")
-            horario = jogo.get("horario", "--:--")
+            casa = jogo.get(
+                "casa",
+                "Casa"
+            )
+
+            fora = jogo.get(
+                "fora",
+                "Fora"
+            )
+
+            horario = jogo.get(
+                "horario",
+                "--:--"
+            )
+
+            data = jogo.get(
+                "data",
+                ""
+            )
 
             try:
+
                 odd_casa = float(
-                    jogo.get("odd_casa", 0) or 0
+                    jogo.get(
+                        "odd_casa",
+                        0
+                    ) or 0
                 )
+
                 odd_empate = float(
-                    jogo.get("odd_empate", 0) or 0
+                    jogo.get(
+                        "odd_empate",
+                        0
+                    ) or 0
                 )
+
                 odd_visitante = float(
-                    jogo.get("odd_visitante", 0) or 0
+                    jogo.get(
+                        "odd_visitante",
+                        0
+                    ) or 0
                 )
+
                 q = float(
                     jogo.get(
                         "q",
-                        jogo.get("odd_pre_live", 0)
+                        jogo.get(
+                            "odd_pre_live",
+                            0
+                        )
                     ) or 0
                 )
-                prob_x = float(
-                    jogo.get("probabilidade_x", 0) or 0
+
+                r = float(
+                    jogo.get(
+                        "r",
+                        0
+                    ) or 0
                 )
+
+                indice_equilibrio = float(
+                    jogo.get(
+                        "indice_equilibrio",
+                        0
+                    ) or 0
+                )
+
+                prob_x = float(
+                    jogo.get(
+                        "probabilidade_x",
+                        0
+                    ) or 0
+                )
+
                 prob_x_normalizada = float(
                     jogo.get(
                         "probabilidade_x_normalizada",
                         0
                     ) or 0
                 )
-            except (TypeError, ValueError):
+
+            except (
+                TypeError,
+                ValueError
+            ):
+
                 continue
 
-            # A seleção por Q é feita aqui.
-            if q < q_min or q > q_max:
+            # ------------------------------------------------
+            # FILTRO Q
+            # ------------------------------------------------
+
+            if (
+                q < q_min
+                or q > q_max
+            ):
+
                 continue
+
+            # ------------------------------------------------
+            # CLASSIFICAÇÕES
+            # ------------------------------------------------
+
+            equilibrio = jogo.get(
+                "equilibrio",
+                "SEM_DADOS"
+            )
+
+            padrao = jogo.get(
+                "padrao",
+                "SEM_DADOS"
+            )
+
+            # ------------------------------------------------
+            # MENSAGEM DO JOGO
+            # ------------------------------------------------
 
             mensagem += (
                 f"⚽ {horario} | "
                 f"{casa} x {fora}\n"
-                f"🏠 {odd_casa:.2f} | "
-                f"🤝 X {odd_empate:.2f} | "
-                f"🚌 {odd_visitante:.2f}\n"
-                f"📐 Q: {q:.2f}\n"
-                f"📊 P(X): {prob_x:.2f}% | "
-                f"P(X) N: "
-                f"{prob_x_normalizada:.2f}%\n"
+                f"📅 {data}\n"
                 "\n"
+
+                f"🏠 Casa: "
+                f"{odd_casa:.2f}\n"
+
+                f"🤝 Empate (X): "
+                f"{odd_empate:.2f}\n"
+
+                f"🚌 Visitante: "
+                f"{odd_visitante:.2f}\n"
+                "\n"
+
+                f"📐 Q: "
+                f"{q:.2f}\n"
+
+                f"📊 R: "
+                f"{r:.2f}\n"
+
+                f"⚖️ Equilíbrio: "
+                f"{equilibrio}\n"
+
+                f"📊 Índice de equilíbrio: "
+                f"{indice_equilibrio:.2f}\n"
+
+                f"⚠️ Desequilíbrio: "
+                f"{r:.2f}\n"
+
+                f"🎯 Padrão: "
+                f"{padrao}\n"
+                "\n"
+
+                f"📊 P(X): "
+                f"{prob_x:.2f}%\n"
+
+                f"📊 P(X) normalizada: "
+                f"{prob_x_normalizada:.2f}%\n"
+
+                "────────────────────\n"
             )
 
             quantidade += 1
 
     if quantidade == 0:
+
         print(
             "⚠️ Nenhum jogo dentro do intervalo Q."
         )
+
         return False
 
     mensagem += (
-        "────────────────────\n"
+        "\n"
         f"📋 Jogos selecionados: "
         f"{quantidade}\n"
+        "\n"
+        "🧪 LEITURA DO RADAR\n"
+        "\n"
+        "📐 Q = região das duas pontas\n"
+        "📊 R = relação maior/menor odd\n"
+        "⚖️ Equilíbrio = classificação do R\n"
+        "📊 Índice = 100 ÷ R\n"
+        "🎯 Padrão = hipótese estatística\n"
         "\n"
         "🤖 IPM-RADAR-V3\n"
         "📚 Monitoramento estatístico "
@@ -487,7 +682,9 @@ def enviar_lista_pre_live(
         "⚠️ Não realiza apostas automaticamente."
     )
 
-    return enviar_mensagem(mensagem)
+    return enviar_mensagem(
+        mensagem
+    )
 
 
 # ============================================================
@@ -507,16 +704,21 @@ def teste_telegram():
         "Aguardando as entradas do Radar."
     )
 
-    sucesso = enviar_mensagem(mensagem)
+    sucesso = enviar_mensagem(
+        mensagem
+    )
 
     print()
     print("=" * 50)
 
     if sucesso:
+
         print(
             "✅ TESTE DO TELEGRAM CONCLUÍDO!"
         )
+
     else:
+
         print(
             "❌ TESTE DO TELEGRAM FALHOU!"
         )
@@ -529,5 +731,5 @@ def teste_telegram():
 # ============================================================
 
 if __name__ == "__main__":
+
     teste_telegram()
-    
