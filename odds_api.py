@@ -350,6 +350,76 @@ def buscar_jogos_ao_vivo():
 # BUSCAR JOGOS PRÉ-LIVE
 # ============================================================
 
+
+def buscar_jogos_ao_vivo_por_ids(event_ids):
+    """
+    Busca os eventos ao vivo e retorna somente os IDs solicitados.
+
+    Compatibilidade com o main.py que usa uma seleção fixa de
+    partidas do Radar. Não altera a memória dos eventos selecionados.
+    """
+    if not event_ids:
+        print("LIVE POR IDS: nenhum ID recebido.")
+        return []
+
+    try:
+        key = obter_api_key()
+    except Exception as erro:
+        print("ERRO API KEY:", erro)
+        return []
+
+    ids_alvo = []
+    for event_id in event_ids:
+        if event_id is None:
+            continue
+        valor = str(event_id).strip()
+        if valor and valor not in ids_alvo:
+            ids_alvo.append(valor)
+
+    if not ids_alvo:
+        return []
+
+    ids_alvo = ids_alvo[:MAX_EVENTOS_POR_CONSULTA]
+
+    resposta = _request_json(
+        "/events/live",
+        {
+            "apiKey": key,
+            "sport": SPORT,
+        },
+    )
+
+    eventos = _lista_eventos(resposta)
+    mapa = {}
+
+    for evento in eventos:
+        event_id = evento.get("id")
+        if event_id is not None:
+            mapa[str(event_id)] = evento
+
+    selecionados = [
+        mapa[event_id]
+        for event_id in ids_alvo
+        if event_id in mapa
+    ]
+
+    print(
+        "JOGOS AO VIVO POR IDS | "
+        f"SOLICITADOS={len(ids_alvo)} | "
+        f"ENCONTRADOS={len(selecionados)}"
+    )
+
+    for evento in selecionados:
+        print(
+            "LIVE POR ID | "
+            f"{_extrair_minuto(evento)}' | "
+            f"{evento.get('home', '')} x "
+            f"{evento.get('away', '')} | "
+            f"ID={evento.get('id')}"
+        )
+
+    return selecionados
+
 def buscar_jogos_pre_live():
     try:
         key = obter_api_key()
@@ -755,7 +825,6 @@ def calcular_desequilibrio(odd_casa, odd_visitante):
         odd_visitante,
     )
 
-
 # ============================================================
 # CLASSIFICAÇÃO DO EQUILÍBRIO
 # ============================================================
@@ -810,6 +879,79 @@ def probabilidade_x_normalizada(
         return 0.0
 
     return (px / total) * 100.0
+
+
+# ============================================================
+# EXTRAIR MERCADOS COMPLETOS
+# ============================================================
+
+def _extrair_todos_mercados(mercados):
+    resultado = {
+        "mercados_encontrados": [],
+        "mercados_disponiveis": [],
+        "todos": [],
+        "odds_ft": [],
+        "odds_ht": [],
+        "odds_corners": [],
+        "odds_cards": [],
+    }
+
+    for mercado in mercados:
+        if not isinstance(mercado, dict):
+            continue
+
+        nome = str(
+            mercado.get("name")
+            or mercado.get("key")
+            or ""
+        ).strip()
+
+        if not nome:
+            continue
+
+        item = {
+            "name": nome,
+            "updatedAt": mercado.get("updatedAt"),
+            "odds": _linhas_odds(mercado),
+        }
+
+        resultado["todos"].append(item)
+        resultado["mercados_disponiveis"].append(nome)
+
+        nome_lower = nome.lower()
+
+        if (
+            "half" in nome_lower
+            or "halftime" in nome_lower
+            or "1st half" in nome_lower
+        ):
+            destino = "odds_ht"
+
+        elif (
+            "corner" in nome_lower
+            or "escante" in nome_lower
+        ):
+            destino = "odds_corners"
+
+        elif (
+            "card" in nome_lower
+            or "booking" in nome_lower
+            or "cart" in nome_lower
+        ):
+            destino = "odds_cards"
+
+        else:
+            destino = "odds_ft"
+
+        resultado[destino].append(item)
+
+    resultado["mercados_disponiveis"] = list(
+        dict.fromkeys(
+            resultado["mercados_disponiveis"]
+        )
+    )
+
+    return resultado
 
 
 # ============================================================
@@ -1171,6 +1313,7 @@ def verificar_configuracao():
 # ============================================================
 # EXECUÇÃO DIRETA
 # ============================================================
+
 if __name__ == "__main__":
     print()
     print("=" * 72)
@@ -1181,219 +1324,5 @@ if __name__ == "__main__":
     print()
     print("ODDS API PRONTA.")
     print("=" * 72)
+    
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-loop
