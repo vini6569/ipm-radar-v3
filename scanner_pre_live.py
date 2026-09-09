@@ -9,11 +9,26 @@
 #   - Calcular probabilidade implícita do empate
 #   - Calcular probabilidade normalizada do empate
 #   - Calcular Q pré-live
-#   - Filtrar pela faixa de Q configurada
+#   - Calcular R pré-live
+#   - Filtrar pela combinação Q + R validada
 #   - Preparar a lista para OBSERVAÇÃO
 #
 # NÃO gera entrada.
 # NÃO altera o IPM LIVE.
+#
+# ============================================================
+# CÁLCULO VALIDADO
+# ============================================================
+#
+# Q = 2 × (W1 × W2) / (W1 + W2)
+#
+# R = max(W1, W2) / min(W1, W2)
+#
+# Faixa validada:
+#
+# Q = 2.80 até 2.90
+# R = 1.00 até 1.80
+#
 # ============================================================
 
 from datetime import datetime, time
@@ -22,8 +37,6 @@ from config import (
     FUSO_HORARIO,
     MAX_EVENTOS_POR_CONSULTA,
     PRE_LIVE_JANELA_MINUTOS,
-    Q_MIN,
-    Q_MAX,
 )
 
 from odds_api import (
@@ -31,6 +44,17 @@ from odds_api import (
     buscar_odds_multiplos,
     extrair_mercados,
 )
+
+
+# ============================================================
+# CONFIGURAÇÃO DO CÁLCULO VALIDADO
+# ============================================================
+
+Q_VALIDADO_MIN = 2.80
+Q_VALIDADO_MAX = 2.90
+
+R_VALIDADO_MIN = 1.00
+R_VALIDADO_MAX = 1.80
 
 
 # ============================================================
@@ -119,7 +143,7 @@ def probabilidade_normalizada(
 
 
 # ============================================================
-# CÁLCULO DO Q
+# CÁLCULO DO Q — VALIDADO
 # ============================================================
 
 def calcular_q(
@@ -128,9 +152,17 @@ def calcular_q(
 ):
 
     """
-    Calcula:
+    Calcula o Q validado.
 
-        Q = √(Odd Casa × Odd Visitante)
+    Fórmula:
+
+        Q = 2 × (W1 × W2) / (W1 + W2)
+
+    Onde:
+
+        W1 = odd da vitória da casa
+        W2 = odd da vitória do visitante
+
     """
 
     odd_casa = _numero(
@@ -147,10 +179,105 @@ def calcular_q(
     ):
         return 0.0
 
-    return (
+    soma = (
         odd_casa
+        + odd_visitante
+    )
+
+    if soma <= 0:
+        return 0.0
+
+    q = (
+        2.0
+        * odd_casa
         * odd_visitante
-    ) ** 0.5
+    ) / soma
+
+    return q
+
+
+# ============================================================
+# CÁLCULO DO R — VALIDADO
+# ============================================================
+
+def calcular_r(
+    odd_casa,
+    odd_visitante,
+):
+
+    """
+    Calcula o R validado.
+
+    Fórmula:
+
+        R = max(W1, W2) / min(W1, W2)
+
+    O cálculo mede a relação entre
+    a maior e a menor odd das duas pontas.
+
+    """
+
+    odd_casa = _numero(
+        odd_casa
+    )
+
+    odd_visitante = _numero(
+        odd_visitante
+    )
+
+    if (
+        odd_casa <= 0
+        or odd_visitante <= 0
+    ):
+        return 0.0
+
+    menor = min(
+        odd_casa,
+        odd_visitante,
+    )
+
+    maior = max(
+        odd_casa,
+        odd_visitante,
+    )
+
+    if menor <= 0:
+        return 0.0
+
+    return maior / menor
+
+
+# ============================================================
+# VERIFICAR CÁLCULO VALIDADO
+# ============================================================
+
+def caracteriza_calculo_validado(
+    q,
+    r,
+):
+
+    """
+    Verifica se o jogo atende
+    simultaneamente às duas condições:
+
+        Q = 2.80 até 2.90
+
+        R = 1.00 até 1.80
+    """
+
+    if q < Q_VALIDADO_MIN:
+        return False
+
+    if q > Q_VALIDADO_MAX:
+        return False
+
+    if r < R_VALIDADO_MIN:
+        return False
+
+    if r > R_VALIDADO_MAX:
+        return False
+
+    return True
 
 
 # ============================================================
@@ -254,15 +381,14 @@ def escanear_pre_live():
 
         PRE_LIVE_JANELA_MINUTOS
 
-    O valor mínimo é 180 minutos.
+    O filtro validado utiliza:
 
-    O Q é filtrado por:
+        Q = 2.80 até 2.90
 
-        Q_MIN
-        Q_MAX
+        R = 1.00 até 1.80
 
     Retorna uma lista de jogos
-    aprovados pelo filtro.
+    aprovados pela combinação Q + R.
     """
 
     print()
@@ -276,8 +402,15 @@ def escanear_pre_live():
     )
 
     print(
-        f"📐 Q: "
-        f"{Q_MIN:.2f} até {Q_MAX:.2f}"
+        f"📐 Q VALIDADO: "
+        f"{Q_VALIDADO_MIN:.2f} até "
+        f"{Q_VALIDADO_MAX:.2f}"
+    )
+
+    print(
+        f"📊 R VALIDADO: "
+        f"{R_VALIDADO_MIN:.2f} até "
+        f"{R_VALIDADO_MAX:.2f}"
     )
 
     # --------------------------------------------------------
@@ -397,6 +530,17 @@ def escanear_pre_live():
             continue
 
         # ----------------------------------------------------
+        # SEM ODDS VÁLIDAS DAS DUAS PONTAS
+        # ----------------------------------------------------
+
+        if (
+            odd_casa <= 0
+            or odd_visitante <= 0
+        ):
+
+            continue
+
+        # ----------------------------------------------------
         # HORÁRIO
         # ----------------------------------------------------
 
@@ -435,7 +579,7 @@ def escanear_pre_live():
         )
 
         # ----------------------------------------------------
-        # Q PRÉ-LIVE
+        # Q PRÉ-LIVE — FÓRMULA VALIDADA
         # ----------------------------------------------------
 
         q = calcular_q(
@@ -444,14 +588,22 @@ def escanear_pre_live():
         )
 
         # ----------------------------------------------------
-        # FILTRO Q
+        # R PRÉ-LIVE — FÓRMULA VALIDADA
         # ----------------------------------------------------
 
-        if q < Q_MIN:
+        r = calcular_r(
+            odd_casa,
+            odd_visitante,
+        )
 
-            continue
+        # ----------------------------------------------------
+        # FILTRO Q + R
+        # ----------------------------------------------------
 
-        if q > Q_MAX:
+        if not caracteriza_calculo_validado(
+            q,
+            r,
+        ):
 
             continue
 
@@ -503,12 +655,15 @@ def escanear_pre_live():
 
             "q": q,
 
+            "r": r,
+
             "odd_pre_live": q,
 
             "probabilidade_x": prob_x,
 
             "probabilidade_x_normalizada":
                 prob_x_normalizada,
+
         }
 
         resultados.append(
@@ -532,7 +687,7 @@ def escanear_pre_live():
     )
 
     print(
-        "JOGOS APROVADOS PELO Q:",
+        "JOGOS APROVADOS PELO Q + R:",
         len(resultados),
     )
 
@@ -616,6 +771,11 @@ def exibir_scanner(
             )
 
             print(
+                f"   📊 R: "
+                f"{jogo['r']:.2f}"
+            )
+
+            print(
                 f"   📊 P(X): "
                 f"{jogo['probabilidade_x']:.2f}% | "
                 f"P(X) normalizada: "
@@ -638,4 +798,4 @@ if __name__ == "__main__":
 
     exibir_scanner(
         dados
-            )
+    )
