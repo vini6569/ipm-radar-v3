@@ -1166,15 +1166,20 @@ def loop_consulta():
                 erro,
             )
 
-        decorrido = (
-            time.time()
-            - inicio
+        # ====================================================
+        # PRÓXIMO CICLO ALINHADO AO RELÓGIO
+        # ====================================================
+
+        agora = time.time()
+
+        proximo_ciclo = (
+            ((int(agora) // INTERVALO_RADAR) + 1)
+            * INTERVALO_RADAR
         )
 
         espera = max(
             1,
-            INTERVALO_RADAR
-            - decorrido,
+            proximo_ciclo - agora,
         )
 
         print(
@@ -1184,7 +1189,7 @@ def loop_consulta():
 
         time.sleep(
             espera
-        )
+            )        
 
 
 # ============================================================
