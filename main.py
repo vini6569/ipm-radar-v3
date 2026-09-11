@@ -420,5 +420,3 @@ def loop_consulta():
 if __name__ == "__main__":
     iniciar_servidor_saude()
     loop_consulta()
-Essa é a versão para colar no main.py.
-A parte importante é que não mexi na lógica da movimentação dos 10 minutos nem na confirmação dos 5 minutos; as alterações são visuais nas mensagens.
