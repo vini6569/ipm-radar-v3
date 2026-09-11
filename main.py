@@ -49,8 +49,16 @@ VARIACAO_MINIMA = float(
     )
 )
 
+# Janela utilizada para comparação da Odd X.
 JANELA_VARIACAO_MINUTOS = 10
+
+# Tempo entre primeiro sinal e confirmação.
 CONFIRMACAO_MINUTOS = 5
+
+# Mantemos memória um pouco maior que 10 minutos
+# para garantir que a referência de 10 minutos
+# não seja apagada antes da comparação.
+MEMORIA_ODD_MINUTOS = 15
 
 TELEGRAM_MAX_CARACTERES = 3800
 
@@ -60,7 +68,9 @@ TELEGRAM_MAX_CARACTERES = 3800
 # ============================================================
 
 ULTIMA_LISTA = None
+
 JOGOS_MONITORADOS = {}
+
 SINAIS_PRE_ENTRADA = {}
 
 
@@ -87,14 +97,15 @@ def calcular_valores_equilibrio(r):
     """
     R = maior odd / menor odd.
 
-    O índice de equilíbrio é:
+    Equilíbrio:
         100 / R
 
-    O desequilíbrio é o complemento:
+    Desequilíbrio:
         100 - equilíbrio
 
-    Isso é um índice estrutural das duas pontas,
-    NÃO é probabilidade de empate e NÃO é probabilidade de gol.
+    É um índice estrutural das duas pontas.
+    NÃO é probabilidade de empate.
+    NÃO é probabilidade de gol.
     """
 
     r = numero(r)
@@ -103,6 +114,7 @@ def calcular_valores_equilibrio(r):
         return 0.0, 0.0
 
     equilibrio = 100.0 / r
+
     desequilibrio = 100.0 - equilibrio
 
     return (
@@ -113,22 +125,37 @@ def calcular_valores_equilibrio(r):
 
 def obter_equilibrio_jogo(jogo):
 
-    r = numero(jogo.get("r", 0))
+    r = numero(
+        jogo.get(
+            "r",
+            0,
+        )
+    )
 
     equilibrio = numero(
-        jogo.get("equilibrio_percentual", 0)
+        jogo.get(
+            "equilibrio_percentual",
+            0,
+        )
     )
 
     desequilibrio = numero(
-        jogo.get("desequilibrio_percentual", 0)
+        jogo.get(
+            "desequilibrio_percentual",
+            0,
+        )
     )
 
     if equilibrio <= 0 and desequilibrio <= 0:
+
         equilibrio, desequilibrio = (
             calcular_valores_equilibrio(r)
         )
 
-    return equilibrio, desequilibrio
+    return (
+        equilibrio,
+        desequilibrio,
+    )
 
 
 # ============================================================
@@ -144,11 +171,15 @@ def filtrar_por_q(resultados):
         q = numero(
             jogo.get(
                 "odd_pre_live",
-                jogo.get("q", 0),
+                jogo.get(
+                    "q",
+                    0,
+                ),
             )
         )
 
         if Q_MIN <= q <= Q_MAX:
+
             aprovados.append(jogo)
 
     return aprovados
@@ -174,24 +205,39 @@ def registrar_jogos_monitorados(jogos):
         if event_id not in JOGOS_MONITORADOS:
 
             JOGOS_MONITORADOS[event_id] = {
+
                 "event_id": event_id,
+
                 "casa": jogo.get(
                     "casa",
                     "Casa",
                 ),
+
                 "fora": jogo.get(
                     "fora",
                     "Fora",
                 ),
+
                 "q": numero(
-                    jogo.get("q", 0)
+                    jogo.get(
+                        "q",
+                        0,
+                    )
                 ),
+
                 "odd_pre_live": numero(
-                    jogo.get("odd_empate", 0)
+                    jogo.get(
+                        "odd_empate",
+                        0,
+                    )
                 ),
+
                 "criado_em": agora,
+
                 "historico": [],
+
                 "primeiro_sinal": None,
+
                 "confirmado": False,
             }
 
@@ -216,17 +262,27 @@ def registrar_odd_x(event_id, odd_x):
 
     agora = time.time()
 
-    jogo["historico"].append(
-        {
-            "timestamp": agora,
-            "odd_x": odd_x,
-        }
+    ponto = {
+        "timestamp": agora,
+        "odd_x": odd_x,
+    }
+
+    jogo.setdefault(
+        "historico",
+        []
     )
+
+    jogo["historico"].append(ponto)
+
+    # --------------------------------------------------------
+    # Mantém memória suficiente para encontrar a referência
+    # de aproximadamente 10 minutos.
+    # --------------------------------------------------------
 
     limite = (
         agora
         - (
-            JANELA_VARIACAO_MINUTOS
+            MEMORIA_ODD_MINUTOS
             * 60
         )
     )
@@ -239,7 +295,7 @@ def registrar_odd_x(event_id, odd_x):
 
 
 # ============================================================
-# ENCONTRAR ODD DE 10 MINUTOS
+# ENCONTRAR ODD DE REFERÊNCIA DE 10 MINUTOS
 # ============================================================
 
 def obter_odd_base_10_min(event_id):
@@ -253,7 +309,7 @@ def obter_odd_base_10_min(event_id):
 
     historico = jogo.get(
         "historico",
-        [],
+        []
     )
 
     if len(historico) < 2:
@@ -269,32 +325,29 @@ def obter_odd_base_10_min(event_id):
         )
     )
 
-    melhor = None
+    # --------------------------------------------------------
+    # Procuramos o último ponto registrado ANTES ou no alvo
+    # de 10 minutos.
+    #
+    # Assim não usamos uma cotação futura como referência.
+    # --------------------------------------------------------
 
-    for ponto in historico:
+    pontos_validos = [
+        ponto
+        for ponto in historico
+        if ponto["timestamp"] <= alvo
+    ]
 
-        distancia = abs(
-            ponto["timestamp"]
-            - alvo
-        )
-
-        if melhor is None:
-            melhor = (
-                distancia,
-                ponto,
-            )
-
-        elif distancia < melhor[0]:
-            melhor = (
-                distancia,
-                ponto,
-            )
-
-    if melhor is None:
+    if not pontos_validos:
         return 0.0
 
+    ponto_base = max(
+        pontos_validos,
+        key=lambda ponto: ponto["timestamp"]
+    )
+
     return numero(
-        melhor[1]["odd_x"]
+        ponto_base["odd_x"]
     )
 
 
@@ -308,6 +361,7 @@ def calcular_variacao(
 ):
 
     odd_base = numero(odd_base)
+
     odd_atual = numero(odd_atual)
 
     if (
@@ -332,9 +386,11 @@ def calcular_variacao(
 def identificar_direcao(variacao):
 
     if variacao >= VARIACAO_MINIMA:
+
         return "POSITIVO"
 
     if variacao <= -VARIACAO_MINIMA:
+
         return "NEGATIVO"
 
     return None
@@ -357,7 +413,12 @@ def verificar_primeiro_sinal(
     if not jogo:
         return
 
-    if jogo["primeiro_sinal"] is not None:
+    # Já existe um sinal aguardando confirmação.
+    if jogo.get("primeiro_sinal") is not None:
+        return
+
+    # Jogo já confirmou.
+    if jogo.get("confirmado"):
         return
 
     odd_base = obter_odd_base_10_min(
@@ -380,20 +441,32 @@ def verificar_primeiro_sinal(
         return
 
     jogo["primeiro_sinal"] = {
+
         "timestamp": time.time(),
+
         "minuto": minuto,
+
         "odd_base": odd_base,
+
         "odd_x": odd_x,
+
         "variacao": variacao,
+
         "direcao": direcao,
     }
+
+    SINAIS_PRE_ENTRADA[str(event_id)] = (
+        jogo["primeiro_sinal"]
+    )
 
     print(
         "🚨 PRIMEIRO SINAL | "
         f"{jogo['casa']} x "
         f"{jogo['fora']} | "
         f"{direcao} | "
-        f"{variacao:+.2f}%"
+        f"{variacao:+.2f}% | "
+        f"BASE {odd_base:.2f} → "
+        f"ATUAL {odd_x:.2f}"
     )
 
 
@@ -432,7 +505,8 @@ def verificar_confirmacao(
     )
 
     if passado < (
-        CONFIRMACAO_MINUTOS * 60
+        CONFIRMACAO_MINUTOS
+        * 60
     ):
         return None
 
@@ -445,32 +519,54 @@ def verificar_confirmacao(
         variacao
     )
 
+    # --------------------------------------------------------
+    # Confirma somente se a direção continuar igual
+    # e continuar acima do limite mínimo.
+    # --------------------------------------------------------
+
     if direcao_atual != sinal["direcao"]:
 
         print(
             "❌ SINAL NÃO CONFIRMADO | "
             f"{jogo['casa']} x "
             f"{jogo['fora']} | "
-            "direção mudou ou perdeu o mínimo."
+            f"Direção mudou ou ficou abaixo de "
+            f"{VARIACAO_MINIMA:.2f}%."
         )
 
         jogo["primeiro_sinal"] = None
+
+        SINAIS_PRE_ENTRADA.pop(
+            str(event_id),
+            None,
+        )
 
         return None
 
     jogo["confirmado"] = True
 
     resultado = {
+
         "event_id": event_id,
+
         "casa": jogo["casa"],
+
         "fora": jogo["fora"],
+
         "minuto": minuto,
+
         "direcao": direcao_atual,
+
         "variacao_inicial": sinal[
             "variacao"
         ],
+
         "variacao_confirmada": variacao,
-        "odd_base": sinal["odd_base"],
+
+        "odd_base": sinal[
+            "odd_base"
+        ],
+
         "odd_x": odd_x,
     }
 
@@ -478,7 +574,8 @@ def verificar_confirmacao(
         "🚨 PRÉ-ENTRADA CONFIRMADA | "
         f"{jogo['casa']} x "
         f"{jogo['fora']} | "
-        f"{direcao_atual}"
+        f"{direcao_atual} | "
+        f"{variacao:+.2f}%"
     )
 
     return resultado
@@ -521,6 +618,8 @@ def processar_live():
         if event_id is None:
             continue
 
+        event_id = str(event_id)
+
         mercados = (
             extrair_mercados(
                 jogo,
@@ -548,10 +647,21 @@ def processar_live():
             )
         )
 
+        # ----------------------------------------------------
+        # PRIMEIRO:
+        # registra a cotação atual.
+        # ----------------------------------------------------
+
         registrar_odd_x(
             event_id,
-            odd_x
+            odd_x,
         )
+
+        # ----------------------------------------------------
+        # SEGUNDO:
+        # procura um sinal de ±20% em relação
+        # à referência de 10 minutos.
+        # ----------------------------------------------------
 
         verificar_primeiro_sinal(
             event_id,
@@ -559,12 +669,16 @@ def processar_live():
             odd_x,
         )
 
-        confirmacao = (
-            verificar_confirmacao(
-                event_id,
-                minuto,
-                odd_x,
-            )
+        # ----------------------------------------------------
+        # TERCEIRO:
+        # se houver sinal anterior, verifica a confirmação
+        # depois de 5 minutos.
+        # ----------------------------------------------------
+
+        confirmacao = verificar_confirmacao(
+            event_id,
+            minuto,
+            odd_x,
         )
 
         if confirmacao:
@@ -583,19 +697,31 @@ def processar_live():
 def formatar_pre_entrada(dados):
 
     odd_base = numero(
-        dados.get("odd_base", 0)
+        dados.get(
+            "odd_base",
+            0,
+        )
     )
 
     odd_atual = numero(
-        dados.get("odd_x", 0)
+        dados.get(
+            "odd_x",
+            0,
+        )
     )
 
     variacao_inicial = numero(
-        dados.get("variacao_inicial", 0)
+        dados.get(
+            "variacao_inicial",
+            0,
+        )
     )
 
     variacao_confirmada = numero(
-        dados.get("variacao_confirmada", 0)
+        dados.get(
+            "variacao_confirmada",
+            0,
+        )
     )
 
     return (
@@ -631,11 +757,17 @@ def formatar_pre_entrada(dados):
 def executar_pre_live():
 
     print()
+
     print("=" * 72)
-    print("🧪 PRÉ-LIVE | IPM RADAR")
+
+    print(
+        "🧪 PRÉ-LIVE | IPM RADAR"
+    )
+
     print(
         f"Q: {Q_MIN:.2f} → {Q_MAX:.2f}"
     )
+
     print("=" * 72)
 
     try:
@@ -726,10 +858,19 @@ def montar_mensagens(resultados):
         return [
             "🧪 PRÉ-LIVE — IPM RADAR",
             "",
-            f"📐 Q: {Q_MIN:.2f} até {Q_MAX:.2f}",
-            "📊 R = desequilíbrio entre as pontas",
+            (
+                f"📐 Q: {Q_MIN:.2f} até "
+                f"{Q_MAX:.2f}"
+            ),
+            (
+                "📊 R = desequilíbrio "
+                "entre as pontas"
+            ),
             "⚖️ Equilíbrio = 100 / R",
-            "⚠️ Desequilíbrio = 100 - Equilíbrio",
+            (
+                "⚠️ Desequilíbrio = "
+                "100 - Equilíbrio"
+            ),
             "",
         ]
 
@@ -756,36 +897,51 @@ def montar_mensagens(resultados):
             ultimo_dia = data
 
         odd_casa = numero(
-            jogo.get("odd_casa", 0)
+            jogo.get(
+                "odd_casa",
+                0,
+            )
         )
 
         odd_empate = numero(
-            jogo.get("odd_empate", 0)
+            jogo.get(
+                "odd_empate",
+                0,
+            )
         )
 
         odd_visitante = numero(
-            jogo.get("odd_visitante", 0)
+            jogo.get(
+                "odd_visitante",
+                0,
+            )
         )
 
         q = numero(
-            jogo.get("q", 0)
+            jogo.get(
+                "q",
+                0,
+            )
         )
 
         r = numero(
-            jogo.get("r", 0)
+            jogo.get(
+                "r",
+                0,
+            )
         )
 
         prob_x = numero(
             jogo.get(
                 "probabilidade_x",
-                0
+                0,
             )
         )
 
         prob_x_normalizada = numero(
             jogo.get(
                 "probabilidade_x_normalizada",
-                0
+                0,
             )
         )
 
@@ -806,42 +962,52 @@ def montar_mensagens(resultados):
         linhas.extend(
             [
                 (
-                    f"⚽ {jogo.get('horario', '--:--')} | "
+                    f"⚽ "
+                    f"{jogo.get('horario', '--:--')} | "
                     f"{jogo.get('casa', 'Casa')} x "
                     f"{jogo.get('fora', 'Fora')}"
                 ),
+
                 (
                     f"🏠 {odd_casa:.2f} | "
                     f"🤝 X {odd_empate:.2f} | "
                     f"🚌 {odd_visitante:.2f}"
                 ),
+
                 (
                     f"📐 Q: {q:.2f}"
                 ),
+
                 (
                     f"📊 R: {r:.2f}"
                 ),
+
                 (
                     f"⚖️ Equilíbrio: "
                     f"{equilibrio:.2f}%"
                 ),
+
                 (
                     f"⚠️ Desequilíbrio: "
                     f"{desequilibrio:.2f}%"
                 ),
+
                 (
                     f"🎯 Estrutura: "
                     f"{classificacao or 'NÃO CLASSIFICADO'}"
                 ),
+
                 (
                     f"🧭 Padrão: "
                     f"{padrao or 'NÃO CLASSIFICADO'}"
                 ),
+
                 (
                     f"📊 P(X): {prob_x:.2f}% | "
                     f"P(X) N: "
                     f"{prob_x_normalizada:.2f}%"
                 ),
+
                 "",
             ]
         )
@@ -850,139 +1016,20 @@ def montar_mensagens(resultados):
 
         if len(texto) > TELEGRAM_MAX_CARACTERES:
 
-            mensagens.append(
-                "\n".join(
-                    linhas[:-10]
-                )
-            )
+            # ------------------------------------------------
+            # Retira o último jogo do bloco que ultrapassou
+            # o limite.
+            # ------------------------------------------------
 
-            linhas = novo_bloco()
-
-            # Recoloca o jogo atual no novo bloco.
-            linhas.extend(
-                [
-                    (
-                        f"📅 {data}"
-                    ),
-                    (
-                        f"⚽ {jogo.get('horario', '--:--')} | "
-                        f"{jogo.get('casa', 'Casa')} x "
-                        f"{jogo.get('fora', 'Fora')}"
-                    ),
-                    (
-                        f"🏠 {odd_casa:.2f} | "
-                        f"🤝 X {odd_empate:.2f} | "
-                        f"🚌 {odd_visitante:.2f}"
-                    ),
-                    f"📐 Q: {q:.2f}",
-                    f"📊 R: {r:.2f}",
-                    f"⚖️ Equilíbrio: {equilibrio:.2f}%",
-                    f"⚠️ Desequilíbrio: {desequilibrio:.2f}%",
-                    (
-                        f"🎯 Estrutura: "
-                        f"{classificacao or 'NÃO CLASSIFICADO'}"
-                    ),
-                    (
-                        f"🧭 Padrão: "
-                        f"{padrao or 'NÃO CLASSIFICADO'}"
-                    ),
-                    (
-                        f"📊 P(X): {prob_x:.2f}% | "
-                        f"P(X) N: {prob_x_normalizada:.2f}%"
-                    ),
-                    "",
-                ]
-            )
-
-    if len(linhas) > 7:
-
-        linhas.extend(
-            [
-                "────────────────────",
-                f"📋 Jogos selecionados: {len(resultados)}",
-                "",
-                "🤖 IPM-RADAR-V3",
-                "📚 Monitoramento estatístico pré-live.",
-                "⚠️ Não realiza apostas automaticamente.",
-            ]
-        )
-
-        mensagens.append(
-            "\n".join(linhas)
-        )
-
-    return mensagens
-
-
-# ============================================================
-# LOOP
-# ============================================================
-
-def loop_consulta():
-
-    print(
-        "🤖 IPM RADAR INICIADO"
-    )
-
-    print(
-        f"Q: {Q_MIN:.2f} → {Q_MAX:.2f}"
-    )
-
-    print(
-        f"INTERVALO: {INTERVALO_RADAR}s"
-    )
-
-    while True:
-
-        inicio = time.time()
-
-        try:
-
-            if horario_ativo():
-
-                executar_pre_live()
-                processar_live()
-
-            else:
-
-                print(
-                    "Radar em período de pausa."
-                )
-
-        except Exception as erro:
-
-            print(
-                "ERRO NO LOOP:",
-                type(erro).__name__,
-                erro,
-            )
-
-        decorrido = (
-            time.time()
-            - inicio
-        )
-
-        espera = max(
-            1,
-            INTERVALO_RADAR
-            - decorrido,
-        )
-
-        print(
-            f"PRÓXIMO CICLO EM "
-            f"{espera:.0f}s"
-        )
-
-        time.sleep(
-            espera
-        )
-
-
-# ============================================================
-# INÍCIO
-# ============================================================
-
-if __name__ == "__main__":
-
-    loop_consulta()
-    
+            jogo_linhas = [
+                (
+                    f"⚽ "
+                    f"{jogo.get('horario', '--:--')} | "
+                    f"{jogo.get('casa', 'Casa')} x "
+                    f"{jogo.get('fora', 'Fora')}"
+                ),
+                (
+                    f"🏠 {odd_casa:.2f} | "
+                    f"🤝 X {odd_empate:.2f} | "
+                    f"🚌 {odd_visitante:.2f}"
+               
