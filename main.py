@@ -1016,7 +1016,7 @@ def montar_mensagens(resultados):
 
         if len(texto) > TELEGRAM_MAX_CARACTERES:
 
-            # ------------------------------------------------
+            ------------------------------------------------
             # Retira o último jogo do bloco que ultrapassou
             # o limite.
             # ------------------------------------------------
@@ -1032,4 +1032,168 @@ def montar_mensagens(resultados):
                     f"🏠 {odd_casa:.2f} | "
                     f"🤝 X {odd_empate:.2f} | "
                     f"🚌 {odd_visitante:.2f}"
+                ),
+                f"📐 Q: {q:.2f}",
+                f"📊 R: {r:.2f}",
+                (
+                    f"⚖️ Equilíbrio: "
+                    f"{equilibrio:.2f}%"
+                ),
+                (
+                    f"⚠️ Desequilíbrio: "
+                    f"{desequilibrio:.2f}%"
+                ),
+                (
+                    f"🎯 Estrutura: "
+                    f"{classificacao or 'NÃO CLASSIFICADO'}"
+                ),
+                (
+                    f"🧭 Padrão: "
+                    f"{padrao or 'NÃO CLASSIFICADO'}"
+                ),
+                (
+                    f"📊 P(X): {prob_x:.2f}% | "
+                    f"P(X) N: "
+                    f"{prob_x_normalizada:.2f}%"
+                ),
+                "",
+            ]
+
+            # Remove exatamente as linhas do jogo atual.
+            linhas = linhas[
+                :-len(jogo_linhas)
+            ]
+
+            if len(linhas) > 7:
+
+                mensagens.append(
+                    "\n".join(linhas)
+                )
+
+            linhas = novo_bloco()
+
+            linhas.append(
+                f"📅 {data}"
+            )
+
+            linhas.extend(
+                jogo_linhas
+            )
+
+    if len(linhas) > 7:
+
+        linhas.extend(
+            [
+                "────────────────────",
+                (
+                    f"📋 Jogos selecionados: "
+                    f"{len(resultados)}"
+                ),
+                "",
+                "🤖 IPM-RADAR-V3",
+                (
+                    "📚 Monitoramento estatístico "
+                    "pré-live."
+                ),
+                (
+                    "⚠️ Não realiza apostas "
+                    "automaticamente."
+                ),
+            ]
+        )
+
+        mensagens.append(
+            "\n".join(linhas)
+        )
+
+    return mensagens
+
+
+# ============================================================
+# LOOP
+# ============================================================
+
+def loop_consulta():
+
+    print(
+        "🤖 IPM RADAR INICIADO"
+    )
+
+    print(
+        f"Q: {Q_MIN:.2f} → {Q_MAX:.2f}"
+    )
+
+    print(
+        f"INTERVALO: {INTERVALO_RADAR}s"
+    )
+
+    print(
+        f"VARIAÇÃO MÍNIMA: "
+        f"{VARIACAO_MINIMA:.2f}%"
+    )
+
+    print(
+        f"JANELA DE VARIAÇÃO: "
+        f"{JANELA_VARIACAO_MINUTOS} minutos"
+    )
+
+    print(
+        f"CONFIRMAÇÃO: "
+        f"{CONFIRMACAO_MINUTOS} minutos"
+    )
+
+    while True:
+
+        inicio = time.time()
+
+        try:
+
+            if horario_ativo():
+
+                executar_pre_live()
+
+                processar_live()
+
+            else:
+
+                print(
+                    "Radar em período de pausa."
+                )
+
+        except Exception as erro:
+
+            print(
+                "ERRO NO LOOP:",
+                type(erro).__name__,
+                erro,
+            )
+
+        decorrido = (
+            time.time()
+            - inicio
+        )
+
+        espera = max(
+            1,
+            INTERVALO_RADAR
+            - decorrido,
+        )
+
+        print(
+            f"PRÓXIMO CICLO EM "
+            f"{espera:.0f}s"
+        )
+
+        time.sleep(
+            espera
+        )
+
+
+# ============================================================
+# INÍCIO
+# ============================================================
+
+if __name__ == "__main__":
+
+    loop_consulta()
                
