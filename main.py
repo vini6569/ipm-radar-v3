@@ -1016,7 +1016,7 @@ def montar_mensagens(resultados):
 
         if len(texto) > TELEGRAM_MAX_CARACTERES:
 
-            ------------------------------------------------
+            # ------------------------------------------------
             # Retira o último jogo do bloco que ultrapassou
             # o limite.
             # ------------------------------------------------
