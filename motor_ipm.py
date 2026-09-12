@@ -3,6 +3,7 @@
 # CASA + EMPATE + VISITANTE
 # PRE-LIVE COMPLETO + TRAJETÓRIA + REFERÊNCIA 45' + MEMÓRIA
 # SINAL PRÉ-ENTRADA: +/- 20% EM 10 MINUTOS
+# FAIXA DA ODD X PARA LABORATÓRIO ESTATÍSTICO
 # ============================================================
 
 from datetime import datetime
@@ -44,14 +45,43 @@ def _inteiro(valor, padrao=0):
 
 
 # ============================================================
+# CLASSIFICAÇÃO DA FAIXA DA ODD X
+# ============================================================
+
+def classificar_faixa_odd(odd):
+
+    odd = _numero(odd)
+
+    if odd <= 0:
+        return "SEM_ODD"
+
+    if odd < 1.60:
+        return "1.40-1.59"
+
+    if odd < 2.00:
+        return "1.60-1.99"
+
+    if odd < 2.50:
+        return "2.00-2.49"
+
+    if odd < 3.00:
+        return "2.50-2.99"
+
+    return "3.00+"
+
+
+# ============================================================
 # MEMÓRIA POR JOGO
 # ============================================================
 
 def _obter_memoria(event_id):
+
     chave = str(event_id)
 
     if chave not in _MEMORIA:
+
         _MEMORIA[chave] = {
+
             "historico": [],
 
             "odd_casa_inicial": None,
@@ -72,7 +102,10 @@ def _obter_memoria(event_id):
 # VARIAÇÃO PERCENTUAL
 # ============================================================
 
-def _variacao_percentual(inicial, atual):
+def _variacao_percentual(
+    inicial,
+    atual
+):
 
     inicial = _numero(inicial)
     atual = _numero(atual)
@@ -90,7 +123,10 @@ def _variacao_percentual(inicial, atual):
 # MOVIMENTO ENTRE DUAS ODDS CONSECUTIVAS
 # ============================================================
 
-def _movimento_odd(anterior, atual):
+def _movimento_odd(
+    anterior,
+    atual
+):
 
     anterior = _numero(anterior)
     atual = _numero(atual)
@@ -108,7 +144,11 @@ def _movimento_odd(anterior, atual):
 # VARIAÇÃO DA ODD DO EMPATE EM 10 MINUTOS
 # ============================================================
 
-def _variacao_10min(historico, minuto, odd_atual):
+def _variacao_10min(
+    historico,
+    minuto,
+    odd_atual
+):
     """
     Calcula a variação percentual da odd do empate
     comparando a odd atual com a última odd registrada
@@ -151,6 +191,7 @@ def _variacao_10min(historico, minuto, odd_atual):
         )
 
         if minuto_registro <= minuto_referencia:
+
             registro_10min = registro
             break
 
@@ -319,6 +360,7 @@ def analisar_ipm_com_memoria(
 ):
 
     if chave_jogo is None:
+
         raise ValueError(
             "chave_jogo é obrigatória"
         )
@@ -352,6 +394,14 @@ def analisar_ipm_com_memoria(
 
     pre_live_visitante = _numero(
         odd_visitante_pre_live
+    )
+
+    # ========================================================
+    # FAIXA ATUAL DA ODD X
+    # ========================================================
+
+    faixa_odd_x = classificar_faixa_odd(
+        odd_empate
     )
 
     # ========================================================
@@ -538,6 +588,8 @@ def analisar_ipm_com_memoria(
 
         "odd_visitante": odd_visitante,
 
+        "faixa_odd_x": faixa_odd_x,
+
         "variacao_casa": var_casa,
 
         "variacao_empate": var_empate,
@@ -636,6 +688,8 @@ def analisar_ipm_com_memoria(
         "odd_empate": odd_empate,
 
         "odd_visitante": odd_visitante,
+
+        "faixa_odd_x": faixa_odd_x,
 
         # ----------------------------------------------------
         # PRÉ-LIVE
@@ -777,7 +831,9 @@ def avaliar_entrada(
         )
     )
 
-    if ipm < _numero(ipm_minimo):
+    if ipm < _numero(
+        ipm_minimo
+    ):
         return False
 
     if variacao < _numero(
@@ -795,7 +851,9 @@ def avaliar_entrada(
 # -20% ou menos -> True
 # ============================================================
 
-def avaliar_pre_entrada(resultado):
+def avaliar_pre_entrada(
+    resultado
+):
 
     if not isinstance(
         resultado,
@@ -804,7 +862,9 @@ def avaliar_pre_entrada(resultado):
         return False
 
     var_10min = _numero(
-        resultado.get("var_10min")
+        resultado.get(
+            "var_10min"
+        )
     )
 
     return (
@@ -817,7 +877,9 @@ def avaliar_pre_entrada(resultado):
 # JOGO FINALIZADO
 # ============================================================
 
-def jogo_finalizado(jogo):
+def jogo_finalizado(
+    jogo
+):
 
     if not isinstance(
         jogo,
@@ -873,7 +935,9 @@ def resultado_empate(
         "result",
     ):
 
-        valor = jogo.get(chave)
+        valor = jogo.get(
+            chave
+        )
 
         if isinstance(
             valor,
@@ -937,71 +1001,3 @@ def resultado_empate(
 
     return None
 
-
-# ============================================================
-# FORMATAR RADAR
-# ============================================================
-
-def formatar_radar(
-    jogo,
-    resultado,
-    mercados=None
-):
-
-    if not isinstance(
-        jogo,
-        dict
-    ):
-        jogo = {}
-
-    if not isinstance(
-        resultado,
-        dict
-    ):
-        resultado = {}
-
-    casa = (
-        jogo.get("home")
-        or jogo.get("homeTeam")
-        or "Casa"
-    )
-
-    fora = (
-        jogo.get("away")
-        or jogo.get("awayTeam")
-        or "Fora"
-    )
-
-    minuto = _inteiro(
-        resultado.get("minuto")
-    )
-
-    placar_casa = 0
-    placar_fora = 0
-
-    scores = jogo.get(
-        "scores"
-    )
-
-    if isinstance(
-        scores,
-        dict
-    ):
-
-        placar_casa = _inteiro(
-            scores.get("home")
-        )
-
-        placar_fora = _inteiro(
-            scores.get("away")
-        )
-
-    else:
-
-        placar_casa = _inteiro(
-            jogo.get("homeScore")
-        )
-
-        placar_fora = _inteiro(
-            jogo.get("awayScore")
-        )
