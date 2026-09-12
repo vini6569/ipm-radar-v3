@@ -1,6 +1,18 @@
 # ============================================================
-# MAIN - IPM RADAR V5.1
+# MAIN - IPM RADAR V5.1 CORRIGIDO
 # PRE-LIVE + MONITORAMENTO + MOTOR IPM
+# ============================================================
+#
+# CORREÇÕES:
+# 1) O radar NÃO para depois de encontrar um sinal.
+# 2) Cada ciclo continua processando TODOS os jogos monitorados.
+# 3) Jogo sem retorno LIVE não usa odds antigas como se fossem LIVE.
+# 4) O alerta de +/-20% em 10 minutos é controlado por jogo/direção.
+# 5) O mesmo sinal não fica sendo enviado a cada ciclo enquanto
+#    permanecer igual; se voltar a NEUTRO e depois cruzar 20%,
+#    pode alertar novamente.
+# 6) Jogos finalizados são retirados do monitoramento.
+# 7) Logs mostram quantos jogos foram lidos e quantos sinais ocorreram.
 # ============================================================
 
 import os
@@ -33,7 +45,7 @@ from motor_ipm import (
 # ============================================================
 
 INTERVALO_RADAR = int(
-    os.getenv("INTERVALO_RADAR", "300")
+    os.getenv("INTERVALO_RADAR", "60")
 )
 
 Q_MIN = float(
@@ -54,6 +66,13 @@ TELEGRAM_MAX_CARACTERES = 3800
 ULTIMA_LISTA = None
 
 JOGOS_MONITORADOS = {}
+
+# Guarda o último estado de sinal enviado por jogo.
+# Exemplo:
+#   "ALTA_20"  -> não repete até mudar de estado
+#   "NEUTRO"   -> permite novo alerta quando cruzar 20%
+#   "QUEDA_20" -> não repete até mudar de estado
+ULTIMO_SINAL_ENVIADO = {}
 
 
 # ============================================================
@@ -377,14 +396,12 @@ def construir_evento_motor(
         jogo_live,
         dict
     ):
-
         jogo_live = {}
 
     if not isinstance(
         mercados,
         dict
     ):
-
         mercados = {}
 
     casa = (
@@ -443,7 +460,7 @@ def construir_evento_motor(
     )
 
     # --------------------------------------------------------
-    # FALLBACK
+    # FALLBACK SOMENTE SE O MERCADO NÃO TROUXER A ODD
     # --------------------------------------------------------
 
     if odd_casa <= 0:
@@ -809,24 +826,70 @@ def processar_motor_ipm(
         resultado
     ):
 
-        print(
-            "🚨 SINAL PRÉ-ENTRADA | "
-            f"{dados['home']} x {dados['away']} | "
-            f"{sinal} | "
-            f"{var_10min:+.2f}%"
-        )
-
-        mensagem = formatar_radar(
-            dados,
-            resultado,
-            mercados
-        )
-
-        if mensagem:
-
-            enviar_mensagem(
-                mensagem
+        ultimo_sinal = (
+            ULTIMO_SINAL_ENVIADO.get(
+                event_id
             )
+        )
+
+        # Só envia quando:
+        # - é o primeiro sinal;
+        # - mudou ALTA <-> QUEDA;
+        # - ou voltou a NEUTRO antes de cruzar novamente.
+        novo_sinal = (
+            sinal != ultimo_sinal
+        )
+
+        if novo_sinal:
+
+            print(
+                "🚨 SINAL PRÉ-ENTRADA | "
+                f"{dados['home']} x {dados['away']} | "
+                f"{sinal} | "
+                f"{var_10min:+.2f}%"
+            )
+
+            mensagem = formatar_radar(
+                dados,
+                resultado,
+                mercados
+            )
+
+            if mensagem:
+
+                enviado = enviar_mensagem(
+                    mensagem
+                )
+
+                if enviado:
+
+                    ULTIMO_SINAL_ENVIADO[
+                        event_id
+                    ] = sinal
+
+                    print(
+                        "ALERTA TELEGRAM ENVIADO | "
+                        f"ID={event_id}"
+                    )
+
+        else:
+
+            print(
+                "SINAL JÁ ENVIADO NESTE ESTADO | "
+                f"ID={event_id} | "
+                f"{sinal}"
+            )
+
+    else:
+
+        # Ao voltar para NEUTRO, libera um próximo cruzamento.
+        if ULTIMO_SINAL_ENVIADO.get(
+            event_id
+        ) is not None:
+
+            ULTIMO_SINAL_ENVIADO[
+                event_id
+            ] = "NEUTRO"
 
     return resultado
 
@@ -874,7 +937,7 @@ def processar_live():
             erro
         )
 
-        jogos_live = []
+        return
 
     mapa_live = {
 
@@ -892,6 +955,49 @@ def processar_live():
     }
 
     # --------------------------------------------------------
+    # RETIRAR JOGOS FINALIZADOS
+    # --------------------------------------------------------
+
+    finalizados = []
+
+    for event_id, jogo_live in mapa_live.items():
+
+        if jogo_finalizado(jogo_live):
+
+            finalizados.append(
+                event_id
+            )
+
+    for event_id in finalizados:
+
+        JOGOS_MONITORADOS.pop(
+            event_id,
+            None
+        )
+
+        ULTIMO_SINAL_ENVIADO.pop(
+            event_id,
+            None
+        )
+
+        print(
+            f"LIVE | JOGO FINALIZADO REMOVIDO | ID={event_id}"
+        )
+
+    # Recalcula os IDs depois da limpeza.
+    ids = list(
+        JOGOS_MONITORADOS.keys()
+    )
+
+    if not ids:
+
+        print(
+            "LIVE | Nenhum jogo ativo após limpeza."
+        )
+
+        return
+
+    # --------------------------------------------------------
     # PREPARAR EVENTOS PARA ODDS
     # --------------------------------------------------------
 
@@ -903,33 +1009,27 @@ def processar_live():
             str(event_id)
         )
 
+        # Não mandamos jogo inexistente no LIVE
+        # para o módulo de odds como se estivesse ao vivo.
         if evento is None:
 
-            monitorado = (
-                JOGOS_MONITORADOS[
-                    str(event_id)
-                ]
+            print(
+                f"LIVE | JOGO NÃO RETORNADO | ID={event_id}"
             )
 
-            evento = {
-
-                "id": str(event_id),
-
-                "home": monitorado.get(
-                    "casa",
-                    "Casa"
-                ),
-
-                "away": monitorado.get(
-                    "fora",
-                    "Fora"
-                ),
-
-            }
+            continue
 
         eventos_para_odds.append(
             evento
         )
+
+    if not eventos_para_odds:
+
+        print(
+            "LIVE | Nenhum evento LIVE disponível neste ciclo."
+        )
+
+        return
 
     # --------------------------------------------------------
     # BUSCAR ODDS
@@ -952,13 +1052,14 @@ def processar_live():
             erro
         )
 
-        odds = []
+        return
 
     if not odds:
 
         print(
             "ODDS MONITORAMENTO: "
-            "nenhuma odds recebida neste ciclo."
+            "nenhuma odds recebida neste ciclo. "
+            "O radar continua no próximo ciclo."
         )
 
         return
@@ -968,6 +1069,7 @@ def processar_live():
     # --------------------------------------------------------
 
     processados = 0
+    sinais = 0
 
     for event_id in ids:
 
@@ -990,23 +1092,11 @@ def processar_live():
             )
         )
 
+        # Se a partida não veio no retorno LIVE,
+        # não inventamos uma leitura.
         if jogo_live is None:
 
-            jogo_live = {
-
-                "id": event_id,
-
-                "home": monitorado.get(
-                    "casa",
-                    "Casa"
-                ),
-
-                "away": monitorado.get(
-                    "fora",
-                    "Fora"
-                ),
-
-            }
+            continue
 
         # ----------------------------------------------------
         # EXTRAIR MERCADOS
@@ -1053,9 +1143,17 @@ def processar_live():
 
         processados += 1
 
+        if avaliar_pre_entrada(
+            resultado
+        ):
+
+            sinais += 1
+
     print(
         f"MONITORAMENTO CONCLUIDO | "
-        f"LEITURAS={processados}"
+        f"LEITURAS={processados} | "
+        f"SINAIS_ATIVOS={sinais} | "
+        f"JOGOS_MONITORADOS={len(JOGOS_MONITORADOS)}"
     )
 
 
