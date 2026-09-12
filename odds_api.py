@@ -1,26 +1,5 @@
 # ============================================================
-# ODDS API - IPM RADAR V4.4
-# ============================================================
-#
-# CORREÇÃO:
-#   /odds/multi aceita no máximo 10 eventIds por requisição.
-#
-# O motor divide automaticamente os eventos em lotes de 10,
-# consulta cada lote e junta os resultados.
-#
-# Mantém:
-#   - Pré-live
-#   - Live
-#   - Busca por IDs
-#   - Mercados
-#   - 1X2
-#   - Totals
-#   - BTTS
-#   - Handicap
-#   - Double Chance
-#   - DNB
-#   - Estatísticas
-#
+# ODDS API - IPM RADAR V5.2
 # ============================================================
 
 import json
@@ -41,10 +20,24 @@ from config import (
 
 
 # ============================================================
-# REQUISIÇÃO HTTP
+# LIMITE REAL DA ODDS API
 # ============================================================
 
+MAX_EVENTOS_ODDS_MULTI = 10
+
+
+# ============================================================
+# CONTROLE LOCAL DE REQUISIÇÕES
+# ============================================================
+
+REQUISICOES_REALIZADAS = 0
+
+
 def _request_json(endpoint, params):
+
+    global REQUISICOES_REALIZADAS
+
+    REQUISICOES_REALIZADAS += 1
 
     url = (
         f"{BASE_URL}/{endpoint.lstrip('/')}"
@@ -54,7 +47,7 @@ def _request_json(endpoint, params):
     req = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "IPM-Radar/4.4",
+            "User-Agent": "IPM-Radar/5.2",
             "Accept": "application/json",
         },
     )
@@ -73,20 +66,12 @@ def _request_json(endpoint, params):
                 resp.status,
             )
 
-        return (
-            json.loads(body)
-            if body
-            else []
-        )
+        return json.loads(body) if body else []
 
     except urllib.error.HTTPError as e:
 
         try:
-            detalhe = (
-                e.read()
-                .decode("utf-8")
-            )
-
+            detalhe = e.read().decode("utf-8")
         except Exception:
             detalhe = ""
 
@@ -120,15 +105,12 @@ def _request_json(endpoint, params):
 
 
 # ============================================================
-# LISTAR EVENTOS
+# LISTA DE EVENTOS
 # ============================================================
 
 def _lista_eventos(resposta):
 
-    if isinstance(
-        resposta,
-        list,
-    ):
+    if isinstance(resposta, list):
 
         return [
             x
@@ -140,7 +122,6 @@ def _lista_eventos(resposta):
         resposta,
         dict,
     ):
-
         return []
 
     for chave in (
@@ -169,15 +150,13 @@ def _lista_eventos(resposta):
     return [
         v
         for v in resposta.values()
-        if (
-            isinstance(v, dict)
-            and v.get("id") is not None
-        )
+        if isinstance(v, dict)
+        and v.get("id") is not None
     ]
 
 
 # ============================================================
-# BUSCAR JOGOS AO VIVO
+# JOGOS AO VIVO
 # ============================================================
 
 def buscar_jogos_ao_vivo():
@@ -216,7 +195,7 @@ def buscar_jogos_ao_vivo():
 
 
 # ============================================================
-# BUSCAR JOGOS AO VIVO POR IDs
+# JOGOS AO VIVO POR ID
 # ============================================================
 
 def buscar_jogos_ao_vivo_por_ids(
@@ -242,9 +221,8 @@ def buscar_jogos_ao_vivo_por_ids(
         for evento in eventos
         if (
             isinstance(evento, dict)
-            and str(
-                evento.get("id")
-            ) in ids
+            and str(evento.get("id"))
+            in ids
         )
     ]
 
@@ -300,7 +278,7 @@ def _parse_data_evento(evento):
 
 
 # ============================================================
-# BUSCAR JOGOS PRÉ-LIVE
+# JOGOS PRÉ-LIVE
 # ============================================================
 
 def buscar_jogos_pre_live():
@@ -385,45 +363,23 @@ def buscar_jogos_pre_live():
 
 
 # ============================================================
-# DIVIDIR IDS EM LOTES
+# ODDS MÚLTIPLAS
 # ============================================================
 #
-# A Odds API aceita no máximo 10 eventIds
-# por requisição /odds/multi.
+# A API aceita no máximo 10 eventIds
+# por requisição.
+#
+# Portanto:
+#
+# 30 eventos
+# ↓
+# lote 1 = 10
+# lote 2 = 10
+# lote 3 = 10
 #
 # ============================================================
 
-def _dividir_em_lotes(
-    itens,
-    tamanho=10,
-):
-
-    lotes = []
-
-    for inicio in range(
-        0,
-        len(itens),
-        tamanho,
-    ):
-
-        lote = itens[
-            inicio:
-            inicio + tamanho
-        ]
-
-        if lote:
-            lotes.append(lote)
-
-    return lotes
-
-
-# ============================================================
-# BUSCAR ODDS DE MÚLTIPLOS EVENTOS
-# ============================================================
-
-def buscar_odds_multiplos(
-    eventos
-):
+def buscar_odds_multiplos(eventos):
 
     if not eventos:
         return []
@@ -441,58 +397,48 @@ def buscar_odds_multiplos(
 
         return []
 
-    # --------------------------------------------------------
-    # EXTRAIR IDS
-    # --------------------------------------------------------
-
     ids = []
 
     for evento in eventos:
 
         if (
-            isinstance(
-                evento,
-                dict,
-            )
+            isinstance(evento, dict)
             and evento.get("id") is not None
         ):
 
-            ids.append(
-                str(evento["id"])
+            event_id = str(
+                evento["id"]
             )
 
-    # Remove duplicados preservando ordem
-
-    ids = list(
-        dict.fromkeys(ids)
-    )
+            if event_id not in ids:
+                ids.append(event_id)
 
     if not ids:
         return []
 
-    # --------------------------------------------------------
-    # LIMITE REAL DA API
-    # --------------------------------------------------------
+    # Respeita o limite global do scanner.
+    ids = ids[
+        :MAX_EVENTOS_POR_CONSULTA
+    ]
 
-    LIMITE_IDS_ODDS_API = 10
-
-    lotes = _dividir_em_lotes(
-        ids,
-        LIMITE_IDS_ODDS_API,
-    )
+    lotes = [
+        ids[i:i + MAX_EVENTOS_ODDS_MULTI]
+        for i in range(
+            0,
+            len(ids),
+            MAX_EVENTOS_ODDS_MULTI,
+        )
+    ]
 
     print(
-        "📦 ODDS MULTI | "
+        f"📦 ODDS MULTI | "
         f"EVENTOS={len(ids)} | "
         f"LOTES={len(lotes)} | "
-        f"MÁXIMO POR LOTE={LIMITE_IDS_ODDS_API}"
+        f"MÁXIMO POR LOTE="
+        f"{MAX_EVENTOS_ODDS_MULTI}"
     )
 
-    todos_eventos_odds = []
-
-    # --------------------------------------------------------
-    # CONSULTAR CADA LOTE
-    # --------------------------------------------------------
+    todos = []
 
     for numero_lote, lote in enumerate(
         lotes,
@@ -521,20 +467,19 @@ def buscar_odds_multiplos(
         print(
             f"📥 ODDS LOTE "
             f"{numero_lote}/{len(lotes)} | "
-            f"RECEBIDOS={len(eventos_odds)}"
+            f"RECEBIDOS="
+            f"{len(eventos_odds)}"
         )
 
-        todos_eventos_odds.extend(
+        todos.extend(
             eventos_odds
         )
 
-    # --------------------------------------------------------
-    # REMOVER DUPLICADOS
-    # --------------------------------------------------------
+    # Remove duplicados por ID.
+    resultado = []
+    vistos = set()
 
-    mapa = {}
-
-    for evento in todos_eventos_odds:
+    for evento in todos:
 
         if not isinstance(
             evento,
@@ -547,11 +492,16 @@ def buscar_odds_multiplos(
         if event_id is None:
             continue
 
-        mapa[str(event_id)] = evento
+        event_id = str(event_id)
 
-    resultado = list(
-        mapa.values()
-    )
+        if event_id in vistos:
+            continue
+
+        vistos.add(event_id)
+
+        resultado.append(
+            evento
+        )
 
     print(
         "EVENTOS COM ODDS RECEBIDOS:",
@@ -564,7 +514,7 @@ def buscar_odds_multiplos(
 
 
 # ============================================================
-# CONVERSÕES NUMÉRICAS
+# CONVERSÃO NUMÉRICA
 # ============================================================
 
 def _numero(
@@ -574,11 +524,14 @@ def _numero(
 
     try:
 
-        return (
-            padrao
-            if valor in (None, "")
-            else float(valor)
-        )
+        if valor in (
+            None,
+            "",
+        ):
+
+            return padrao
+
+        return float(valor)
 
     except (
         TypeError,
@@ -595,10 +548,15 @@ def _inteiro(
 
     try:
 
-        return (
-            padrao
-            if valor in (None, "")
-            else int(float(valor))
+        if valor in (
+            None,
+            "",
+        ):
+
+            return padrao
+
+        return int(
+            float(valor)
         )
 
     except (
@@ -610,7 +568,7 @@ def _inteiro(
 
 
 # ============================================================
-# ENCONTRAR EVENTO DE ODDS POR ID
+# LOCALIZAR EVENTO NAS ODDS
 # ============================================================
 
 def _evento_odds_por_id(
@@ -631,13 +589,9 @@ def _evento_odds_por_id(
         for item in odds:
 
             if (
-                isinstance(
-                    item,
-                    dict,
-                )
-                and str(
-                    item.get("id")
-                ) == alvo
+                isinstance(item, dict)
+                and str(item.get("id"))
+                == alvo
             ):
 
                 return item
@@ -647,15 +601,14 @@ def _evento_odds_por_id(
         dict,
     ):
 
-        if str(
-            odds.get("id")
-        ) == alvo:
+        if (
+            str(odds.get("id"))
+            == alvo
+        ):
 
             return odds
 
-        item = odds.get(
-            alvo
-        )
+        item = odds.get(alvo)
 
         if isinstance(
             item,
@@ -668,12 +621,10 @@ def _evento_odds_por_id(
 
 
 # ============================================================
-# MERCADOS DO BOOKMAKER
+# MERCADOS
 # ============================================================
 
-def _mercados_bet365(
-    evento
-):
+def _mercados_bet365(evento):
 
     if not isinstance(
         evento,
@@ -767,7 +718,8 @@ def _mercados_bet365(
 
             if (
                 nome
-                == BOOKMAKER
+                ==
+                BOOKMAKER
                 .strip()
                 .lower()
             ):
@@ -790,10 +742,6 @@ def _mercados_bet365(
 
     return []
 
-
-# ============================================================
-# PRIMEIRA LINHA DE ODDS
-# ============================================================
 
 def _primeiro_odds(
     mercado
@@ -835,10 +783,6 @@ def _primeiro_odds(
     )
 
 
-# ============================================================
-# TODAS AS LINHAS DE ODDS
-# ============================================================
-
 def _linhas_odds(
     mercado
 ):
@@ -878,10 +822,6 @@ def _linhas_odds(
     )
 
 
-# ============================================================
-# ENCONTRAR MERCADO
-# ============================================================
-
 def _encontrar_mercado(
     mercados,
     nomes,
@@ -917,7 +857,7 @@ def _encontrar_mercado(
 
 
 # ============================================================
-# NORMALIZAÇÃO DO NOME
+# NORMALIZAÇÃO DE NOMES
 # ============================================================
 
 def _nome_normalizado(
@@ -928,18 +868,18 @@ def _nome_normalizado(
         str(nome or "")
         .strip()
         .lower()
-        .replace("_", " ")
-        .replace("-", " ")
+        .replace(
+            "_",
+            " ",
+        )
+        .replace(
+            "-",
+            " ",
+        )
     )
 
 
-# ============================================================
-# IDENTIFICAR HT
-# ============================================================
-
-def _eh_ht(
-    nome
-):
+def _eh_ht(nome):
 
     n = _nome_normalizado(
         nome
@@ -959,10 +899,6 @@ def _eh_ht(
         )
     )
 
-
-# ============================================================
-# CATEGORIA DO MERCADO
-# ============================================================
 
 def _categoria_mercado(
     nome
@@ -995,7 +931,7 @@ def _categoria_mercado(
 
 
 # ============================================================
-# EXTRAIR PLACAR
+# PLACAR
 # ============================================================
 
 def _extrair_placar(
@@ -1061,7 +997,7 @@ def _extrair_placar(
 
 
 # ============================================================
-# EXTRAIR MINUTO
+# MINUTO
 # ============================================================
 
 def _extrair_minuto(
@@ -1116,9 +1052,8 @@ def _extrair_minuto(
     return 0
 
 
-
 # ============================================================
-# EXTRAIR ESTATÍSTICAS
+# ESTATÍSTICAS
 # ============================================================
 
 def _extrair_estatisticas(
@@ -1187,7 +1122,6 @@ def _copiar_mercado(
             mercado
         ),
     }
-
 
 # ============================================================
 # EXTRAIR MERCADOS
@@ -1277,15 +1211,16 @@ def extrair_mercados(
         "mercados_disponiveis": [],
 
         "todos": [],
+
         "odds_ft": [],
         "odds_ht": [],
         "odds_corners": [],
         "odds_cards": [],
     }
 
-    # ========================================================
-    # MERCADOS
-    # ========================================================
+    # --------------------------------------------------------
+    # TODOS OS MERCADOS
+    # --------------------------------------------------------
 
     for mercado in mercados:
 
@@ -1316,13 +1251,15 @@ def extrair_mercados(
             )
         )
 
-        resultado[
-            "todos"
-        ].append(item)
+        resultado["todos"].append(
+            item
+        )
 
         resultado[
             "mercados_disponiveis"
-        ].append(nome)
+        ].append(
+            nome
+        )
 
         destino = {
             "HT": "odds_ht",
@@ -1335,7 +1272,9 @@ def extrair_mercados(
 
         resultado[
             destino
-        ].append(item)
+        ].append(
+            item
+        )
 
     resultado[
         "mercados_disponiveis"
@@ -1347,37 +1286,9 @@ def extrair_mercados(
         )
     )
 
-    # ========================================================
-    # ALIASES PADRONIZADOS
-    # ========================================================
-
-    resultado.setdefault(
-        "odd_casa",
-        resultado.get(
-            "odd_home",
-            0.0,
-        ),
-    )
-
-    resultado.setdefault(
-        "odd_empate",
-        resultado.get(
-            "odd_draw",
-            0.0,
-        ),
-    )
-
-    resultado.setdefault(
-        "odd_visitante",
-        resultado.get(
-            "odd_away",
-            0.0,
-        ),
-    )
-
-    # ========================================================
+    # --------------------------------------------------------
     # DEBUG
-    # ========================================================
+    # --------------------------------------------------------
 
     try:
 
@@ -1402,12 +1313,11 @@ def extrair_mercados(
         )
 
     except Exception:
-
         pass
 
-    # ========================================================
-    # MONEYLINE / 1X2
-    # ========================================================
+    # --------------------------------------------------------
+    # 1X2
+    # --------------------------------------------------------
 
     mercado_ml = _encontrar_mercado(
         mercados,
@@ -1458,9 +1368,9 @@ def extrair_mercados(
             "mercados_encontrados"
         ].append("ML")
 
-    # ========================================================
-    # ALIASES IPM RADAR
-    # ========================================================
+    # --------------------------------------------------------
+    # ALIASES IPM
+    # --------------------------------------------------------
 
     resultado[
         "odd_casa"
@@ -1480,9 +1390,9 @@ def extrair_mercados(
         "odd_away"
     ]
 
-    # ========================================================
+    # --------------------------------------------------------
     # TOTALS
-    # ========================================================
+    # --------------------------------------------------------
 
     mercado_totals = _encontrar_mercado(
         mercados,
@@ -1529,9 +1439,9 @@ def extrair_mercados(
             "mercados_encontrados"
         ].append("TOTALS")
 
-    # ========================================================
+    # --------------------------------------------------------
     # BTTS
-    # ========================================================
+    # --------------------------------------------------------
 
     mercado_btts = _encontrar_mercado(
         mercados,
@@ -1570,9 +1480,9 @@ def extrair_mercados(
             "mercados_encontrados"
         ].append("BTTS")
 
-    # ========================================================
+    # --------------------------------------------------------
     # HANDICAP
-    # ========================================================
+    # --------------------------------------------------------
 
     mercado_handicap = _encontrar_mercado(
         mercados,
@@ -1612,9 +1522,9 @@ def extrair_mercados(
             "mercados_encontrados"
         ].append("HANDICAP")
 
-    # ========================================================
+    # --------------------------------------------------------
     # DOUBLE CHANCE
-    # ========================================================
+    # --------------------------------------------------------
 
     mercado_dc = _encontrar_mercado(
         mercados,
@@ -1655,9 +1565,9 @@ def extrair_mercados(
             "DOUBLE_CHANCE"
         )
 
-    # ========================================================
+    # --------------------------------------------------------
     # DRAW NO BET
-    # ========================================================
+    # --------------------------------------------------------
 
     mercado_dnb = _encontrar_mercado(
         mercados,
@@ -1694,8 +1604,9 @@ def extrair_mercados(
 
 
 # ============================================================
-# LIMPAR MEMÓRIA
+# MEMÓRIA
 # ============================================================
 
 def limpar_memoria():
+
     pass
