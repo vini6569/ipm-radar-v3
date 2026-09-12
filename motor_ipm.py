@@ -913,7 +913,6 @@ def jogo_finalizado(
         )
     )
 
-
 # ============================================================
 # IDENTIFICAR EMPATE
 # ============================================================
@@ -1001,3 +1000,84 @@ def resultado_empate(
 
     return None
 
+
+# ============================================================
+# FORMATAR RADAR
+# ============================================================
+
+def formatar_radar(
+    jogo,
+    resultado,
+    mercados=None
+):
+
+    if not isinstance(
+        jogo,
+        dict
+    ):
+        jogo = {}
+
+    if not isinstance(
+        resultado,
+        dict
+    ):
+        resultado = {}
+
+    casa = (
+        jogo.get("home")
+        or jogo.get("homeTeam")
+        or "Casa"
+    )
+
+    fora = (
+        jogo.get("away")
+        or jogo.get("awayTeam")
+        or "Fora"
+    )
+
+    minuto = _inteiro(
+        resultado.get("minuto")
+    )
+
+    placar_casa = 0
+    placar_fora = 0
+
+    scores = jogo.get(
+        "scores"
+    )
+
+    if isinstance(
+        scores,
+        dict
+    ):
+
+        placar_casa = _inteiro(
+            scores.get("home")
+        )
+
+        placar_fora = _inteiro(
+            scores.get("away")
+        )
+
+    return (
+        f"⚽ {casa} x {fora}\n"
+        f"⏱️ {minuto}'\n"
+        f"📊 Placar: "
+        f"{placar_casa} x {placar_fora}\n"
+        f"🏠 Casa: "
+        f"{_numero(resultado.get('odd_casa')):.2f}\n"
+        f"🤝 X: "
+        f"{_numero(resultado.get('odd_empate')):.2f}\n"
+        f"🚌 Visitante: "
+        f"{_numero(resultado.get('odd_visitante')):.2f}\n"
+        f"📐 Q: "
+        f"{_numero(resultado.get('q')):.2f}\n"
+        f"📊 IPM: "
+        f"{_numero(resultado.get('ipm')):.2f}\n"
+        f"📈 Faixa Odd X: "
+        f"{resultado.get('faixa_odd_x', 'SEM_ODD')}\n"
+        f"📉 Variação 10min: "
+        f"{_numero(resultado.get('var_10min')):+.2f}%\n"
+        f"🧭 Sinal: "
+        f"{resultado.get('sinal_pre_entrada', 'NEUTRO')}"
+    )
