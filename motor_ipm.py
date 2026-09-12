@@ -1081,3 +1081,4 @@ def formatar_radar(
         f"🧭 Sinal: "
         f"{resultado.get('sinal_pre_entrada', 'NEUTRO')}"
     )
+
