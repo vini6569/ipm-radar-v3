@@ -14,6 +14,10 @@ from config import (
 )
 
 
+# Limite seguro de IDs enviados por lote à /odds/multi
+MAX_EVENTOS_ODDS_MULTI = 10
+
+
 def _request_json(endpoint, params):
     url = f"{BASE_URL}/{endpoint.lstrip('/')}?{urllib.parse.urlencode(params)}"
     req = urllib.request.Request(
@@ -723,4 +727,3 @@ def extrair_mercados(jogo, odds):
 
 def limpar_memoria():
     pass
-    
