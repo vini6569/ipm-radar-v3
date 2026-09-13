@@ -97,6 +97,40 @@ def iniciar_servidor():
 
 
 # ============================================================
+# CONTADOR DA API
+# ============================================================
+
+def obter_requisicoes_api():
+
+    """
+    Obtém o contador existente no odds_api sem quebrar o robô
+    caso essa variável não exista.
+
+    O scanner/odds_api continua sendo a fonte das requisições.
+    """
+
+    for nome in (
+        "REQUISICOES_REALIZADAS",
+        "REQUESTS_REALIZADAS",
+        "REQUESTS_MADE",
+        "REQUEST_COUNT",
+        "TOTAL_REQUESTS",
+    ):
+
+        valor = getattr(
+            odds_api,
+            nome,
+            None
+        )
+
+        if isinstance(valor, (int, float)):
+
+            return int(valor)
+
+    return 0
+
+
+# ============================================================
 # CONTROLE DIÁRIO DA API
 # ============================================================
 
@@ -114,7 +148,7 @@ def inicializar_controle_diario():
         DATA_CONTROLE = hoje
 
         REQUISICOES_INICIO_DIA = (
-            odds_api.REQUISICOES_REALIZADAS
+            obter_requisicoes_api()
         )
 
         print()
@@ -136,7 +170,7 @@ def requisicoes_do_dia():
 
     return max(
         0,
-        odds_api.REQUISICOES_REALIZADAS
+        obter_requisicoes_api()
         - REQUISICOES_INICIO_DIA
     )
 
@@ -241,9 +275,7 @@ def executar_pre_live():
 
         return
 
-    inicio_api = (
-        odds_api.REQUISICOES_REALIZADAS
-    )
+    inicio_api = obter_requisicoes_api()
 
     try:
 
@@ -263,7 +295,7 @@ def executar_pre_live():
         return
 
     usadas = (
-        odds_api.REQUISICOES_REALIZADAS
+        obter_requisicoes_api()
         - inicio_api
     )
 
@@ -420,4 +452,3 @@ if __name__ == "__main__":
     iniciar_servidor()
 
     loop()
-                
