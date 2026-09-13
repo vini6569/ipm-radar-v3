@@ -1,22 +1,6 @@
 # ============================================================
-# SCANNER PRÉ-LIVE - IPM RADAR V5.0
-# ============================================================
-#
-# Função:
-#   - Buscar jogos futuros
-#   - Organizar por período
-#   - Obter odds 1X2
-#   - Calcular P(X)
-#   - Calcular P(X) normalizada
-#   - Calcular Q
-#   - Calcular R
-#   - Medir equilíbrio / desequilíbrio
-#   - Preparar jogos para o RADAR
-#
-# NÃO gera entrada.
-# NÃO realiza apostas.
-# NÃO altera o IPM LIVE.
-#
+# PRE-LIVE - IPM RADAR V5.2
+# SOMENTE SELEÇÃO PRÉ-LIVE
 # ============================================================
 
 from datetime import datetime, time
@@ -37,30 +21,24 @@ from odds_api import (
 
 
 # ============================================================
-# CONVERSÃO NUMÉRICA
+# CONVERSÃO
 # ============================================================
 
-def _numero(valor, padrao=0.0):
-
+def numero(valor, padrao=0.0):
     try:
-
         if valor in (None, ""):
             return padrao
-
         return float(valor)
-
     except (TypeError, ValueError):
-
         return padrao
 
 
 # ============================================================
-# PROBABILIDADE IMPLÍCITA
+# PROBABILIDADES
 # ============================================================
 
-def probabilidade_implicita(odd):
-
-    odd = _numero(odd)
+def probabilidade(odd):
+    odd = numero(odd)
 
     if odd <= 0:
         return 0.0
@@ -68,138 +46,60 @@ def probabilidade_implicita(odd):
     return 100.0 / odd
 
 
-# ============================================================
-# PROBABILIDADE NORMALIZADA
-# ============================================================
-
 def probabilidade_normalizada(
     odd_casa,
     odd_empate,
     odd_visitante,
 ):
+    pc = probabilidade(odd_casa)
+    px = probabilidade(odd_empate)
+    pv = probabilidade(odd_visitante)
 
-    pc = probabilidade_implicita(
-        odd_casa
-    )
-
-    px = probabilidade_implicita(
-        odd_empate
-    )
-
-    pv = probabilidade_implicita(
-        odd_visitante
-    )
-
-    total = (
-        pc
-        + px
-        + pv
-    )
+    total = pc + px + pv
 
     if total <= 0:
         return 0.0
 
-    return (
-        px / total
-    ) * 100.0
+    return (px / total) * 100.0
 
 
 # ============================================================
-# Q PRÉ-LIVE
-# ============================================================
-#
-# Q = 2 × (W1 × W2) / (W1 + W2)
-#
-# Mede a região conjunta das duas pontas.
+# Q
 # ============================================================
 
-def calcular_q(
-    odd_casa,
-    odd_visitante,
-):
+def calcular_q(odd_casa, odd_visitante):
+    casa = numero(odd_casa)
+    fora = numero(odd_visitante)
 
-    casa = _numero(
-        odd_casa
-    )
-
-    visitante = _numero(
-        odd_visitante
-    )
-
-    if casa <= 0 or visitante <= 0:
-        return 0.0
-
-    soma = (
-        casa
-        + visitante
-    )
-
-    if soma <= 0:
+    if casa <= 0 or fora <= 0:
         return 0.0
 
     return (
-        2.0
-        * casa
-        * visitante
-        / soma
+        2.0 * casa * fora
+        / (casa + fora)
     )
 
 
 # ============================================================
-# R PRÉ-LIVE
-# ============================================================
-#
-# R = maior odd / menor odd
-#
-# R = 1.00
-#     equilíbrio máximo
-#
-# Quanto maior R:
-#     maior desequilíbrio.
+# R
 # ============================================================
 
-def calcular_r(
-    odd_casa,
-    odd_visitante,
-):
+def calcular_r(odd_casa, odd_visitante):
+    casa = numero(odd_casa)
+    fora = numero(odd_visitante)
 
-    casa = _numero(
-        odd_casa
-    )
-
-    visitante = _numero(
-        odd_visitante
-    )
-
-    if casa <= 0 or visitante <= 0:
+    if casa <= 0 or fora <= 0:
         return 0.0
 
-    menor = min(
-        casa,
-        visitante,
-    )
-
-    maior = max(
-        casa,
-        visitante,
-    )
-
-    if menor <= 0:
-        return 0.0
-
-    return (
-        maior
-        / menor
-    )
+    return max(casa, fora) / min(casa, fora)
 
 
 # ============================================================
-# CLASSIFICAÇÃO DO EQUILÍBRIO
+# CLASSIFICAÇÃO
 # ============================================================
 
 def classificar_equilibrio(r):
-
-    r = _numero(r)
+    r = numero(r)
 
     if r <= 0:
         return "SEM_DADOS"
@@ -219,92 +119,33 @@ def classificar_equilibrio(r):
     return "DESEQUILÍBRIO ALTO"
 
 
-# ============================================================
-# GRAU DE EQUILÍBRIO
-# ============================================================
-#
-# Não é uma probabilidade.
-#
-# É apenas um índice interno para facilitar
-# a leitura do laboratório.
-#
-# R = 1.00 → 100
-# R maior → índice menor
-#
-# ============================================================
-
-def calcular_indice_equilibrio(r):
-
-    r = _numero(r)
+def indice_equilibrio(r):
+    r = numero(r)
 
     if r <= 0:
         return 0.0
 
-    indice = (
-        100.0 / r
-    )
+    return round(100.0 / r, 2)
 
-    return round(
-        indice,
-        2
-    )
-
-
-# ============================================================
-# DIREÇÃO DA HIPÓTESE
-# ============================================================
 
 def classificar_padrao(r):
-
-    r = _numero(r)
+    r = numero(r)
 
     if r <= 0:
         return "SEM_DADOS"
 
-    if r <= 1.80:
-        return "PADRÃO_EMPATE"
-
-    return "PADRÃO_GOL"
-
-
-# ============================================================
-# PERÍODO DO DIA
-# ============================================================
-
-def identificar_periodo(dt):
-
-    hora = dt.time()
-
-    if (
-        time(6, 0)
-        <= hora
-        < time(12, 0)
-    ):
-        return "06:00 - 12:00"
-
-    if (
-        time(12, 0)
-        <= hora
-        < time(18, 0)
-    ):
-        return "12:00 - 18:00"
-
-    if (
-        time(18, 0)
-        <= hora
-        or hora < time(0, 0)
-    ):
-        return "18:00 - 00:00"
-
-    return "FORA_DA_JANELA"
+    return (
+        "PADRÃO_EMPATE"
+        if r <= 1.80
+        else "PADRÃO_GOL"
+    )
 
 
 # ============================================================
-# CONVERTER HORÁRIO
+# DATA / HORÁRIO
 # ============================================================
 
 def converter_horario(evento):
-
     valor = (
         evento.get("date")
         or evento.get("startTime")
@@ -315,135 +156,87 @@ def converter_horario(evento):
         return None
 
     try:
-
-        texto = str(valor)
-
         dt = datetime.fromisoformat(
-            texto.replace(
-                "Z",
-                "+00:00"
-            )
+            str(valor).replace("Z", "+00:00")
         )
 
         if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=FUSO_HORARIO)
 
-            dt = dt.replace(
-                tzinfo=FUSO_HORARIO
-            )
-
-        return dt.astimezone(
-            FUSO_HORARIO
-        )
+        return dt.astimezone(FUSO_HORARIO)
 
     except Exception:
-
         return None
 
 
+def periodo(dt):
+    hora = dt.time()
+
+    if time(6, 0) <= hora < time(12, 0):
+        return "06:00 - 12:00"
+
+    if time(12, 0) <= hora < time(18, 0):
+        return "12:00 - 18:00"
+
+    if hora >= time(18, 0):
+        return "18:00 - 00:00"
+
+    return "FORA_DA_JANELA"
+
+
 # ============================================================
-# SCANNER PRÉ-LIVE
+# SCANNER
 # ============================================================
 
 def escanear_pre_live():
 
-    print()
-    print("=" * 72)
-    print("🧪 SCANNER PRÉ-LIVE | IPM RADAR V5.0")
-    print("=" * 72)
-
+    print("\n" + "=" * 60)
+    print("🧪 IPM RADAR | PRÉ-LIVE")
     print(
-        f"⏱️ JANELA: "
-        f"{PRE_LIVE_JANELA_MINUTOS} minutos"
+        f"⏱️ Janela: {PRE_LIVE_JANELA_MINUTOS} min"
     )
-
     print(
-        f"📐 Q: "
-        f"{Q_MIN:.2f} → {Q_MAX:.2f}"
+        f"📐 Q: {Q_MIN:.2f} → {Q_MAX:.2f}"
     )
-
-    print(
-        "📊 R: cálculo de equilíbrio/"
-        "desequilíbrio"
-    )
-
-    # --------------------------------------------------------
-    # BUSCAR JOGOS
-    # --------------------------------------------------------
+    print("=" * 60)
 
     try:
-
-        jogos = (
-            buscar_jogos_pre_live()
-            or []
-        )
-
+        jogos = buscar_jogos_pre_live() or []
     except Exception as erro:
-
         print(
-            "ERRO AO BUSCAR JOGOS:",
+            "❌ ERRO JOGOS:",
             type(erro).__name__,
             erro,
         )
-
         return []
 
     if not jogos:
-
-        print(
-            "Nenhum jogo pré-live encontrado."
-        )
-
+        print("PRÉ-LIVE | Nenhum jogo encontrado.")
         return []
 
-    jogos = jogos[
-        :MAX_EVENTOS_POR_CONSULTA
-    ]
-
-    # --------------------------------------------------------
-    # BUSCAR ODDS
-    # --------------------------------------------------------
+    jogos = jogos[:MAX_EVENTOS_POR_CONSULTA]
 
     try:
-
-        odds = (
-            buscar_odds_multiplos(
-                jogos
-            )
-            or []
-        )
-
+        odds = buscar_odds_multiplos(jogos) or []
     except Exception as erro:
-
         print(
-            "ERRO AO BUSCAR ODDS:",
+            "❌ ERRO ODDS:",
             type(erro).__name__,
             erro,
         )
-
-        odds = []
-
-    # --------------------------------------------------------
-    # RESULTADOS
-    # --------------------------------------------------------
+        return []
 
     resultados = []
 
     for jogo in jogos:
 
-        if not isinstance(
-            jogo,
-            dict
-        ):
+        if not isinstance(jogo, dict):
             continue
 
         event_id = jogo.get("id")
 
         if event_id is None:
             continue
-
-        # ----------------------------------------------------
-        # MERCADOS
-        # ----------------------------------------------------
 
         mercados = (
             extrair_mercados(
@@ -453,51 +246,37 @@ def escanear_pre_live():
             or {}
         )
 
-        odd_casa = _numero(
-            mercados.get(
-                "odd_casa"
-            )
+        casa_odd = numero(
+            mercados.get("odd_casa")
         )
 
-        odd_empate = _numero(
-            mercados.get(
-                "odd_empate"
-            )
+        empate_odd = numero(
+            mercados.get("odd_empate")
         )
 
-        odd_visitante = _numero(
-            mercados.get(
-                "odd_visitante"
-            )
+        fora_odd = numero(
+            mercados.get("odd_visitante")
         )
 
         # ----------------------------------------------------
-        # ODDS OBRIGATÓRIAS
+        # 1X2 OBRIGATÓRIO
         # ----------------------------------------------------
 
         if (
-            odd_casa <= 0
-            or odd_empate <= 0
-            or odd_visitante <= 0
+            casa_odd <= 0
+            or empate_odd <= 0
+            or fora_odd <= 0
         ):
             continue
 
-        # ----------------------------------------------------
-        # HORÁRIO
-        # ----------------------------------------------------
-
-        dt = converter_horario(
-            jogo
-        )
+        dt = converter_horario(jogo)
 
         if dt is None:
             continue
 
-        periodo = identificar_periodo(
-            dt
-        )
+        periodo_jogo = periodo(dt)
 
-        if periodo == "FORA_DA_JANELA":
+        if periodo_jogo == "FORA_DA_JANELA":
             continue
 
         # ----------------------------------------------------
@@ -505,18 +284,11 @@ def escanear_pre_live():
         # ----------------------------------------------------
 
         q = calcular_q(
-            odd_casa,
-            odd_visitante,
+            casa_odd,
+            fora_odd,
         )
 
-        # ----------------------------------------------------
-        # FILTRO Q
-        # ----------------------------------------------------
-
-        if q < Q_MIN:
-            continue
-
-        if q > Q_MAX:
+        if not Q_MIN <= q <= Q_MAX:
             continue
 
         # ----------------------------------------------------
@@ -524,52 +296,12 @@ def escanear_pre_live():
         # ----------------------------------------------------
 
         r = calcular_r(
-            odd_casa,
-            odd_visitante,
+            casa_odd,
+            fora_odd,
         )
 
         if r <= 0:
             continue
-
-        # ----------------------------------------------------
-        # EQUILÍBRIO
-        # ----------------------------------------------------
-
-        equilibrio = (
-            classificar_equilibrio(
-                r
-            )
-        )
-
-        indice_equilibrio = (
-            calcular_indice_equilibrio(
-                r
-            )
-        )
-
-        padrao = (
-            classificar_padrao(
-                r
-            )
-        )
-
-        # ----------------------------------------------------
-        # PROBABILIDADE DO EMPATE
-        # ----------------------------------------------------
-
-        prob_x = (
-            probabilidade_implicita(
-                odd_empate
-            )
-        )
-
-        prob_x_normalizada = (
-            probabilidade_normalizada(
-                odd_casa,
-                odd_empate,
-                odd_visitante,
-            )
-        )
 
         # ----------------------------------------------------
         # NOMES
@@ -588,111 +320,88 @@ def escanear_pre_live():
         )
 
         # ----------------------------------------------------
-        # REGISTRO
+        # RESULTADO
         # ----------------------------------------------------
 
-        registro = {
+        resultados.append({
 
-            "event_id": str(
-                event_id
-            ),
+            "event_id": str(event_id),
 
-            "data": dt.strftime(
-                "%d/%m/%Y"
-            ),
+            "data": dt.strftime("%d/%m/%Y"),
 
-            "horario": dt.strftime(
-                "%H:%M"
-            ),
+            "horario": dt.strftime("%H:%M"),
 
-            "periodo": periodo,
+            "timestamp": dt.timestamp(),
+
+            "periodo": periodo_jogo,
 
             "casa": casa,
 
             "fora": fora,
 
-            "odd_casa": odd_casa,
+            "odd_casa": casa_odd,
 
-            "odd_empate": odd_empate,
+            "odd_empate": empate_odd,
 
-            "odd_visitante": odd_visitante,
+            "odd_visitante": fora_odd,
+
+            "odd_pre_live": q,
 
             "q": q,
 
             "r": r,
 
-            "odd_pre_live": q,
-
-            "probabilidade_x": prob_x,
+            "probabilidade_x":
+                probabilidade(empate_odd),
 
             "probabilidade_x_normalizada":
-                prob_x_normalizada,
+                probabilidade_normalizada(
+                    casa_odd,
+                    empate_odd,
+                    fora_odd,
+                ),
 
-            # NOVOS DADOS DO RADAR
-
-            "equilibrio": equilibrio,
+            "equilibrio":
+                classificar_equilibrio(r),
 
             "indice_equilibrio":
-                indice_equilibrio,
+                indice_equilibrio(r),
 
-            "padrao": padrao,
+            "padrao":
+                classificar_padrao(r),
 
             "radar": True,
+        })
 
-        }
-
-        resultados.append(
-            registro
-        )
-
-    # --------------------------------------------------------
-    # ORDENAR
-    # --------------------------------------------------------
-    #
-    # Primeiro:
-    #   maior desequilíbrio
-    #
-    # Depois:
-    #   data
-    #
-    # Depois:
-    #   horário
-    #
-    # Assim conseguimos observar
-    # primeiro as partidas mais desequilibradas.
-    # --------------------------------------------------------
+    # ========================================================
+    # ORDENAÇÃO
+    # ========================================================
 
     resultados.sort(
         key=lambda x: (
+            x["timestamp"],
             -x["r"],
-            x["data"],
-            x["horario"],
         )
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # LOG
-    # --------------------------------------------------------
+    # ========================================================
 
     print(
-        "JOGOS PRÉ-LIVE ENCONTRADOS:",
-        len(jogos),
+        f"PRÉ-LIVE | Jogos encontrados: {len(jogos)}"
     )
 
     print(
-        "JOGOS DENTRO DO Q:",
-        len(resultados),
+        f"PRÉ-LIVE | Jogos aprovados: {len(resultados)}"
     )
-
-    print()
 
     for jogo in resultados:
 
         print(
             f"RADAR | "
             f"{jogo['horario']} | "
-            f"{jogo['casa']} x "
-            f"{jogo['fora']} | "
+            f"{jogo['casa']} x {jogo['fora']} | "
             f"Q={jogo['q']:.2f} | "
             f"R={jogo['r']:.2f} | "
             f"{jogo['equilibrio']} | "
@@ -703,88 +412,12 @@ def escanear_pre_live():
 
 
 # ============================================================
-# EXIBIR SCANNER
-# ============================================================
-
-def exibir_scanner(
-    resultados
-):
-
-    if not resultados:
-
-        print(
-            "Nenhum resultado para exibir."
-        )
-
-        return
-
-    print()
-    print(
-        "════════════════════════════════════════════════════════════════"
-    )
-
-    for jogo in resultados:
-
-        print()
-
-        print(
-            f"⚽ {jogo['horario']} | "
-            f"{jogo['casa']} x "
-            f"{jogo['fora']}"
-        )
-
-        print(
-            f"🏠 {jogo['odd_casa']:.2f} | "
-            f"🤝 X {jogo['odd_empate']:.2f} | "
-            f"🚌 {jogo['odd_visitante']:.2f}"
-        )
-
-        print(
-            f"📐 Q: "
-            f"{jogo['q']:.2f}"
-        )
-
-        print(
-            f"📊 R: "
-            f"{jogo['r']:.2f}"
-        )
-
-        print(
-            f"⚖️ Equilíbrio: "
-            f"{jogo['equilibrio']}"
-        )
-
-        print(
-            f"📊 Índice: "
-            f"{jogo['indice_equilibrio']:.2f}"
-        )
-
-        print(
-            f"🎯 Hipótese: "
-            f"{jogo['padrao']}"
-        )
-
-        print(
-            f"📊 P(X): "
-            f"{jogo['probabilidade_x']:.2f}% | "
-            f"P(X) N: "
-            f"{jogo['probabilidade_x_normalizada']:.2f}%"
-        )
-
-    print()
-    print(
-        "════════════════════════════════════════════════════════════════"
-    )
-
-
-# ============================================================
 # EXECUÇÃO DIRETA
 # ============================================================
 
 if __name__ == "__main__":
-
     dados = escanear_pre_live()
 
-    exibir_scanner(
-        dados
-)
+    print(
+        f"\nTOTAL PRÉ-LIVE: {len(dados)}"
+        )
