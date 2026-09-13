@@ -1,5 +1,5 @@
 # ============================================================
-# ODDS API - IPM RADAR V4.3
+# ODDS API - IPM RADAR V5.2
 # ============================================================
 
 import json
@@ -18,7 +18,7 @@ def _request_json(endpoint, params):
     url = f"{BASE_URL}/{endpoint.lstrip('/')}?{urllib.parse.urlencode(params)}"
     req = urllib.request.Request(
         url,
-        headers={"User-Agent": "IPM-Radar/4.3", "Accept": "application/json"},
+        headers={"User-Agent": "IPM-Radar/5.2", "Accept": "application/json"},
     )
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT_REQUISICAO) as resp:
@@ -148,27 +148,104 @@ def buscar_jogos_pre_live():
 
 
 def buscar_odds_multiplos(eventos):
+    """Busca odds em lotes de no máximo 10 eventIds.
+
+    A Odds API rejeita consultas com mais de 10 eventIds.
+    Portanto, mesmo que MAX_EVENTOS_POR_CONSULTA seja maior,
+    esta função nunca envia mais de MAX_EVENTOS_ODDS_MULTI IDs
+    por requisição.
+    """
     if not eventos:
         return []
+
     try:
         key = obter_api_key()
     except Exception as e:
         print("❌ ERRO API KEY:", e)
         return []
+
     ids = []
-    for e in eventos:
-        if isinstance(e, dict) and e.get("id") is not None:
-            ids.append(str(e["id"]))
-    ids = list(dict.fromkeys(ids))[:MAX_EVENTOS_POR_CONSULTA]
+
+    for evento in eventos:
+        if not isinstance(evento, dict):
+            continue
+
+        event_id = evento.get("id")
+        if event_id is None:
+            continue
+
+        event_id = str(event_id)
+        if event_id not in ids:
+            ids.append(event_id)
+
+    # Limite do scanner. O limite da Odds API por chamada continua sendo 10.
+    ids = ids[:MAX_EVENTOS_POR_CONSULTA]
+
     if not ids:
         return []
-    resposta = _request_json(
-        "/odds/multi",
-        {"apiKey": key, "eventIds": ",".join(ids), "bookmakers": BOOKMAKER},
+
+    lotes = [
+        ids[i:i + MAX_EVENTOS_ODDS_MULTI]
+        for i in range(0, len(ids), MAX_EVENTOS_ODDS_MULTI)
+    ]
+
+    todos = []
+
+    print(
+        f"📦 ODDS MULTI | EVENTOS={len(ids)} | "
+        f"LOTES={len(lotes)} | MAX/LOTE={MAX_EVENTOS_ODDS_MULTI}"
     )
-    eventos_odds = _lista_eventos(resposta)
-    print("EVENTOS COM ODDS RECEBIDOS:", len(eventos_odds))
-    return eventos_odds
+
+    for numero_lote, lote in enumerate(lotes, 1):
+        print(
+            f"📡 ODDS MULTI | LOTE {numero_lote}/{len(lotes)} | "
+            f"EVENTOS={len(lote)}"
+        )
+
+        resposta = _request_json(
+            "/odds/multi",
+            {
+                "apiKey": key,
+                "eventIds": ",".join(lote),
+                "bookmakers": BOOKMAKER,
+            },
+        )
+
+        eventos_odds = _lista_eventos(resposta)
+
+        print(
+            f"📥 LOTE {numero_lote}/{len(lotes)} | "
+            f"RECEBIDOS={len(eventos_odds)}"
+        )
+
+        todos.extend(eventos_odds)
+
+    resultado = []
+    vistos = set()
+
+    for evento in todos:
+        if not isinstance(evento, dict):
+            continue
+
+        event_id = evento.get("id")
+        if event_id is None:
+            continue
+
+        event_id = str(event_id)
+        if event_id in vistos:
+            continue
+
+        vistos.add(event_id)
+        resultado.append(evento)
+
+    print(
+        "ODDS RECEBIDAS:",
+        len(resultado),
+        "/",
+        len(ids),
+    )
+
+    return resultado
 
 
 def _numero(valor, padrao=0.0):
@@ -204,12 +281,15 @@ def _evento_odds_por_id(odds, event_id):
 
 def _mercados_bet365(evento):
     """
-    Extrai os mercados do bookmaker configurado.
+    Extrai os mercados do bookmaker configurado de forma robusta.
 
-    A resposta da Odds API pode trazer bookmakers como dict ou list,
-    e o nome configurado pode aparecer como key, name ou bookmaker.
-    Também aceita estruturas em que o mercado vem diretamente em
-    "markets"/"data". Não altera o filtro Q do scanner.
+    A Odds API pode variar a estrutura entre endpoints/versões:
+    - bookmakers como lista ou dicionário;
+    - bookmaker identificado por key, name ou bookmaker;
+    - markets como lista, dicionário ou dentro de data/results;
+    - estruturas aninhadas.
+
+    Esta função percorre essas formas sem alterar o filtro Q.
     """
     if not isinstance(evento, dict):
         return []
@@ -219,77 +299,119 @@ def _mercados_bet365(evento):
     def normalizar_mercados(valor):
         if isinstance(valor, list):
             return [x for x in valor if isinstance(x, dict)]
-        if isinstance(valor, dict):
-            # Estrutura direta: {markets: [...]}
-            for chave in ("markets", "data", "results"):
-                v = valor.get(chave)
-                if isinstance(v, list):
-                    return [x for x in v if isinstance(x, dict)]
-            # Um mercado isolado
-            if any(k in valor for k in ("odds", "outcomes", "name", "key", "type")):
-                return [valor]
+
+        if not isinstance(valor, dict):
+            return []
+
+        # Estruturas comuns: {markets: [...]}, {data: [...]}, etc.
+        for chave in ("markets", "data", "results"):
+            v = valor.get(chave)
+            if isinstance(v, list):
+                return [x for x in v if isinstance(x, dict)]
+            if isinstance(v, dict):
+                encontrados = normalizar_mercados(v)
+                if encontrados:
+                    return encontrados
+
+        # Um mercado isolado.
+        if any(
+            k in valor
+            for k in ("odds", "outcomes", "name", "key", "type", "market")
+        ):
+            return [valor]
+
         return []
 
-    bookmakers = evento.get("bookmakers")
+    def nomes_objeto(obj, chave=None):
+        if not isinstance(obj, dict):
+            return set()
+        valores = (
+            obj.get("key"),
+            obj.get("name"),
+            obj.get("bookmaker"),
+            obj.get("bookmakerKey"),
+            obj.get("bookmakerName"),
+            chave,
+        )
+        return {
+            str(x).strip().lower()
+            for x in valores
+            if x is not None
+        }
 
-    # 1) Bookmakers em lista.
-    if isinstance(bookmakers, list):
-        for bookmaker in bookmakers:
-            if not isinstance(bookmaker, dict):
+    def procurar(node, profundidade=0):
+        if profundidade > 8:
+            return []
+
+        if isinstance(node, list):
+            for item in node:
+                encontrados = procurar(item, profundidade + 1)
+                if encontrados:
+                    return encontrados
+            return []
+
+        if not isinstance(node, dict):
+            return []
+
+        # 1) Procurar bookmaker explicitamente em qualquer nível.
+        bookmakers = node.get("bookmakers")
+        if isinstance(bookmakers, list):
+            for bookmaker in bookmakers:
+                if not isinstance(bookmaker, dict):
+                    continue
+                if alvo in nomes_objeto(bookmaker):
+                    mercados = normalizar_mercados(bookmaker.get("markets"))
+                    if not mercados:
+                        mercados = normalizar_mercados(bookmaker.get("data"))
+                    if not mercados:
+                        mercados = normalizar_mercados(bookmaker)
+                    if mercados:
+                        return mercados
+
+        elif isinstance(bookmakers, dict):
+            # Chave do bookmaker.
+            for chave, valor in bookmakers.items():
+                if str(chave).strip().lower() == alvo:
+                    mercados = normalizar_mercados(valor)
+                    if mercados:
+                        return mercados
+
+            # Bookmaker identificado dentro do valor.
+            for chave, valor in bookmakers.items():
+                if not isinstance(valor, dict):
+                    continue
+                if alvo in nomes_objeto(valor, chave):
+                    mercados = normalizar_mercados(valor)
+                    if mercados:
+                        return mercados
+
+        # 2) Alguns retornos trazem o bookmaker diretamente como objeto.
+        if alvo in nomes_objeto(node):
+            mercados = normalizar_mercados(node.get("markets"))
+            if not mercados:
+                mercados = normalizar_mercados(node.get("data"))
+            if mercados:
+                return mercados
+
+        # 3) Mercados diretamente no evento.
+        for chave in ("markets", "data", "results"):
+            valor = node.get(chave)
+            mercados = normalizar_mercados(valor)
+            if mercados:
+                return mercados
+
+        # 4) Último recurso: percorrer estruturas aninhadas.
+        for chave, valor in node.items():
+            if chave in ("apiKey",):
                 continue
+            if isinstance(valor, (dict, list)):
+                encontrados = procurar(valor, profundidade + 1)
+                if encontrados:
+                    return encontrados
 
-            nomes = (
-                bookmaker.get("key"),
-                bookmaker.get("name"),
-                bookmaker.get("bookmaker"),
-                bookmaker.get("id"),
-            )
-            nomes = {str(x).strip().lower() for x in nomes if x is not None}
+        return []
 
-            if alvo in nomes:
-                mercados = normalizar_mercados(bookmaker.get("markets"))
-                if mercados:
-                    return mercados
-
-                mercados = normalizar_mercados(bookmaker.get("data"))
-                if mercados:
-                    return mercados
-
-    # 2) Bookmakers em dict.
-    if isinstance(bookmakers, dict):
-        # Chave exata.
-        for chave, valor in bookmakers.items():
-            if str(chave).strip().lower() == alvo:
-                mercados = normalizar_mercados(valor)
-                if mercados:
-                    return mercados
-
-        # Procurar por key/name/bookmaker dentro do valor.
-        for chave, valor in bookmakers.items():
-            if not isinstance(valor, dict):
-                continue
-
-            nomes = (
-                valor.get("key"),
-                valor.get("name"),
-                valor.get("bookmaker"),
-                chave,
-            )
-            nomes = {str(x).strip().lower() for x in nomes if x is not None}
-
-            if alvo in nomes:
-                mercados = normalizar_mercados(valor)
-                if mercados:
-                    return mercados
-
-    # 3) Algumas respostas colocam o bookmaker diretamente no evento.
-    for chave in ("markets", "data", "results"):
-        valor = evento.get(chave)
-        mercados = normalizar_mercados(valor)
-        if mercados:
-            return mercados
-
-    return []
+    return procurar(evento)
 
 
 def _primeiro_odds(mercado):
@@ -523,7 +645,7 @@ def extrair_mercados(jogo, odds):
             "1X2 Result",
         ),
     )
-    if mercado_ml:
+if mercado_ml:
         linha = _primeiro_odds(mercado_ml)
         resultado["odd_home"] = _numero(linha.get("home"), _numero(linha.get("1")))
         resultado["odd_draw"] = _numero(
@@ -601,5 +723,3 @@ def extrair_mercados(jogo, odds):
 
 def limpar_memoria():
     pass
-
-
