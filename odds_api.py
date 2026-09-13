@@ -63,6 +63,16 @@ def _request_json(endpoint, params):
 # EVENTOS
 # ============================================================
 
+def _id_evento(evento):
+    if not isinstance(evento, dict):
+        return None
+    for chave in ("id", "eventId", "event_id", "eventID"):
+        valor = evento.get(chave)
+        if valor is not None and str(valor).strip():
+            return str(valor).strip()
+    return None
+
+
 def _lista_eventos(resposta):
     if isinstance(resposta, list):
         return [x for x in resposta if isinstance(x, dict)]
@@ -74,13 +84,17 @@ def _lista_eventos(resposta):
         valor = resposta.get(chave)
         if isinstance(valor, list):
             return [x for x in valor if isinstance(x, dict)]
+        if isinstance(valor, dict):
+            itens = [v for v in valor.values() if isinstance(v, dict)]
+            if itens:
+                return itens
 
-    if resposta.get("id") is not None:
+    if _id_evento(resposta) is not None:
         return [resposta]
 
     return [
         v for v in resposta.values()
-        if isinstance(v, dict) and v.get("id") is not None
+        if isinstance(v, dict) and _id_evento(v) is not None
     ]
 
 
@@ -110,14 +124,34 @@ def buscar_jogos_ao_vivo_por_ids(event_ids):
     if not event_ids:
         return []
 
-    ids = {str(x) for x in event_ids if x is not None}
+    ids = {str(x).strip() for x in event_ids if x is not None}
+    ids.discard("")
     if not ids:
         return []
 
     eventos = buscar_jogos_ao_vivo()
+    retornados = {_id_evento(e) for e in eventos}
+    retornados.discard(None)
+    encontrados = ids & retornados
+    faltantes = ids - encontrados
+
+    print(
+        f"🔎 LIVE DEBUG | SOLICITADOS={len(ids)} | "
+        f"RECEBIDOS={len(eventos)} | "
+        f"IDS_VÁLIDOS={len(retornados)} | "
+        f"ENCONTRADOS={len(encontrados)} | "
+        f"NÃO_RETORNADOS={len(faltantes)}"
+    )
+
+    if faltantes:
+        print(
+            "⚠️ LIVE IDs NÃO RETORNADOS:",
+            ", ".join(sorted(faltantes))
+        )
+
     filtrados = [
         e for e in eventos
-        if isinstance(e, dict) and str(e.get("id")) in ids
+        if _id_evento(e) in ids
     ]
 
     print(
@@ -696,3 +730,4 @@ def extrair_mercados(jogo, odds):
 
 def limpar_memoria():
     pass
+        
