@@ -158,14 +158,14 @@ PRE_LIVE_JANELA_MINUTOS = int(
 Q_MIN = float(
     os.getenv(
         "Q_MIN",
-        "2.30",
+        "2.00",
     )
 )
 
 Q_MAX = float(
     os.getenv(
         "Q_MAX",
-        "3.00",
+        "3.60",
     )
 )
 
