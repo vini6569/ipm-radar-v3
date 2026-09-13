@@ -601,4 +601,5 @@ def extrair_mercados(jogo, odds):
 
 def limpar_memoria():
     pass
-    
+
+
