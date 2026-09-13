@@ -661,7 +661,7 @@ def extrair_mercados(jogo, odds):
     except Exception:
         pass
 
-    mercado_ml = _encontrar_mercado(
+        mercado_ml = _encontrar_mercado(
         mercados,
         (
             "ML",
@@ -675,81 +675,62 @@ def extrair_mercados(jogo, odds):
             "1X2 Result",
         ),
     )
+
     if mercado_ml:
-        linha = _primeiro_odds(mercado_ml)
-        resultado["odd_home"] = _numero(linha.get("home"), _numero(linha.get("1")))
-        resultado["odd_draw"] = _numero(
-            linha.get("draw"),
-            _numero(linha.get("X"), _numero(linha.get("tie")))
+        linhas_ml = _linhas_odds(mercado_ml)
+
+        # Algumas respostas vêm com uma lista de odds.
+        # Procuramos uma linha que realmente contenha Casa/Empate/Fora.
+        linha = {}
+
+        for candidata in linhas_ml:
+            if not isinstance(candidata, dict):
+                continue
+
+            if (
+                candidata.get("home") is not None
+                or candidata.get("draw") is not None
+                or candidata.get("away") is not None
+                or candidata.get("1") is not None
+                or candidata.get("X") is not None
+                or candidata.get("2") is not None
+            ):
+                linha = candidata
+                break
+
+        if not linha:
+            linha = _primeiro_odds(mercado_ml)
+
+        odd_home = _numero(
+            linha.get("home"),
+            _numero(linha.get("1"))
         )
-        resultado["odd_away"] = _numero(linha.get("away"), _numero(linha.get("2")))
-        resultado["odd_atual"] = resultado["odd_draw"]
+
+        odd_draw = _numero(
+            linha.get("draw"),
+            _numero(
+                linha.get("X"),
+                _numero(linha.get("tie"))
+            )
+        )
+
+        odd_away = _numero(
+            linha.get("away"),
+            _numero(linha.get("2"))
+        )
+
+        resultado["odd_home"] = odd_home
+        resultado["odd_draw"] = odd_draw
+        resultado["odd_away"] = odd_away
+
+        # O IPM trabalha com a odd do empate como odd_atual.
+        resultado["odd_atual"] = odd_draw
+
         resultado["mercados_encontrados"].append("ML")
 
-    # Aliases usados pelo scanner_pre_live.py e pelo motor IPM.
-    resultado["odd_casa"] = resultado["odd_home"]
-    resultado["odd_empate"] = resultado["odd_draw"]
-    resultado["odd_visitante"] = resultado["odd_away"]
-
-    mercado_totals = _encontrar_mercado(
-        mercados,
-        (
-            "Totals",
-            "Total",
-            "Over/Under",
-            "Over Under",
-            "O/U",
-            "Totals - Over/Under",
-        ),
-    )
-    if mercado_totals:
-        linha = _primeiro_odds(mercado_totals)
-        resultado["over_linha"] = _numero(linha.get("hdp"))
-        resultado["under_linha"] = resultado["over_linha"]
-        resultado["odd_over"] = _numero(linha.get("over"))
-        resultado["odd_under"] = _numero(linha.get("under"))
-        resultado["mercados_encontrados"].append("TOTALS")
-
-    mercado_btts = _encontrar_mercado(
-        mercados,
-        (
-            "Both Teams To Score",
-            "BTTS",
-            "Both Teams Score",
-            "Both Teams To Score - Yes/No",
-        ),
-    )
-    if mercado_btts:
-        linha = _primeiro_odds(mercado_btts)
-        resultado["odd_btts_sim"] = _numero(linha.get("yes"), _numero(linha.get("Yes")))
-        resultado["odd_btts_nao"] = _numero(linha.get("no"), _numero(linha.get("No")))
-        resultado["mercados_encontrados"].append("BTTS")
-
-    mercado_handicap = _encontrar_mercado(mercados, ("Spread", "Asian Handicap", "Handicap", "Asian Handicap 3-Way"))
-    if mercado_handicap:
-        linha = _primeiro_odds(mercado_handicap)
-        resultado["handicap_linha"] = _numero(linha.get("hdp"))
-        resultado["odd_handicap_home"] = _numero(linha.get("home"))
-        resultado["odd_handicap_away"] = _numero(linha.get("away"))
-        resultado["mercados_encontrados"].append("HANDICAP")
-
-    mercado_dc = _encontrar_mercado(mercados, ("Double Chance", "DoubleChance", "DC"))
-    if mercado_dc:
-        linha = _primeiro_odds(mercado_dc)
-        resultado["odd_1x"] = _numero(linha.get("1X"))
-        resultado["odd_12"] = _numero(linha.get("12"))
-        resultado["odd_x2"] = _numero(linha.get("X2"))
-        resultado["mercados_encontrados"].append("DOUBLE_CHANCE")
-
-    mercado_dnb = _encontrar_mercado(mercados, ("Draw No Bet", "DrawNoBet", "DNB"))
-    if mercado_dnb:
-        linha = _primeiro_odds(mercado_dnb)
-        resultado["odd_dnb_home"] = _numero(linha.get("home"))
-        resultado["odd_dnb_away"] = _numero(linha.get("away"))
-        resultado["mercados_encontrados"].append("DNB")
-
-    return resultado
-
-
-def limpar_memoria():
-    pass
+        print(
+            f"💰 ML EXTRAÍDO | "
+            f"CASA={odd_home:.2f} | "
+            f"EMPATE={odd_draw:.2f} | "
+            f"FORA={odd_away:.2f}"
+        )
