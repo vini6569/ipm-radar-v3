@@ -1,18 +1,11 @@
 # ============================================================
-# IPM RADAR - LIVE
-# SOMENTE MONITORAMENTO LIVE
+# LIVE - IPM RADAR V5.2
+# PREVISÃO ANTECIPADA DE GOL
 # ============================================================
 
-import os
 import time
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from config import horario_ativo
-
-from scanner_pre_live import escanear_pre_live
-
-from odds_api import (
+from odds_api_live import (
     buscar_jogos_ao_vivo_por_ids,
     buscar_odds_multiplos,
     extrair_mercados,
@@ -20,72 +13,18 @@ from odds_api import (
 
 from telegram import enviar_mensagem
 
-from motor_ipm import (
-    analisar_ipm_com_memoria,
-    avaliar_pre_entrada,
-    jogo_finalizado,
-    formatar_radar,
-)
 
+INTERVALO_LIVE = 60
 
-INTERVALO = int(
-    os.getenv("INTERVALO_LIVE", "60")
-)
+# Histórico por jogo
+HISTORICO = {}
 
-
-JOGOS = {}
-
-ULTIMO_SINAL = {}
+# Evita repetir sinal
+SINAL_ENVIADO = {}
 
 
 # ============================================================
-# HEALTH
-# ============================================================
-
-class HealthHandler(BaseHTTPRequestHandler):
-
-    def do_GET(self):
-
-        self.send_response(200)
-
-        self.send_header(
-            "Content-Type",
-            "text/plain; charset=utf-8"
-        )
-
-        self.end_headers()
-
-        self.wfile.write(
-            b"IPM RADAR LIVE OK"
-        )
-
-    def log_message(self, *args):
-        return
-
-
-def iniciar_servidor():
-
-    porta = int(
-        os.getenv("PORT", "10000")
-    )
-
-    servidor = HTTPServer(
-        ("0.0.0.0", porta),
-        HealthHandler
-    )
-
-    threading.Thread(
-        target=servidor.serve_forever,
-        daemon=True
-    ).start()
-
-    print(
-        f"LIVE | HEALTH ATIVO | PORTA={porta}"
-    )
-
-
-# ============================================================
-# CONVERSÃO
+# UTILITÁRIOS
 # ============================================================
 
 def numero(valor, padrao=0.0):
@@ -102,529 +41,589 @@ def numero(valor, padrao=0.0):
         return padrao
 
 
+def obter_jogo(event_id):
+
+    event_id = str(event_id)
+
+    return HISTORICO.setdefault(
+        event_id,
+        {
+            "leituras": [],
+            "ultimo_gol": 0,
+        }
+    )
+
+
 # ============================================================
-# REGISTRAR JOGOS
+# REGISTRAR LEITURA
 # ============================================================
 
-def registrar():
+def registrar_leitura(event_id, dados):
 
-    try:
+    jogo = obter_jogo(event_id)
 
-        resultados = escanear_pre_live() or []
+    leitura = {
+        "timestamp": time.time(),
 
-    except Exception as erro:
+        "minuto": dados["minuto"],
+        "gols": dados["gols"],
 
-        print(
-            "LIVE | ERRO BUSCANDO RADAR:",
-            erro
+        "odd_casa": dados["odd_casa"],
+        "odd_x": dados["odd_x"],
+        "odd_fora": dados["odd_fora"],
+
+        "finalizacoes": dados["finalizacoes"],
+        "ataques": dados["ataques"],
+        "escanteios": dados["escanteios"],
+        "cartoes": dados["cartoes"],
+    }
+
+    jogo["leituras"].append(leitura)
+
+    # Mantém histórico compacto
+    jogo["leituras"] = jogo["leituras"][-30:]
+
+    return leitura
+
+
+# ============================================================
+# LEITURA ANTERIOR
+# ============================================================
+
+def leitura_anterior(jogo, minutos):
+
+    historico = jogo["leituras"]
+
+    if len(historico) < 2:
+        return None
+
+    atual = historico[-1]
+
+    limite = (
+        atual["timestamp"]
+        - minutos * 60
+    )
+
+    candidatos = [
+
+        x for x in historico[:-1]
+
+        if x["timestamp"] <= limite
+
+    ]
+
+    if not candidatos:
+        return None
+
+    return candidatos[-1]
+
+
+# ============================================================
+# VARIAÇÃO
+# ============================================================
+
+def variacao(base, atual):
+
+    base = numero(base)
+    atual = numero(atual)
+
+    if base <= 0 or atual <= 0:
+        return 0.0
+
+    return (
+        (atual - base)
+        / base
+    ) * 100
+
+
+# ============================================================
+# MOVIMENTAÇÃO
+# ============================================================
+
+def calcular_movimento(jogo):
+
+    atual = jogo["leituras"][-1]
+
+    antigo = leitura_anterior(
+        jogo,
+        10
+    )
+
+    if not antigo:
+
+        return {
+            "casa": 0.0,
+            "x": 0.0,
+            "fora": 0.0,
+        }
+
+    return {
+
+        "casa": variacao(
+            antigo["odd_casa"],
+            atual["odd_casa"]
+        ),
+
+        "x": variacao(
+            antigo["odd_x"],
+            atual["odd_x"]
+        ),
+
+        "fora": variacao(
+            antigo["odd_fora"],
+            atual["odd_fora"]
+        ),
+    }
+
+
+# ============================================================
+# PRESSÃO
+# ============================================================
+
+def calcular_pressao(dados):
+
+    return (
+        numero(dados["finalizacoes"])
+        +
+        numero(dados["ataques"])
+        +
+        numero(dados["escanteios"])
+    )
+
+
+# ============================================================
+# GOL DETECTADO
+# ============================================================
+
+def gol_detectado(jogo):
+
+    atual = jogo["leituras"][-1]
+
+    gols = atual["gols"]
+
+    anterior = jogo["ultimo_gol"]
+
+    jogo["ultimo_gol"] = gols
+
+    return gols > anterior
+
+
+# ============================================================
+# MOTOR DE PREVISÃO
+# ============================================================
+
+def analisar_gol(jogo):
+
+    atual = jogo["leituras"][-1]
+
+    minuto = atual["minuto"]
+    gols = atual["gols"]
+
+    # --------------------------------------------------------
+    # Não trabalhar após gol
+    # --------------------------------------------------------
+
+    if gols > 0:
+
+        return {
+            "sinal": False,
+            "score": 0,
+            "motivo": "JA HOUVE GOL",
+        }
+
+    # --------------------------------------------------------
+    # Janela de observação
+    # --------------------------------------------------------
+
+    if minuto < 10:
+
+        return {
+            "sinal": False,
+            "score": 0,
+            "motivo": "MUITO CEDO",
+        }
+
+    if minuto > 80:
+
+        return {
+            "sinal": False,
+            "score": 0,
+            "motivo": "FORA DA JANELA",
+        }
+
+    movimento = calcular_movimento(
+        jogo
+    )
+
+    pressao = calcular_pressao(
+        atual
+    )
+
+    score = 0
+    fatores = []
+
+    # --------------------------------------------------------
+    # MOVIMENTO DAS ODDS
+    # --------------------------------------------------------
+
+    movimentos = [
+
+        movimento["casa"],
+        movimento["fora"]
+
+    ]
+
+    # queda forte em uma das pontas
+    if min(movimentos) <= -5:
+
+        score += 2
+
+        fatores.append(
+            "ODD PONTA -5%"
         )
 
-        return
+    # queda moderada
+    elif min(movimentos) <= -3:
 
-    for jogo in resultados:
+        score += 1
 
-        event_id = jogo.get("event_id")
-
-        if event_id is None:
-            continue
-
-        event_id = str(event_id)
-
-        JOGOS.setdefault(
-
-            event_id,
-
-            {
-
-                "event_id": event_id,
-
-                "casa": jogo.get(
-                    "casa",
-                    "Casa"
-                ),
-
-                "fora": jogo.get(
-                    "fora",
-                    "Fora"
-                ),
-
-                "odd_casa": numero(
-                    jogo.get("odd_casa")
-                ),
-
-                "odd_empate": numero(
-                    jogo.get("odd_empate")
-                ),
-
-                "odd_visitante": numero(
-                    jogo.get("odd_visitante")
-                ),
-
-                "odd_pre_live": numero(
-                    jogo.get(
-                        "odd_pre_live",
-                        jogo.get("q")
-                    )
-                ),
-
-            }
-
+        fatores.append(
+            "ODD PONTA -3%"
         )
 
+    # --------------------------------------------------------
+    # MOVIMENTO DO EMPATE
+    # --------------------------------------------------------
+
+    if movimento["x"] >= 3:
+
+        score += 1
+
+        fatores.append(
+            "X SUBINDO"
+        )
+
+    # --------------------------------------------------------
+    # PRESSÃO
+    # --------------------------------------------------------
+
+    if pressao >= 10:
+
+        score += 2
+
+        fatores.append(
+            "PRESSAO ALTA"
+        )
+
+    elif pressao >= 5:
+
+        score += 1
+
+        fatores.append(
+            "PRESSAO"
+        )
+
+    # --------------------------------------------------------
+    # CONFIRMAÇÃO
+    # --------------------------------------------------------
+
+    if score >= 4:
+
+        return {
+            "sinal": True,
+            "score": score,
+            "motivo": " + ".join(fatores),
+        }
+
+    return {
+        "sinal": False,
+        "score": score,
+        "motivo": "SEM CONFIRMACAO",
+    }
+
 
 # ============================================================
-# MOTOR
+# MENSAGEM
 # ============================================================
 
-def processar(
-
-    event_id,
-    monitorado,
-    jogo,
-    mercados
-
+def formatar_sinal(
+    dados,
+    analise,
+    movimento
 ):
 
-    if not jogo:
-        return
+    return (
 
-    odd_x = numero(
-        mercados.get(
-            "odd_empate",
-            mercados.get(
-                "odd_draw",
-                0
-            )
-        )
+        "🚨 PRÉ-SINAL DE GOL\n\n"
+
+        f"⚽ {dados['casa']} x "
+        f"{dados['fora']}\n"
+
+        f"⏱️ {dados['minuto']}'\n"
+
+        f"📊 Placar: "
+        f"{dados['gols']}\n\n"
+
+        "📈 MOVIMENTAÇÃO 10 MIN\n"
+
+        f"🏠 Casa: "
+        f"{movimento['casa']:+.2f}%\n"
+
+        f"🤝 X: "
+        f"{movimento['x']:+.2f}%\n"
+
+        f"🚌 Fora: "
+        f"{movimento['fora']:+.2f}%\n\n"
+
+        "🔥 PRESSÃO\n"
+
+        f"🎯 Finalizações: "
+        f"{dados['finalizacoes']}\n"
+
+        f"🔥 Ataques: "
+        f"{dados['ataques']}\n"
+
+        f"🚩 Escanteios: "
+        f"{dados['escanteios']}\n"
+
+        f"🟨 Cartões: "
+        f"{dados['cartoes']}\n\n"
+
+        f"🧪 SCORE: "
+        f"{analise['score']}\n"
+
+        f"📌 {analise['motivo']}\n\n"
+
+        "👁️ PRÉ-SINAL — ACOMPANHAR\n"
+
+        "⚠️ Não realiza aposta automaticamente."
     )
-
-    if odd_x <= 0:
-
-        print(
-            f"LIVE | ODD X INVALIDA | ID={event_id}"
-        )
-
-        return
-
-    minuto = int(
-        numero(
-            mercados.get(
-                "minuto",
-                jogo.get(
-                    "minute",
-                    jogo.get(
-                        "elapsed",
-                        0
-                    )
-                )
-            )
-        )
-    )
-
-    gols = int(
-        numero(
-            mercados.get(
-                "gols",
-                jogo.get(
-                    "goals",
-                    0
-                )
-            )
-        )
-    )
-
-    escanteios = int(
-        numero(
-            mercados.get(
-                "escanteios",
-                jogo.get(
-                    "corners",
-                    0
-                )
-            )
-        )
-    )
-
-    cartoes = int(
-        numero(
-            mercados.get(
-                "cartoes",
-                jogo.get(
-                    "cards",
-                    0
-                )
-            )
-        )
-    )
-
-    finalizacoes = int(
-        numero(
-            mercados.get(
-                "finalizacoes",
-                jogo.get(
-                    "shots",
-                    0
-                )
-            )
-        )
-    )
-
-    ataques = int(
-        numero(
-            mercados.get(
-                "ataques_perigosos",
-                jogo.get(
-                    "dangerous_attacks",
-                    0
-                )
-            )
-        )
-    )
-
-    resultado = analisar_ipm_com_memoria(
-
-        chave_jogo=event_id,
-
-        odd_atual=odd_x,
-
-        minuto=minuto,
-
-        gols=gols,
-
-        escanteios=escanteios,
-
-        cartoes=cartoes,
-
-        finalizacoes=finalizacoes,
-
-        ataques_perigosos=ataques,
-
-        odd_pre_live=numero(
-            monitorado.get(
-                "odd_pre_live"
-            )
-        ),
-
-        odd_casa=numero(
-            mercados.get(
-                "odd_casa",
-                mercados.get("home")
-            )
-        ),
-
-        odd_visitante=numero(
-            mercados.get(
-                "odd_visitante",
-                mercados.get("away")
-            )
-        ),
-
-        odd_casa_pre_live=numero(
-            monitorado.get(
-                "odd_casa"
-            )
-        ),
-
-        odd_visitante_pre_live=numero(
-            monitorado.get(
-                "odd_visitante"
-            )
-        ),
-
-    )
-
-    var10 = numero(
-        resultado.get("var_10min")
-    )
-
-    sinal = resultado.get(
-        "sinal_pre_entrada",
-        "NEUTRO"
-    )
-
-    print(
-
-        f"LIVE | "
-        f"{monitorado['casa']} x "
-        f"{monitorado['fora']} | "
-
-        f"{minuto}' | "
-
-        f"X={odd_x:.2f} | "
-
-        f"VAR10={var10:+.2f}% | "
-
-        f"SINAL={sinal}"
-
-    )
-
-    # --------------------------------------------------------
-    # ALERTA
-    # --------------------------------------------------------
-
-    if avaliar_pre_entrada(resultado):
-
-        ultimo = ULTIMO_SINAL.get(
-            event_id
-        )
-
-        if sinal != ultimo:
-
-            mensagem = formatar_radar(
-                {
-                    "event_id": event_id,
-                    "home": monitorado["casa"],
-                    "away": monitorado["fora"],
-                    "odd_empate": odd_x,
-                    "odd_pre_live": monitorado[
-                        "odd_pre_live"
-                    ],
-                },
-
-                resultado,
-
-                mercados
-            )
-
-            if mensagem:
-
-                if enviar_mensagem(
-                    mensagem
-                ):
-
-                    ULTIMO_SINAL[
-                        event_id
-                    ] = sinal
-
-                    print(
-                        f"🚨 LIVE | ALERTA ENVIADO | "
-                        f"{event_id}"
-                    )
-
-    else:
-
-        ULTIMO_SINAL[
-            event_id
-        ] = "NEUTRO"
 
 
 # ============================================================
-# CICLO LIVE
+# PROCESSAMENTO
 # ============================================================
 
-def ciclo():
-
-    registrar()
-
-    ids = list(
-        JOGOS.keys()
-    )
+def processar_live(ids):
 
     if not ids:
 
         print(
-            "LIVE | Nenhum jogo monitorado."
+            "LIVE | Nenhum jogo no radar."
         )
 
         return
 
-    try:
+    print(
+        f"LIVE | Monitorando {len(ids)} jogos"
+    )
 
-        jogos_live = (
-            buscar_jogos_ao_vivo_por_ids(
-                ids
-            )
-            or []
+    jogos = (
+        buscar_jogos_ao_vivo_por_ids(
+            ids
         )
+        or []
+    )
 
-    except Exception as erro:
+    if not jogos:
 
         print(
-            "LIVE | ERRO API LIVE:",
-            erro
+            "LIVE | Nenhum jogo ao vivo."
         )
 
         return
 
-    mapa = {
-
-        str(j.get("id")): j
-
-        for j in jogos_live
-
-        if (
-            isinstance(j, dict)
-            and j.get("id") is not None
+    odds = (
+        buscar_odds_multiplos(
+            jogos
         )
+        or []
+    )
 
-    }
-
-    # --------------------------------------------------------
-    # FINALIZADOS
-    # --------------------------------------------------------
-
-    for event_id, jogo in list(mapa.items()):
-
-        if jogo_finalizado(jogo):
-
-            JOGOS.pop(
-                event_id,
-                None
-            )
-
-            ULTIMO_SINAL.pop(
-                event_id,
-                None
-            )
-
-            print(
-                f"LIVE | FINALIZADO | {event_id}"
-            )
-
-    # --------------------------------------------------------
-    # ODDS
-    # --------------------------------------------------------
-
-    eventos = [
-
-        mapa[event_id]
-
-        for event_id in JOGOS
-
-        if event_id in mapa
-
-    ]
-
-    if not eventos:
+    if not odds:
 
         print(
-            "LIVE | Nenhum jogo retornado."
+            "LIVE | Nenhuma odds."
         )
 
         return
 
-    try:
+    for evento in jogos:
 
-        odds = (
-            buscar_odds_multiplos(
-                eventos
+        event_id = str(
+            evento["id"]
+        )
+
+        mercados = (
+            extrair_mercados(
+                evento,
+                odds
             )
-            or []
+            or {}
         )
 
-    except Exception as erro:
+        if not mercados:
+            continue
 
-        print(
-            "LIVE | ERRO ODDS:",
-            erro
-        )
+        dados = {
 
-        return
+            "casa":
+                evento.get(
+                    "home",
+                    "Casa"
+                ),
 
-    # --------------------------------------------------------
-    # PROCESSAR
-    # --------------------------------------------------------
+            "fora":
+                evento.get(
+                    "away",
+                    "Fora"
+                ),
 
-    leituras = 0
-    sinais = 0
+            "minuto":
+                int(
+                    numero(
+                        mercados.get(
+                            "minuto"
+                        )
+                    )
+                ),
 
-    for event_id, monitorado in list(
-        JOGOS.items()
-    ):
+            "gols":
+                int(
+                    numero(
+                        mercados.get(
+                            "gols"
+                        )
+                    )
+                ),
 
-        jogo = mapa.get(
+            "odd_casa":
+                numero(
+                    mercados.get(
+                        "odd_casa"
+                    )
+                ),
+
+            "odd_x":
+                numero(
+                    mercados.get(
+                        "odd_empate"
+                    )
+                ),
+
+            "odd_fora":
+                numero(
+                    mercados.get(
+                        "odd_visitante"
+                    )
+                ),
+
+            "finalizacoes":
+                int(
+                    numero(
+                        mercados.get(
+                            "finalizacoes"
+                        )
+                    )
+                ),
+
+            "ataques":
+                int(
+                    numero(
+                        mercados.get(
+                            "ataques_perigosos"
+                        )
+                    )
+                ),
+
+            "escanteios":
+                int(
+                    numero(
+                        mercados.get(
+                            "escanteios"
+                        )
+                    )
+                ),
+
+            "cartoes":
+                int(
+                    numero(
+                        mercados.get(
+                            "cartoes"
+                        )
+                    )
+                ),
+        }
+
+        jogo = obter_jogo(
             event_id
         )
 
-        if jogo is None:
-            continue
-
-        try:
-
-            mercados = (
-                extrair_mercados(
-                    jogo,
-                    odds
-                )
-                or {}
-            )
-
-            processar(
-                event_id,
-                monitorado,
-                jogo,
-                mercados
-            )
-
-            leituras += 1
-
-        except Exception as erro:
-
-            print(
-                f"LIVE | ERRO {event_id}:",
-                erro
-            )
-
-    print(
-
-        f"LIVE | CICLO OK | "
-        f"LEITURAS={leituras} | "
-        f"MONITORADOS={len(JOGOS)}"
-
-    )
-
-
-# ============================================================
-# LOOP
-# ============================================================
-
-def main():
-
-    print(
-        "IPM RADAR - LIVE INICIADO"
-    )
-
-    print(
-        f"INTERVALO: {INTERVALO}s"
-    )
-
-    print(
-        "REGRA: +/-20% EM 10 MINUTOS"
-    )
-
-    while True:
-
-        inicio = time.time()
-
-        try:
-
-            if horario_ativo():
-                ciclo()
-            else:
-                print(
-                    "LIVE | Periodo de pausa."
-                )
-
-        except Exception as erro:
-
-            print(
-                "LIVE | ERRO LOOP:",
-                type(erro).__name__,
-                erro
-            )
-
-        espera = max(
-            1,
-            INTERVALO - (
-                time.time() - inicio
-            )
+        registrar_leitura(
+            event_id,
+            dados
         )
 
-        time.sleep(espera)
+        # ----------------------------------------------------
+        # GOL
+        # ----------------------------------------------------
 
+        if gol_detectado(jogo):
 
-if __name__ == "__main__":
+            print(
+                f"⚽ GOL | "
+                f"{dados['casa']} x "
+                f"{dados['fora']}"
+            )
 
-    iniciar_servidor()
+            continue
 
-    main()
+        # ----------------------------------------------------
+        # ANÁLISE
+        # ----------------------------------------------------
+
+        analise = analisar_gol(
+            jogo
+        )
+
+        print(
+            f"LIVE | "
+            f"{dados['minuto']}' | "
+            f"{dados['casa']} x "
+            f"{dados['fora']} | "
+            f"SCORE={analise['score']} | "
+            f"{analise['motivo']}"
+        )
+
+        if not analise["sinal"]:
+            continue
+
+        if SINAL_ENVIADO.get(
+            event_id,
+            False
+        ):
+
+            continue
+
+        movimento = calcular_movimento(
+            jogo
+        )
+
+        mensagem = formatar_sinal(
+            dados,
+            analise,
+            movimento
+        )
+
+        if enviar_mensagem(
+            mensagem
+        ):
+
+            SINAL_ENVIADO[
+                event_id
+            ] = True
+
+            print(
+                "🚨 PRÉ-SINAL ENVIADO | "
+                f"ID={event_id}"
+        )
