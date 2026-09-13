@@ -203,39 +203,135 @@ def _evento_odds_por_id(odds, event_id):
 
 
 def _mercados_bet365(evento):
+    """
+    Extrai os mercados do bookmaker configurado.
+
+    A resposta da Odds API pode trazer bookmakers como dict ou list,
+    e o nome configurado pode aparecer como key, name ou bookmaker.
+    Também aceita estruturas em que o mercado vem diretamente em
+    "markets"/"data". Não altera o filtro Q do scanner.
+    """
     if not isinstance(evento, dict):
         return []
-    bookmakers = evento.get("bookmakers", {})
-    if isinstance(bookmakers, dict):
-        mercados = bookmakers.get(BOOKMAKER)
-        if isinstance(mercados, dict):
-            mercados = mercados.get("markets", [])
-        if mercados is None:
-            for nome, valor in bookmakers.items():
-                if str(nome).strip().lower() == BOOKMAKER.strip().lower():
-                    mercados = valor
-                    break
-        if isinstance(mercados, dict):
-            mercados = mercados.get("markets", [])
-        return mercados if isinstance(mercados, list) else []
+
+    alvo = str(BOOKMAKER or "").strip().lower()
+
+    def normalizar_mercados(valor):
+        if isinstance(valor, list):
+            return [x for x in valor if isinstance(x, dict)]
+        if isinstance(valor, dict):
+            # Estrutura direta: {markets: [...]}
+            for chave in ("markets", "data", "results"):
+                v = valor.get(chave)
+                if isinstance(v, list):
+                    return [x for x in v if isinstance(x, dict)]
+            # Um mercado isolado
+            if any(k in valor for k in ("odds", "outcomes", "name", "key", "type")):
+                return [valor]
+        return []
+
+    bookmakers = evento.get("bookmakers")
+
+    # 1) Bookmakers em lista.
     if isinstance(bookmakers, list):
         for bookmaker in bookmakers:
             if not isinstance(bookmaker, dict):
                 continue
-            nome = str(bookmaker.get("name", "")).strip().lower()
-            if nome == BOOKMAKER.strip().lower():
-                mercados = bookmaker.get("markets", [])
-                return mercados if isinstance(mercados, list) else []
+
+            nomes = (
+                bookmaker.get("key"),
+                bookmaker.get("name"),
+                bookmaker.get("bookmaker"),
+                bookmaker.get("id"),
+            )
+            nomes = {str(x).strip().lower() for x in nomes if x is not None}
+
+            if alvo in nomes:
+                mercados = normalizar_mercados(bookmaker.get("markets"))
+                if mercados:
+                    return mercados
+
+                mercados = normalizar_mercados(bookmaker.get("data"))
+                if mercados:
+                    return mercados
+
+    # 2) Bookmakers em dict.
+    if isinstance(bookmakers, dict):
+        # Chave exata.
+        for chave, valor in bookmakers.items():
+            if str(chave).strip().lower() == alvo:
+                mercados = normalizar_mercados(valor)
+                if mercados:
+                    return mercados
+
+        # Procurar por key/name/bookmaker dentro do valor.
+        for chave, valor in bookmakers.items():
+            if not isinstance(valor, dict):
+                continue
+
+            nomes = (
+                valor.get("key"),
+                valor.get("name"),
+                valor.get("bookmaker"),
+                chave,
+            )
+            nomes = {str(x).strip().lower() for x in nomes if x is not None}
+
+            if alvo in nomes:
+                mercados = normalizar_mercados(valor)
+                if mercados:
+                    return mercados
+
+    # 3) Algumas respostas colocam o bookmaker diretamente no evento.
+    for chave in ("markets", "data", "results"):
+        valor = evento.get(chave)
+        mercados = normalizar_mercados(valor)
+        if mercados:
+            return mercados
+
     return []
 
 
 def _primeiro_odds(mercado):
     if not isinstance(mercado, dict):
         return {}
+
     valores = mercado.get("odds")
     if isinstance(valores, list):
         return valores[0] if valores and isinstance(valores[0], dict) else {}
-    return valores if isinstance(valores, dict) else {}
+    if isinstance(valores, dict):
+        return valores
+
+    # Compatibilidade com respostas que usam outcomes em vez de odds.
+    valores = mercado.get("outcomes")
+    if isinstance(valores, list):
+        if not valores:
+            return {}
+        # Converte outcomes [{name/outcome, price/odds}] para as chaves
+        # esperadas pelo restante do IPM.
+        saida = {}
+        for item in valores:
+            if not isinstance(item, dict):
+                continue
+            nome = str(item.get("name") or item.get("outcome") or "").strip().lower()
+            odd = item.get("price", item.get("odds", item.get("odd")))
+            if nome in ("home", "casa", "1"):
+                saida["home"] = odd
+            elif nome in ("draw", "empate", "x", "tie"):
+                saida["draw"] = odd
+            elif nome in ("away", "fora", "2"):
+                saida["away"] = odd
+            elif nome in ("yes", "sim"):
+                saida["yes"] = odd
+            elif nome in ("no", "nao", "não"):
+                saida["no"] = odd
+            elif nome.startswith("over"):
+                saida["over"] = odd
+            elif nome.startswith("under"):
+                saida["under"] = odd
+        return saida
+
+    return {}
 
 
 def _linhas_odds(mercado):
@@ -244,7 +340,14 @@ def _linhas_odds(mercado):
     valores = mercado.get("odds")
     if isinstance(valores, list):
         return [x for x in valores if isinstance(x, dict)]
-    return [valores] if isinstance(valores, dict) else []
+    if isinstance(valores, dict):
+        return [valores]
+
+    if isinstance(mercado.get("outcomes"), list):
+        linha = _primeiro_odds(mercado)
+        return [linha] if linha else []
+
+    return []
 
 
 def _encontrar_mercado(mercados, nomes):
@@ -422,12 +525,12 @@ def extrair_mercados(jogo, odds):
     )
     if mercado_ml:
         linha = _primeiro_odds(mercado_ml)
-        resultado["odd_home"] = _numero(linha.get("home"))
+        resultado["odd_home"] = _numero(linha.get("home"), _numero(linha.get("1")))
         resultado["odd_draw"] = _numero(
             linha.get("draw"),
             _numero(linha.get("X"), _numero(linha.get("tie")))
         )
-        resultado["odd_away"] = _numero(linha.get("away"))
+        resultado["odd_away"] = _numero(linha.get("away"), _numero(linha.get("2")))
         resultado["odd_atual"] = resultado["odd_draw"]
         resultado["mercados_encontrados"].append("ML")
 
@@ -499,4 +602,3 @@ def extrair_mercados(jogo, odds):
 def limpar_memoria():
     pass
     
-        
