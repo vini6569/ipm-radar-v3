@@ -72,24 +72,50 @@ def buscar_jogos_ao_vivo():
 
 
 def buscar_jogos_ao_vivo_por_ids(event_ids):
-    """
-    Busca os jogos ao vivo e retorna somente os IDs solicitados.
-    Mantém a assinatura esperada pelo main.py.
+    """Busca os jogos ao vivo usando os IDs dos jogos pré-live.
+
+    Importante: consulta /events com status=live e eventIds,
+    preservando a mesma referência de evento usada no pré-live.
     """
     if not event_ids:
         return []
 
-    ids = {str(x) for x in event_ids if x is not None}
+    ids = []
+    for valor in event_ids:
+        if valor is None:
+            continue
+        valor = str(valor)
+        if valor not in ids:
+            ids.append(valor)
+
     if not ids:
         return []
 
-    eventos = buscar_jogos_ao_vivo()
+    try:
+        key = obter_api_key()
+    except Exception as e:
+        print("❌ ERRO API KEY:", e)
+        return []
+
+    resposta = _request_json(
+        "/events",
+        {
+            "apiKey": key,
+            "sport": SPORT,
+            "status": "live",
+            "eventIds": ",".join(ids),
+            "bookmaker": BOOKMAKER,
+        },
+    )
+
+    eventos = _lista_eventos(resposta)
+    permitidos = set(ids)
 
     filtrados = [
         evento
         for evento in eventos
         if isinstance(evento, dict)
-        and str(evento.get("id")) in ids
+        and str(evento.get("id")) in permitidos
     ]
 
     print(
