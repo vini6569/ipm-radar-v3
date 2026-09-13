@@ -645,7 +645,7 @@ def extrair_mercados(jogo, odds):
             "1X2 Result",
         ),
     )
-if mercado_ml:
+    if mercado_ml:
         linha = _primeiro_odds(mercado_ml)
         resultado["odd_home"] = _numero(linha.get("home"), _numero(linha.get("1")))
         resultado["odd_draw"] = _numero(
@@ -723,3 +723,4 @@ if mercado_ml:
 
 def limpar_memoria():
     pass
+    
