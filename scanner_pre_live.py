@@ -45,16 +45,11 @@ from odds_api import (
 # ============================================================
 
 def numero(valor, padrao=0.0):
-
     try:
-
         if valor in (None, ""):
             return padrao
-
         return float(valor)
-
     except (TypeError, ValueError):
-
         return padrao
 
 
@@ -82,26 +77,16 @@ def probabilidade_normalizada(
     odd_visitante,
 ):
 
-    pc = probabilidade_implicita(
-        odd_casa
-    )
-
-    px = probabilidade_implicita(
-        odd_empate
-    )
-
-    pv = probabilidade_implicita(
-        odd_visitante
-    )
+    pc = probabilidade_implicita(odd_casa)
+    px = probabilidade_implicita(odd_empate)
+    pv = probabilidade_implicita(odd_visitante)
 
     total = pc + px + pv
 
     if total <= 0:
         return 0.0
 
-    return (
-        px / total
-    ) * 100.0
+    return (px / total) * 100.0
 
 
 # ============================================================
@@ -110,7 +95,9 @@ def probabilidade_normalizada(
 #
 # Q = 2 × (Casa × Visitante) / (Casa + Visitante)
 #
-# Mantemos exatamente o cálculo que já estamos estudando.
+# ESTUDO:
+# Q MÍNIMO = 2.00
+# Q MÁXIMO = 3.60
 #
 # ============================================================
 
@@ -153,15 +140,8 @@ def calcular_r(
     if casa <= 0 or visitante <= 0:
         return 0.0
 
-    menor = min(
-        casa,
-        visitante,
-    )
-
-    maior = max(
-        casa,
-        visitante,
-    )
+    menor = min(casa, visitante)
+    maior = max(casa, visitante)
 
     if menor <= 0:
         return 0.0
@@ -237,25 +217,13 @@ def identificar_periodo(dt):
 
     hora = dt.time()
 
-    if (
-        time(6, 0)
-        <= hora
-        < time(12, 0)
-    ):
+    if time(6, 0) <= hora < time(12, 0):
         return "06:00 - 12:00"
 
-    if (
-        time(12, 0)
-        <= hora
-        < time(18, 0)
-    ):
+    if time(12, 0) <= hora < time(18, 0):
         return "12:00 - 18:00"
 
-    if (
-        time(18, 0)
-        <= hora
-        or hora < time(0, 0)
-    ):
+    if time(18, 0) <= hora or hora < time(0, 0):
         return "18:00 - 00:00"
 
     return "FORA_DA_JANELA"
@@ -281,14 +249,10 @@ def converter_horario(evento):
         texto = str(valor)
 
         dt = datetime.fromisoformat(
-            texto.replace(
-                "Z",
-                "+00:00"
-            )
+            texto.replace("Z", "+00:00")
         )
 
         if dt.tzinfo is None:
-
             dt = dt.replace(
                 tzinfo=FUSO_HORARIO
             )
@@ -298,7 +262,6 @@ def converter_horario(evento):
         )
 
     except Exception:
-
         return None
 
 
@@ -353,7 +316,7 @@ def analisar_gols(mercados):
     )
 
     # --------------------------------------------------------
-    # ESTRUTURA OVER
+    # DISPONIBILIDADE
     # --------------------------------------------------------
 
     over_disponivel = (
@@ -394,9 +357,7 @@ def analisar_gols(mercados):
             over_status = "OVER NEUTRO"
 
     else:
-
         over_status = "SEM TOTALS"
-
 
     # --------------------------------------------------------
     # FORÇA DO BTTS
@@ -426,21 +387,10 @@ def analisar_gols(mercados):
             btts_status = "BTTS NEUTRO"
 
     else:
-
         btts_status = "SEM BTTS"
-
 
     # --------------------------------------------------------
     # ÍNDICE INTERNO DE GOL
-    # --------------------------------------------------------
-    #
-    # Não é probabilidade.
-    #
-    # Serve apenas para organizar o laboratório.
-    #
-    # Over fornece até 2 pontos.
-    # BTTS fornece até 2 pontos.
-    #
     # --------------------------------------------------------
 
     pontos = 0
@@ -448,22 +398,20 @@ def analisar_gols(mercados):
     if over_status == "OVER FORTE":
         pontos += 2
 
-    elif over_status == "OVER FAVORÁVEL":
+    elif over_status in (
+        "OVER FAVORÁVEL",
+        "OVER MODERADO",
+    ):
         pontos += 1
-
-    elif over_status == "OVER MODERADO":
-        pontos += 1
-
 
     if btts_status == "BTTS FORTE":
         pontos += 2
 
-    elif btts_status == "BTTS FAVORÁVEL":
+    elif btts_status in (
+        "BTTS FAVORÁVEL",
+        "BTTS MODERADO",
+    ):
         pontos += 1
-
-    elif btts_status == "BTTS MODERADO":
-        pontos += 1
-
 
     # --------------------------------------------------------
     # CLASSIFICAÇÃO FINAL
@@ -499,7 +447,6 @@ def analisar_gols(mercados):
             "SEM CONFIRMAÇÃO PRÉ-LIVE"
         )
 
-
     return {
 
         "over_linha": over_linha,
@@ -528,7 +475,6 @@ def analisar_gols(mercados):
             over_disponivel
             or btts_disponivel
         ),
-
     }
 
 
@@ -597,9 +543,7 @@ def escanear_pre_live():
     try:
 
         odds = (
-            buscar_odds_multiplos(
-                jogos
-            )
+            buscar_odds_multiplos(jogos)
             or []
         )
 
@@ -621,10 +565,7 @@ def escanear_pre_live():
 
     for jogo in jogos:
 
-        if not isinstance(
-            jogo,
-            dict
-        ):
+        if not isinstance(jogo, dict):
             continue
 
         event_id = jogo.get("id")
@@ -667,16 +608,12 @@ def escanear_pre_live():
         # HORÁRIO
         # ----------------------------------------------------
 
-        dt = converter_horario(
-            jogo
-        )
+        dt = converter_horario(jogo)
 
         if dt is None:
             continue
 
-        periodo = identificar_periodo(
-            dt
-        )
+        periodo = identificar_periodo(dt)
 
         if periodo == "FORA_DA_JANELA":
             continue
@@ -708,19 +645,13 @@ def escanear_pre_live():
         if r <= 0:
             continue
 
-        equilibrio = classificar_equilibrio(
-            r
-        )
+        equilibrio = classificar_equilibrio(r)
 
         indice_equilibrio = (
-            calcular_indice_equilibrio(
-                r
-            )
+            calcular_indice_equilibrio(r)
         )
 
-        padrao = classificar_padrao(
-            r
-        )
+        padrao = classificar_padrao(r)
 
         # ----------------------------------------------------
         # X
@@ -742,9 +673,7 @@ def escanear_pre_live():
         # GOLS
         # ----------------------------------------------------
 
-        gols = analisar_gols(
-            mercados
-        )
+        gols = analisar_gols(mercados)
 
         # ----------------------------------------------------
         # NOMES
@@ -770,13 +699,9 @@ def escanear_pre_live():
 
             "event_id": str(event_id),
 
-            "data": dt.strftime(
-                "%d/%m/%Y"
-            ),
+            "data": dt.strftime("%d/%m/%Y"),
 
-            "horario": dt.strftime(
-                "%H:%M"
-            ),
+            "horario": dt.strftime("%H:%M"),
 
             "periodo": periodo,
 
@@ -860,23 +785,10 @@ def escanear_pre_live():
             "radar": True,
         }
 
-        resultados.append(
-            registro
-        )
+        resultados.append(registro)
 
     # --------------------------------------------------------
     # ORDENAÇÃO
-    # --------------------------------------------------------
-    #
-    # Primeiro:
-    # maior estrutura para gol
-    #
-    # Depois:
-    # maior Q
-    #
-    # Depois:
-    # maior R
-    #
     # --------------------------------------------------------
 
     resultados.sort(
@@ -926,9 +838,7 @@ def escanear_pre_live():
 # EXIBIÇÃO
 # ============================================================
 
-def exibir_scanner(
-    resultados
-):
+def exibir_scanner(resultados):
 
     if not resultados:
 
@@ -986,9 +896,7 @@ def exibir_scanner(
 
         print()
 
-        print(
-            "⚽ MERCADO DE GOLS"
-        )
+        print("⚽ MERCADO DE GOLS")
 
         if jogo["odd_over"] > 0:
 
@@ -1001,7 +909,55 @@ def exibir_scanner(
 
             print(
                 f"📉 Under "
-                f"{jogo['under_linha']:.2f} | "
-                f"Odd {jogo['odd_under']:.2f} | "
+                f"{jogo['under_linha']:.2f}: "
+                f"{jogo['odd_under']:.2f} | "
                 f"P={jogo['prob_under']:.2f}%"
             )
+
+            print(
+                f"🧪 Status: "
+                f"{jogo['over_status']}"
+            )
+
+        else:
+
+            print(
+                "📈 Totals: NÃO DISPONÍVEL"
+            )
+
+        if jogo["odd_btts_sim"] > 0:
+
+            print(
+                f"⚽ BTTS SIM: "
+                f"{jogo['odd_btts_sim']:.2f} | "
+                f"P={jogo['prob_btts_sim']:.2f}%"
+            )
+
+            print(
+                f"🚫 BTTS NÃO: "
+                f"{jogo['odd_btts_nao']:.2f} | "
+                f"P={jogo['prob_btts_nao']:.2f}%"
+            )
+
+            print(
+                f"🧪 Status: "
+                f"{jogo['btts_status']}"
+            )
+
+        else:
+
+            print(
+                "⚽ BTTS: NÃO DISPONÍVEL"
+            )
+
+        print()
+
+        print(
+            f"🔥 Pontos de gol: "
+            f"{jogo['pontos_gol']}"
+        )
+
+        print(
+            f"🎯 Estrutura: "
+            f"{jogo['estrutura_gol']}"
+        
