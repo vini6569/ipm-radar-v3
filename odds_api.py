@@ -1,6 +1,7 @@
 # ============================================================
 # ODDS API - IPM RADAR V5.2
 # CASA / EMPATE / VISITANTE
+# W1 x W2 + Q + R
 # TOTALS + BTTS + OUTROS MERCADOS
 # ============================================================
 
@@ -23,6 +24,13 @@ from config import (
 
 
 # ============================================================
+# CONTADOR DA API
+# ============================================================
+
+REQUISICOES_REALIZADAS = 0
+
+
+# ============================================================
 # MEMÓRIA LIVE
 # ============================================================
 
@@ -34,6 +42,8 @@ _IDS_LIVE_SELECIONADOS = []
 # ============================================================
 
 def _request_json(endpoint, params):
+
+    global REQUISICOES_REALIZADAS
 
     url = (
         f"{BASE_URL}/{endpoint.lstrip('/')}"
@@ -55,6 +65,8 @@ def _request_json(endpoint, params):
             timeout=TIMEOUT_REQUISICAO,
         ) as resp:
 
+            REQUISICOES_REALIZADAS += 1
+
             body = resp.read().decode("utf-8")
 
             print(
@@ -69,6 +81,8 @@ def _request_json(endpoint, params):
             )
 
     except urllib.error.HTTPError as erro:
+
+        REQUISICOES_REALIZADAS += 1
 
         try:
             detalhe = erro.read().decode("utf-8")
@@ -186,6 +200,72 @@ def _inteiro(valor, padrao=0):
     ):
 
         return padrao
+
+
+# ============================================================
+# W1 x W2
+# ============================================================
+
+def calcular_w1xw2(odd_casa, odd_visitante):
+
+    """
+    W1 x W2
+
+    W1 = odd da equipe da casa
+    W2 = odd da equipe visitante
+
+    Fórmula:
+
+        W1 x W2 = W1 * W2
+    """
+
+    w1 = _numero(odd_casa)
+    w2 = _numero(odd_visitante)
+
+    if w1 <= 0 or w2 <= 0:
+        return 0.0
+
+    return w1 * w2
+
+
+# ============================================================
+# Q
+# ============================================================
+
+def calcular_q(odd_casa, odd_visitante):
+
+    casa = _numero(odd_casa)
+    fora = _numero(odd_visitante)
+
+    if casa <= 0 or fora <= 0:
+        return 0.0
+
+    return (
+        2.0 * casa * fora
+        / (casa + fora)
+    )
+
+
+# ============================================================
+# R
+# ============================================================
+
+def calcular_r(odd_casa, odd_visitante):
+
+    casa = _numero(odd_casa)
+    fora = _numero(odd_visitante)
+
+    if casa <= 0 or fora <= 0:
+        return 0.0
+
+    menor = min(casa, fora)
+    maior = max(casa, fora)
+
+    return (
+        maior / menor
+        if menor > 0
+        else 0.0
+    )
 
 
 # ============================================================
@@ -781,9 +861,9 @@ def _mercados_bookmaker(evento):
         {},
     )
 
-    # ----------------------------
+    # --------------------------------------------------------
     # FORMATO DICT
-    # ----------------------------
+    # --------------------------------------------------------
 
     if isinstance(bookmakers, dict):
 
@@ -827,9 +907,9 @@ def _mercados_bookmaker(evento):
             else []
         )
 
-    # ----------------------------
+    # --------------------------------------------------------
     # FORMATO LISTA
-    # ----------------------------
+    # --------------------------------------------------------
 
     if isinstance(
         bookmakers,
@@ -961,9 +1041,7 @@ def _preco_item(item):
             if numero > 0:
                 return numero
 
-    return 0.0
-
-
+    
 # ============================================================
 # EXTRAIR OUTCOME
 # ============================================================
@@ -1067,75 +1145,105 @@ def _extrair_outcome(
             nome = str(
                 item.get("name")
                 or item.get("label")
+                or item.get("outcome")
                 or item.get("selection")
                 or item.get("key")
                 or ""
             ).strip().lower()
 
-            if nome in alvo:
+            if nome not in alvo:
+                continue
 
-                preco = _preco_item(
-                    item
-                )
+            preco = _preco_item(
+                item
+            )
 
-                if preco > 0:
-                    return preco
-
-    # --------------------------------------------------------
-    # LINHA DIRETA
-    # --------------------------------------------------------
-
-    nome = str(
-        linha.get("name")
-        or linha.get("label")
-        or linha.get("selection")
-        or ""
-    ).strip().lower()
-
-    if nome in alvo:
-
-        return _preco_item(
-            linha
-        )
+            if preco > 0:
+                return preco
 
     return 0.0
 
 
 # ============================================================
-# NOME DO MERCADO
+# NORMALIZAR NOME
 # ============================================================
 
-def _nome_mercado(mercado):
+def _normalizar_texto(valor):
 
-    return str(
-        mercado.get("name")
-        or mercado.get("key")
-        or mercado.get("market")
-        or ""
-    ).strip()
-
-
-def _nome_mercado_lower(mercado):
-
-    return _nome_mercado(
-        mercado
-    ).lower()
-
-
-# ============================================================
-# ENCONTRAR MERCADO POR NOME
-# ============================================================
-
-def _encontrar_mercado(
-    mercados,
-    nomes,
-):
-
-    procurados = {
-        str(nome)
+    return (
+        str(valor)
         .strip()
         .lower()
-        for nome in nomes
+    )
+
+
+# ============================================================
+# IDENTIFICAR MERCADO 1X2
+# ============================================================
+
+def _eh_mercado_1x2(mercado):
+
+    if not isinstance(
+        mercado,
+        dict,
+    ):
+        return False
+
+    nome = _normalizar_texto(
+        mercado.get("key")
+        or mercado.get("name")
+        or mercado.get("market")
+        or mercado.get("type")
+        or ""
+    )
+
+    return nome in (
+        "1x2",
+        "match",
+        "match winner",
+        "winner",
+        "fulltime result",
+        "result",
+    )
+
+
+# ============================================================
+# EXTRAIR 1X2
+# ============================================================
+
+def _extrair_1x2(
+    mercados,
+    casa_nome="",
+    fora_nome="",
+):
+
+    odd_casa = 0.0
+    odd_empate = 0.0
+    odd_visitante = 0.0
+
+    casa_alvos = {
+        "1",
+        "home",
+        "casa",
+        "home team",
+        "1x2 home",
+        _normalizar_texto(casa_nome),
+    }
+
+    empate_alvos = {
+        "x",
+        "draw",
+        "tie",
+        "empate",
+    }
+
+    visitante_alvos = {
+        "2",
+        "away",
+        "fora",
+        "away team",
+        "1x2 away",
+        _normalizar_texto(fora_nome),
     }
 
     for mercado in mercados:
@@ -1146,45 +1254,7 @@ def _encontrar_mercado(
         ):
             continue
 
-        nome = _nome_mercado_lower(
-            mercado
-        )
-
-        if nome in procurados:
-            return mercado
-
-    return None
-
-
-# ============================================================
-# 1X2
-# ============================================================
-
-def _encontrar_1x2(mercados):
-
-    nomes = (
-        "ml",
-        "moneyline",
-        "1x2",
-        "match winner",
-        "match result",
-        "full time result",
-        "winner",
-        "h2h",
-        "head to head",
-    )
-
-    # --------------------------------------------------------
-    # PRIMEIRO: NOME EXATO
-    # --------------------------------------------------------
-
-    for mercado in mercados:
-
-        nome = _nome_mercado_lower(
-            mercado
-        )
-
-        if nome not in nomes:
+        if not _eh_mercado_1x2(mercado):
             continue
 
         linhas = _linhas_odds(
@@ -1193,339 +1263,133 @@ def _encontrar_1x2(mercados):
 
         for linha in linhas:
 
-            casa = _extrair_outcome(
-                linha,
-                (
-                    "home",
-                    "1",
-                ),
+            nome = _normalizar_texto(
+                linha.get("name")
+                or linha.get("label")
+                or linha.get("outcome")
+                or linha.get("selection")
+                or linha.get("key")
+                or ""
             )
 
-            empate = _extrair_outcome(
-                linha,
-                (
-                    "draw",
-                    "x",
-                    "tie",
-                ),
+            preco = _preco_item(
+                linha
             )
 
-            fora = _extrair_outcome(
-                linha,
-                (
-                    "away",
-                    "2",
-                ),
-            )
+            if preco <= 0:
+                continue
 
             if (
-                casa > 0
-                or empate > 0
-                or fora > 0
+                nome in casa_alvos
+                and odd_casa <= 0
             ):
 
-                return (
-                    casa,
-                    empate,
-                    fora,
-                )
+                odd_casa = preco
 
-    # --------------------------------------------------------
-    # SEGUNDO: PROCURA MAIS FLEXÍVEL
-    # --------------------------------------------------------
-
-    for mercado in mercados:
-
-        nome = _nome_mercado_lower(
-            mercado
-        )
-
-        if not (
-            "moneyline" in nome
-            or "match winner" in nome
-            or nome == "ml"
-            or "1x2" in nome
-            or nome == "h2h"
-        ):
-            continue
-
-        linhas = _linhas_odds(
-            mercado
-        )
-
-        for linha in linhas:
-
-            casa = _extrair_outcome(
-                linha,
-                (
-                    "home",
-                    "1",
-                ),
-            )
-
-            empate = _extrair_outcome(
-                linha,
-                (
-                    "draw",
-                    "x",
-                    "tie",
-                ),
-            )
-
-            fora = _extrair_outcome(
-                linha,
-                (
-                    "away",
-                    "2",
-                ),
-            )
-
-            if (
-                casa > 0
-                or empate > 0
-                or fora > 0
+            elif (
+                nome in empate_alvos
+                and odd_empate <= 0
             ):
 
-                return (
-                    casa,
-                    empate,
-                    fora,
-                )
+                odd_empate = preco
+
+            elif (
+                nome in visitante_alvos
+                and odd_visitante <= 0
+            ):
+
+                odd_visitante = preco
 
     return (
-        0.0,
-        0.0,
-        0.0,
+        odd_casa,
+        odd_empate,
+        odd_visitante,
     )
 
 
 # ============================================================
-# TOTALS
+# EXTRAIR TOTALS
 # ============================================================
 
 def _extrair_totals(mercados):
 
-    mercado = _encontrar_mercado(
-        mercados,
-        (
-            "Totals",
-            "Total",
-            "Over/Under",
-            "Over Under",
-            "O/U",
-            "Totals - Over/Under",
-            "Goals Over/Under",
-        ),
-    )
-
-    if not mercado:
-
-        # Busca flexível
-        for item in mercados:
-
-            nome = _nome_mercado_lower(
-                item
-            )
-
-            if (
-                "total" in nome
-                or "over/under" in nome
-                or "over under" in nome
-            ):
-
-                mercado = item
-                break
-
-    if not mercado:
-
-        return (
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-        )
-
-    linhas = _linhas_odds(
-        mercado
-    )
-
     over_linha = 0.0
     under_linha = 0.0
+
     odd_over = 0.0
     odd_under = 0.0
 
-    # --------------------------------------------------------
-    # CASO 1: linha contém over/under diretamente
-    # --------------------------------------------------------
-
-    for linha in linhas:
+    for mercado in mercados:
 
         if not isinstance(
-            linha,
+            mercado,
             dict,
         ):
             continue
 
-        hdp = _numero(
-            linha.get("hdp"),
-            _numero(
-                linha.get("handicap")
-            ),
-        )
-
-        if hdp <= 0:
-
-            hdp = _numero(
-                linha.get("line")
-            )
-
-        over = _extrair_outcome(
-            linha,
-            (
-                "over",
-                "Over",
-            ),
-        )
-
-        under = _extrair_outcome(
-            linha,
-            (
-                "under",
-                "Under",
-            ),
-        )
-
-        if (
-            over > 0
-            and under > 0
-        ):
-
-            over_linha = hdp
-            under_linha = hdp
-            odd_over = over
-            odd_under = under
-
-            return (
-                over_linha,
-                under_linha,
-                odd_over,
-                odd_under,
-            )
-
-    # --------------------------------------------------------
-    # CASO 2: cada linha é uma seleção
-    # Exemplo: Over 2.5 / Under 2.5
-    # --------------------------------------------------------
-
-    for linha in linhas:
-
-        nome = str(
-            linha.get("name")
-            or linha.get("label")
-            or linha.get("selection")
+        nome_mercado = _normalizar_texto(
+            mercado.get("key")
+            or mercado.get("name")
+            or mercado.get("market")
+            or mercado.get("type")
             or ""
-        ).strip()
-
-        nome_lower = nome.lower()
-
-        preco = _preco_item(
-            linha
         )
-
-        hdp = _numero(
-            linha.get("hdp"),
-            _numero(
-                linha.get("handicap")
-            ),
-        )
-
-        if hdp <= 0:
-
-            hdp = _numero(
-                linha.get("line")
-            )
-
-        # tenta descobrir a linha no nome
-        if hdp <= 0:
-
-            partes = nome_lower.replace(
-                ",",
-                ".",
-            ).split()
-
-            for parte in partes:
-
-                try:
-
-                    numero_linha = float(
-                        parte
-                    )
-
-                    if (
-                        0.5
-                        <= numero_linha
-                        <= 20
-                    ):
-
-                        hdp = numero_linha
-                        break
-
-                except Exception:
-                    pass
 
         if (
-            "over" in nome_lower
-            and preco > 0
+            "total" not in nome_mercado
+            and "over" not in nome_mercado
         ):
+            continue
 
-            if (
-                odd_over <= 0
-                or (
-                    hdp > 0
-                    and (
-                        over_linha <= 0
-                        or hdp == over_linha
-                    )
-                )
-            ):
+        linhas = _linhas_odds(
+            mercado
+        )
 
-                odd_over = preco
+        for linha in linhas:
 
-                if hdp > 0:
-                    over_linha = hdp
+            nome = _normalizar_texto(
+                linha.get("name")
+                or linha.get("label")
+                or linha.get("outcome")
+                or linha.get("selection")
+                or ""
+            )
 
-        elif (
-            "under" in nome_lower
-            and preco > 0
-        ):
+            preco = _preco_item(
+                linha
+            )
 
-            if (
-                odd_under <= 0
-                or (
-                    hdp > 0
-                    and (
-                        under_linha <= 0
-                        or hdp == under_linha
-                    )
-                )
-            ):
+            if preco <= 0:
+                continue
 
-                odd_under = preco
+            linha_valor = _numero(
+                linha.get("line")
+                or linha.get("handicap")
+                or linha.get("total")
+                or linha.get("point")
+            )
 
-                if hdp > 0:
-                    under_linha = hdp
+            if "over" in nome:
 
-    if (
-        over_linha <= 0
-        and under_linha > 0
-    ):
-        over_linha = under_linha
+                if odd_over <= 0:
+                    odd_over = preco
 
-    if (
-        under_linha <= 0
-        and over_linha > 0
-    ):
-        under_linha = over_linha
+                if (
+                    linha_valor > 0
+                    and over_linha <= 0
+                ):
+                    over_linha = linha_valor
+
+            elif "under" in nome:
+
+                if odd_under <= 0:
+                    odd_under = preco
+
+                if (
+                    linha_valor > 0
+                    and under_linha <= 0
+                ):
+                    under_linha = linha_valor
 
     return (
         over_linha,
@@ -1536,130 +1400,74 @@ def _extrair_totals(mercados):
 
 
 # ============================================================
-# BTTS
+# EXTRAIR BTTS
 # ============================================================
 
 def _extrair_btts(mercados):
 
-    mercado = _encontrar_mercado(
-        mercados,
-        (
-            "Both Teams To Score",
-            "BTTS",
-            "Both Teams Score",
-            "Both Teams To Score - Yes/No",
-        ),
-    )
-
-    if not mercado:
-
-        for item in mercados:
-
-            nome = _nome_mercado_lower(
-                item
-            )
-
-            if (
-                "both teams to score"
-                in nome
-                or nome == "btts"
-                or "both teams score"
-                in nome
-            ):
-
-                mercado = item
-                break
-
-    if not mercado:
-
-        return (
-            0.0,
-            0.0,
-        )
-
-    linhas = _linhas_odds(
-        mercado
-    )
-
     odd_sim = 0.0
     odd_nao = 0.0
 
-    # --------------------------------------------------------
-    # CASO 1: yes/no diretamente
-    # --------------------------------------------------------
+    for mercado in mercados:
 
-    for linha in linhas:
+        if not isinstance(
+            mercado,
+            dict,
+        ):
+            continue
 
-        sim = _extrair_outcome(
-            linha,
-            (
-                "yes",
-                "sim",
-            ),
+        nome_mercado = _normalizar_texto(
+            mercado.get("key")
+            or mercado.get("name")
+            or mercado.get("market")
+            or mercado.get("type")
+            or ""
         )
 
-        nao = _extrair_outcome(
-            linha,
-            (
+        if not (
+            "btts" in nome_mercado
+            or "both teams" in nome_mercado
+            or "both teams to score" in nome_mercado
+        ):
+            continue
+
+        linhas = _linhas_odds(
+            mercado
+        )
+
+        for linha in linhas:
+
+            nome = _normalizar_texto(
+                linha.get("name")
+                or linha.get("label")
+                or linha.get("outcome")
+                or linha.get("selection")
+                or ""
+            )
+
+            preco = _preco_item(
+                linha
+            )
+
+            if preco <= 0:
+                continue
+
+            if nome in (
+                "yes",
+                "sim",
+                "true",
+            ):
+
+                odd_sim = preco
+
+            elif nome in (
                 "no",
                 "não",
                 "nao",
-            ),
-        )
+                "false",
+            ):
 
-        if sim > 0:
-            odd_sim = sim
-
-        if nao > 0:
-            odd_nao = nao
-
-        if (
-            odd_sim > 0
-            and odd_nao > 0
-        ):
-
-            return (
-                odd_sim,
-                odd_nao,
-            )
-
-    # --------------------------------------------------------
-    # CASO 2: linhas individuais
-    # --------------------------------------------------------
-
-    for linha in linhas:
-
-        nome = str(
-            linha.get("name")
-            or linha.get("label")
-            or linha.get("selection")
-            or ""
-        ).strip().lower()
-
-        preco = _preco_item(
-            linha
-        )
-
-        if preco <= 0:
-            continue
-
-        if (
-            nome in (
-                "yes",
-                "sim",
-            )
-            or "yes" == nome
-        ):
-
-            odd_sim = preco
-
-        elif nome in (
-            "no",
-            "não",
-            "nao",
-        ):
-
-            odd_nao = preco
+                odd_nao = preco
 
     return (
         odd_sim,
@@ -1668,273 +1476,7 @@ def _extrair_btts(mercados):
 
 
 # ============================================================
-# HANDICAP
-# ============================================================
-
-def _extrair_handicap(mercados):
-
-    mercado = _encontrar_mercado(
-        mercados,
-        (
-            "Spread",
-            "Asian Handicap",
-            "Handicap",
-            "Asian Handicap 3-Way",
-        ),
-    )
-
-    if not mercado:
-
-        return (
-            0.0,
-            0.0,
-            0.0,
-        )
-
-    linhas = _linhas_odds(
-        mercado
-    )
-
-    for linha in linhas:
-
-        hdp = _numero(
-            linha.get("hdp")
-        )
-
-        home = _extrair_outcome(
-            linha,
-            (
-                "home",
-                "1",
-            ),
-        )
-
-        away = _extrair_outcome(
-            linha,
-            (
-                "away",
-                "2",
-            ),
-        )
-
-        if (
-            home > 0
-            or away > 0
-        ):
-
-            return (
-                hdp,
-                home,
-                away,
-            )
-
-    return (
-        0.0,
-        0.0,
-        0.0,
-    )
-
-
-# ============================================================
-# DOUBLE CHANCE
-# ============================================================
-
-def _extrair_double_chance(mercados):
-
-    mercado = _encontrar_mercado(
-        mercados,
-        (
-            "Double Chance",
-            "DoubleChance",
-            "DC",
-        ),
-    )
-
-    if not mercado:
-
-        return (
-            0.0,
-            0.0,
-            0.0,
-        )
-
-    linhas = _linhas_odds(
-        mercado
-    )
-
-    for linha in linhas:
-
-        x1 = _extrair_outcome(
-            linha,
-            ("1X",),
-        )
-
-        x12 = _extrair_outcome(
-            linha,
-            ("12",),
-        )
-
-        x2 = _extrair_outcome(
-            linha,
-            ("X2",),
-        )
-
-        if (
-            x1 > 0
-            or x12 > 0
-            or x2 > 0
-        ):
-
-            return (
-                x1,
-                x12,
-                x2,
-            )
-
-    return (
-        0.0,
-        0.0,
-        0.0,
-    )
-
-
-# ============================================================
-# DRAW NO BET
-# ============================================================
-
-def _extrair_dnb(mercados):
-
-    mercado = _encontrar_mercado(
-        mercados,
-        (
-            "Draw No Bet",
-            "DrawNoBet",
-            "DNB",
-        ),
-    )
-
-    if not mercado:
-
-        return (
-            0.0,
-            0.0,
-        )
-
-    linhas = _linhas_odds(
-        mercado
-    )
-
-    for linha in linhas:
-
-        home = _extrair_outcome(
-            linha,
-            (
-                "home",
-                "1",
-            ),
-        )
-
-        away = _extrair_outcome(
-            linha,
-            (
-                "away",
-                "2",
-            ),
-        )
-
-        if (
-            home > 0
-            or away > 0
-        ):
-
-            return (
-                home,
-                away,
-            )
-
-    return (
-        0.0,
-        0.0,
-    )
-
-
-# ============================================================
-# CATEGORIA DO MERCADO
-# ============================================================
-
-def _categoria_mercado(nome):
-
-    nome_lower = str(
-        nome
-    ).strip().lower()
-
-    if (
-        "half" in nome_lower
-        or "halftime" in nome_lower
-        or "1st half" in nome_lower
-        or "2nd half" in nome_lower
-    ):
-
-        return "HT"
-
-    if (
-        "corner" in nome_lower
-        or "escante" in nome_lower
-    ):
-
-        return "CORNERS"
-
-    if (
-        "card" in nome_lower
-        or "booking" in nome_lower
-        or "cart" in nome_lower
-    ):
-
-        return "CARDS"
-
-    return "FT"
-
-
-# ============================================================
-# CÓPIA PADRONIZADA DO MERCADO
-# ============================================================
-
-def _copiar_mercado(mercado):
-
-    return {
-        "name": (
-            mercado.get("name")
-            or mercado.get("key")
-            or mercado.get("market")
-            or ""
-        ),
-
-        "updatedAt":
-            mercado.get("updatedAt"),
-
-        "odds":
-            _linhas_odds(mercado),
-    }
-
-
-# ============================================================
-# PRIMEIRA LINHA
-# ============================================================
-
-def _primeiro_odds(mercado):
-
-    linhas = _linhas_odds(
-        mercado
-    )
-
-    if linhas:
-        return linhas[0]
-
-    return {}
-
-
-# ============================================================
-# EXTRAÇÃO PRINCIPAL DOS MERCADOS
+# EXTRAIR MERCADOS
 # ============================================================
 
 def extrair_mercados(
@@ -1948,26 +1490,36 @@ def extrair_mercados(
     ):
         return {}
 
-    event_id = jogo.get("id")
-
-    evento = (
-        _evento_odds_por_id(
-            odds,
-            event_id,
-        )
-        or jogo
+    event_id = jogo.get(
+        "id"
     )
+
+    evento_odds = _evento_odds_por_id(
+        odds,
+        event_id,
+    )
+
+    if evento_odds is None:
+
+        # Alguns formatos devolvem as odds
+        # diretamente no próprio evento.
+
+        evento_odds = jogo
 
     mercados = _mercados_bookmaker(
-        evento
+        evento_odds
     )
 
-    placar_casa, placar_fora = (
-        _extrair_placar(jogo)
+    casa_nome = (
+        jogo.get("home")
+        or jogo.get("homeTeam")
+        or ""
     )
 
-    esc, fin, atq, cart = (
-        _extrair_estatisticas(jogo)
+    fora_nome = (
+        jogo.get("away")
+        or jogo.get("awayTeam")
+        or ""
     )
 
     # ========================================================
@@ -1976,194 +1528,68 @@ def extrair_mercados(
 
     (
         odd_casa,
-        odd_draw,
-        odd_away,
-    ) = _encontrar_1x2(
-        mercados
+        odd_empate,
+        odd_visitante,
+    ) = _extrair_1x2(
+        mercados,
+        casa_nome,
+        fora_nome,
     )
 
     # ========================================================
-    # Q PRÉ-LIVE
+    # FALLBACK PARA CAMPOS DIRETOS
     # ========================================================
 
-    q_pre_live = 0.0
+    if odd_casa <= 0:
 
-    if (
-        odd_casa > 0
-        and odd_away > 0
-    ):
-
-        q_pre_live = (
-            2.0
-            * odd_casa
-            * odd_away
-            / (
-                odd_casa
-                + odd_away
-            )
+        odd_casa = _numero(
+            evento_odds.get("odd_casa")
+            or evento_odds.get("homeOdd")
+            or evento_odds.get("home_odd")
         )
 
-    
-    # ========================================================
-    # RESULTADO BASE
-    # ========================================================
+    if odd_empate <= 0:
 
-    resultado = {
+        odd_empate = _numero(
+            evento_odds.get("odd_empate")
+            or evento_odds.get("drawOdd")
+            or evento_odds.get("draw_odd")
+        )
 
-        "event_id": event_id,
+    if odd_visitante <= 0:
 
-        # 1X2
-        "odd_home": odd_casa,
-        "odd_draw": odd_draw,
-        "odd_away": odd_away,
-
-        # ALIASES IPM
-        "odd_casa": odd_casa,
-        "odd_atual": odd_draw,
-        "odd_empate": odd_draw,
-        "odd_visitante": odd_away,
-
-        # Q
-        "odd_pre_live": q_pre_live,
-
-        # JOGO
-        "minuto":
-            _extrair_minuto(jogo),
-
-        "gols":
-            placar_casa + placar_fora,
-
-        "escanteios":
-            esc,
-
-        "cartoes":
-            cart,
-
-        "finalizacoes":
-            fin,
-
-        "ataques_perigosos":
-            atq,
-
-        # MERCADOS
-        "mercados_encontrados": [],
-
-        "mercados_disponiveis": [],
-
-        "todos": [],
-
-        "odds_ft": [],
-
-        "odds_ht": [],
-
-        "odds_corners": [],
-
-        "odds_cards": [],
-
-        # TOTALS
-        "over_linha": 0.0,
-        "under_linha": 0.0,
-        "odd_over": 0.0,
-        "odd_under": 0.0,
-
-        # BTTS
-        "odd_btts_sim": 0.0,
-        "odd_btts_nao": 0.0,
-
-        # HANDICAP
-        "handicap_linha": 0.0,
-        "odd_handicap_home": 0.0,
-        "odd_handicap_away": 0.0,
-
-        # DOUBLE CHANCE
-        "odd_1x": 0.0,
-        "odd_12": 0.0,
-        "odd_x2": 0.0,
-
-        # DNB
-        "odd_dnb_home": 0.0,
-        "odd_dnb_away": 0.0,
-    }
+        odd_visitante = _numero(
+            evento_odds.get("odd_visitante")
+            or evento_odds.get("awayOdd")
+            or evento_odds.get("away_odd")
+        )
 
     # ========================================================
-    # MERCADOS DISPONÍVEIS
+    # W1 x W2
     # ========================================================
 
-    for mercado in mercados:
-
-        if not isinstance(
-            mercado,
-            dict,
-        ):
-            continue
-
-        nome = str(
-            mercado.get("name")
-            or mercado.get("key")
-            or mercado.get("market")
-            or ""
-        ).strip()
-
-        if not nome:
-            continue
-
-        item = _copiar_mercado(
-            mercado
-        )
-
-        item["categoria"] = (
-            _categoria_mercado(nome)
-        )
-
-        resultado["todos"].append(
-            item
-        )
-
-        resultado[
-            "mercados_disponiveis"
-        ].append(nome)
-
-        categoria = item[
-            "categoria"
-        ]
-
-        destino = {
-            "HT": "odds_ht",
-            "CORNERS": "odds_corners",
-            "CARDS": "odds_cards",
-            "FT": "odds_ft",
-        }.get(
-            categoria,
-            "odds_ft",
-        )
-
-        resultado[
-            destino
-        ].append(item)
-
-    resultado[
-        "mercados_disponiveis"
-    ] = list(
-        dict.fromkeys(
-            resultado[
-                "mercados_disponiveis"
-            ]
-        )
+    w1xw2 = calcular_w1xw2(
+        odd_casa,
+        odd_visitante,
     )
 
     # ========================================================
-    # MARCA 1X2
+    # Q
     # ========================================================
 
-    if (
-        odd_casa > 0
-        or odd_draw > 0
-        or odd_away > 0
-    ):
+    q = calcular_q(
+        odd_casa,
+        odd_visitante,
+    )
 
-        resultado[
-            "mercados_encontrados"
-        ].append("1X2")
+    # ========================================================
+    # R
+    # ========================================================
+
+    r = calcular_r(
+        odd_casa,
+        odd_visitante,
+    )
 
     # ========================================================
     # TOTALS
@@ -2178,31 +1604,6 @@ def extrair_mercados(
         mercados
     )
 
-    resultado[
-        "over_linha"
-    ] = over_linha
-
-    resultado[
-        "under_linha"
-    ] = under_linha
-
-    resultado[
-        "odd_over"
-    ] = odd_over
-
-    resultado[
-        "odd_under"
-    ] = odd_under
-
-    if (
-        odd_over > 0
-        or odd_under > 0
-    ):
-
-        resultado[
-            "mercados_encontrados"
-        ].append("TOTALS")
-
     # ========================================================
     # BTTS
     # ========================================================
@@ -2214,169 +1615,130 @@ def extrair_mercados(
         mercados
     )
 
-    resultado[
-        "odd_btts_sim"
-    ] = odd_btts_sim
-
-    resultado[
-        "odd_btts_nao"
-    ] = odd_btts_nao
-
-    if (
-        odd_btts_sim > 0
-        or odd_btts_nao > 0
-    ):
-
-        resultado[
-            "mercados_encontrados"
-        ].append("BTTS")
-
     # ========================================================
-    # HANDICAP
+    # RESULTADO
     # ========================================================
 
-    (
-        handicap_linha,
-        odd_handicap_home,
-        odd_handicap_away,
-    ) = _extrair_handicap(
-        mercados
-    )
+    return {
 
-    resultado[
-        "handicap_linha"
-    ] = handicap_linha
+        # ----------------------------------------------------
+        # 1X2
+        # ----------------------------------------------------
 
-    resultado[
-        "odd_handicap_home"
-    ] = odd_handicap_home
+        "odd_casa": odd_casa,
+        "odd_empate": odd_empate,
+        "odd_visitante": odd_visitante,
 
-    resultado[
-        "odd_handicap_away"
-    ] = odd_handicap_away
+        # ----------------------------------------------------
+        # W1 x W2
+        # ----------------------------------------------------
 
-    if (
-        odd_handicap_home > 0
-        or odd_handicap_away > 0
-    ):
+        "w1": odd_casa,
+        "w2": odd_visitante,
 
-        resultado[
-            "mercados_encontrados"
-        ].append("HANDICAP")
+        "w1xw2": round(
+            w1xw2,
+            4,
+        ),
 
-    # ========================================================
-    # DOUBLE CHANCE
-    # ========================================================
+        # ----------------------------------------------------
+        # Q
+        # ----------------------------------------------------
 
-    (
-        odd_1x,
-        odd_12,
-        odd_x2,
-    ) = _extrair_double_chance(
-        mercados
-    )
+        "q": round(
+            q,
+            4,
+        ),
 
-    resultado[
-        "odd_1x"
-    ] = odd_1x
+        # ----------------------------------------------------
+        # R
+        # ----------------------------------------------------
 
-    resultado[
-        "odd_12"
-    ] = odd_12
+        "r": round(
+            r,
+            4,
+        ),
 
-    resultado[
-        "odd_x2"
-    ] = odd_x2
+        # ----------------------------------------------------
+        # TOTALS
+        # ----------------------------------------------------
 
-    if (
-        odd_1x > 0
-        or odd_12 > 0
-        or odd_x2 > 0
-    ):
+        "over_linha": over_linha,
+        "under_linha": under_linha,
 
-        resultado[
-            "mercados_encontrados"
-        ].append(
-            "DOUBLE_CHANCE"
+        "odd_over": odd_over,
+        "odd_under": odd_under,
+
+        # ----------------------------------------------------
+        # BTTS
+        # ----------------------------------------------------
+
+        "odd_btts_sim": odd_btts_sim,
+        "odd_btts_nao": odd_btts_nao,
+
+        # ----------------------------------------------------
+        # STATUS
+        # ----------------------------------------------------
+
+        "tem_1x2": (
+            odd_casa > 0
+            and odd_empate > 0
+            and odd_visitante > 0
+        ),
+
+        "tem_w1xw2": (
+            w1xw2 > 0
+        ),
+
+        "tem_totals": (
+            odd_over > 0
+            or odd_under > 0
+        ),
+
+        "tem_btts": (
+            odd_btts_sim > 0
+            or odd_btts_nao > 0
+        ),
+    }
+
+
+# ============================================================
+# TESTE W1 x W2
+# ============================================================
+
+def testar_w1xw2():
+
+    print()
+    print("=" * 60)
+    print("TESTE W1 x W2")
+    print("=" * 60)
+
+    exemplos = [
+        (2.40, 2.10),
+        (1.50, 4.00),
+        (3.00, 3.00),
+    ]
+
+    for w1, w2 in exemplos:
+
+        resultado = calcular_w1xw2(
+            w1,
+            w2,
         )
 
-    # ========================================================
-    # DNB
-    # ========================================================
+        print(
+            f"W1={w1:.2f} | "
+            f"W2={w2:.2f} | "
+            f"W1xW2={resultado:.4f}"
+        )
 
-    (
-        odd_dnb_home,
-        odd_dnb_away,
-    ) = _extrair_dnb(
-        mercados
-    )
-
-    resultado[
-        "odd_dnb_home"
-    ] = odd_dnb_home
-
-    resultado[
-        "odd_dnb_away"
-    ] = odd_dnb_away
-
-    if (
-        odd_dnb_home > 0
-        or odd_dnb_away > 0
-    ):
-
-        resultado[
-            "mercados_encontrados"
-        ].append("DNB")
-
-    # ========================================================
-    # DEBUG FINAL
-    # ========================================================
-
-    casa_nome = (
-        jogo.get("home")
-        or jogo.get("homeTeam")
-        or ""
-    )
-
-    fora_nome = (
-        jogo.get("away")
-        or jogo.get("awayTeam")
-        or ""
-    )
-
-    print(
-        f"🔎 DEBUG MERCADOS | "
-        f"{casa_nome} x {fora_nome} | "
-        f"quantidade: {len(mercados)} | "
-        f"nomes: "
-        f"{resultado['mercados_disponiveis']}"
-    )
-
-    print(
-        "ODDS 1X2 | "
-        f"ID={event_id} | "
-        f"CASA={odd_casa} | "
-        f"EMPATE={odd_draw} | "
-        f"VISITANTE={odd_away} | "
-        f"Q={q_pre_live:.4f}"
-    )
-
-    print(
-        "ODDS GOLS | "
-        f"TOTALS={odd_over} / {odd_under} | "
-        f"LINHA={over_linha} | "
-        f"BTTS={odd_btts_sim} / {odd_btts_nao}"
-    )
-
-    return resultado
+    print("=" * 60)
 
 
 # ============================================================
-# LIMPAR MEMÓRIA
+# TESTE DIRETO
 # ============================================================
 
-def limpar_memoria():
+if __name__ == "__main__":
 
-    global _IDS_LIVE_SELECIONADOS
-
-    _IDS_LIVE_SELECIONADOS = []
+    testar_w1xw2()
