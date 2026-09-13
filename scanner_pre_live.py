@@ -1001,5 +1001,7 @@ def exibir_scanner(
 
             print(
                 f"📉 Under "
-                f"{jogo['under_linha']:.2f}: "
-                f"{jogo
+                f"{jogo['under_linha']:.2f} | "
+                f"Odd {jogo['odd_under']:.2f} | "
+                f"P={jogo['prob_under']:.2f}%"
+            )
