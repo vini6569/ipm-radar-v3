@@ -22,7 +22,7 @@ from odds_api import (
 # ============================================================
 
 Q_MIN = 2.00
-Q_MAX = 3.50
+Q_MAX = 3.00
 
 
 def numero(valor, padrao=0.0):
