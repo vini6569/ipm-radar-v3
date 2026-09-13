@@ -19,18 +19,14 @@ from config import (
 )
 
 MAX_EVENTOS_ODDS_MULTI = 10
-REQUISICOES_REALIZADAS = 0
 
 
 def _request_json(endpoint, params):
-    global REQUISICOES_REALIZADAS
-    REQUISICOES_REALIZADAS += 1
-
     url = f"{BASE_URL}/{endpoint.lstrip('/')}?{urllib.parse.urlencode(params)}"
     req = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "IPM-Radar/5.2",
+            "User-Agent": "IPM-Radar-PreLive/5.2",
             "Accept": "application/json",
         },
     )
@@ -84,41 +80,8 @@ def _obter_key():
         return None
 
 
-def buscar_jogos_ao_vivo():
-    key = _obter_key()
-    if not key:
-        return []
-
-    eventos = _lista_eventos(
-        _request_json(
-            "/events/live",
-            {"apiKey": key, "sport": SPORT},
-        )
-    )
-
-    print("JOGOS AO VIVO ENCONTRADOS:", len(eventos))
-    return eventos
 
 
-def buscar_jogos_ao_vivo_por_ids(event_ids):
-    if not event_ids:
-        return []
-
-    ids = {str(x) for x in event_ids if x is not None}
-    if not ids:
-        return []
-
-    eventos = buscar_jogos_ao_vivo()
-    filtrados = [
-        e for e in eventos
-        if isinstance(e, dict) and str(e.get("id")) in ids
-    ]
-
-    print(
-        "JOGOS AO VIVO FILTRADOS POR ID:",
-        len(filtrados), "/", len(ids),
-    )
-    return filtrados
 
 
 def _parse_data_evento(evento):
@@ -652,4 +615,4 @@ def extrair_mercados(jogo, odds):
 
 def limpar_memoria():
     pass
-    
+        
