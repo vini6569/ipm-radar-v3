@@ -1,14 +1,13 @@
 # ============================================================
 # MAIN - IPM RADAR V5.2
-# PRÉ-LIVE + CONTROLE DE COTA DA API
+# PRÉ-LIVE + LIVE
 # ============================================================
 
 import os
 import time
 import threading
 
-from datetime import datetime, date
-
+from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from config import (
@@ -18,38 +17,26 @@ from config import (
     HORA_FIM,
 )
 
+import odds_api
+
 from scanner_pre_live import escanear_pre_live
-
-# LIVE permanece preparado para compatibilidade.
-# Atualmente o odds_api.py V5.2 está com LIVE desativado.
 from monitor_live import processar_live
-
-from odds_api import REQUISICOES_REALIZADAS
 
 
 # ============================================================
 # CONFIGURAÇÃO
 # ============================================================
 
-LIMITE_DIARIO_API = int(
-    os.getenv(
-        "LIMITE_DIARIO_API",
-        "500",
-    )
-)
-
 INTERVALO_MINIMO = int(
-    os.getenv(
-        "INTERVALO_MINIMO_RADAR",
-        "60",
-    )
+    os.getenv("INTERVALO_MINIMO_RADAR", "60")
 )
 
 INTERVALO_MAXIMO = int(
-    os.getenv(
-        "INTERVALO_MAXIMO_RADAR",
-        "900",
-    )
+    os.getenv("INTERVALO_MAXIMO_RADAR", "900")
+)
+
+LIMITE_DIARIO_API = int(
+    os.getenv("LIMITE_DIARIO_API", "500")
 )
 
 
@@ -91,10 +78,7 @@ class HealthHandler(BaseHTTPRequestHandler):
 def iniciar_servidor():
 
     porta = int(
-        os.getenv(
-            "PORT",
-            "10000"
-        )
+        os.getenv("PORT", "10000")
     )
 
     servidor = HTTPServer(
@@ -130,18 +114,16 @@ def inicializar_controle_diario():
         DATA_CONTROLE = hoje
 
         REQUISICOES_INICIO_DIA = (
-            REQUISICOES_REALIZADAS
+            odds_api.REQUISICOES_REALIZADAS
         )
 
         print()
         print(
             "🧮 CONTROLE API | NOVO DIA"
         )
-
         print(
             f"📅 Data: {hoje}"
         )
-
         print(
             f"📡 Limite diário: "
             f"{LIMITE_DIARIO_API}"
@@ -154,7 +136,7 @@ def requisicoes_do_dia():
 
     return max(
         0,
-        REQUISICOES_REALIZADAS
+        odds_api.REQUISICOES_REALIZADAS
         - REQUISICOES_INICIO_DIA
     )
 
@@ -169,7 +151,7 @@ def requisicoes_restantes():
 
 
 # ============================================================
-# PRÓXIMO CICLO
+# CÁLCULO DO INTERVALO
 # ============================================================
 
 def calcular_intervalo():
@@ -177,7 +159,6 @@ def calcular_intervalo():
     restantes = requisicoes_restantes()
 
     if restantes <= 0:
-
         return INTERVALO_MAXIMO
 
     agora = datetime.now(
@@ -186,33 +167,30 @@ def calcular_intervalo():
 
     hoje = agora.date()
 
-    # --------------------------------------------------------
-    # Fim da janela ativa
-    # --------------------------------------------------------
+    # Janela atravessando meia-noite:
+    # exemplo 06:00 -> 00:00
+    if HORA_INICIO >= HORA_FIM:
 
-    if HORA_FIM == HORA_INICIO:
+        if agora.time() >= HORA_INICIO:
 
-        fim = datetime.combine(
-            hoje,
-            HORA_INICIO,
-            tzinfo=FUSO_HORARIO
-        )
-
-        # Se HORA_FIM == 00:00,
-        # considera meia-noite do dia seguinte.
-        if fim <= agora:
-
-            fim = fim.replace(
-                day=fim.day
+            fim = datetime.combine(
+                hoje + timedelta(days=1),
+                HORA_FIM,
+                tzinfo=FUSO_HORARIO
             )
 
-            fim = (
-                fim
-                + __import__("datetime")
-                .timedelta(days=1)
+        elif agora.time() < HORA_FIM:
+
+            fim = datetime.combine(
+                hoje,
+                HORA_FIM,
+                tzinfo=FUSO_HORARIO
             )
 
-    elif HORA_INICIO < HORA_FIM:
+        else:
+            return INTERVALO_MAXIMO
+
+    else:
 
         fim = datetime.combine(
             hoje,
@@ -220,55 +198,18 @@ def calcular_intervalo():
             tzinfo=FUSO_HORARIO
         )
 
-        if fim <= agora:
-
-            return INTERVALO_MINIMO
-
-    else:
-
-        # Janela atravessando meia-noite
-        if agora.time() >= HORA_INICIO:
-
-            fim = datetime.combine(
-                hoje,
-                HORA_FIM,
-                tzinfo=FUSO_HORARIO
-            )
-
-            fim += __import__("datetime").timedelta(
-                days=1
-            )
-
-        else:
-
-            fim = datetime.combine(
-                hoje,
-                HORA_FIM,
-                tzinfo=FUSO_HORARIO
-            )
+        if agora >= fim:
+            return INTERVALO_MAXIMO
 
     segundos_restantes = max(
         60,
-        (
-            fim - agora
-        ).total_seconds()
+        (fim - agora).total_seconds()
     )
 
-    # --------------------------------------------------------
-    # Distribui a cota restante.
-    #
-    # Reservamos pelo menos 1 requisição
-    # para cada ciclo.
-    # --------------------------------------------------------
-
-    ciclos_estimados = max(
-        1,
-        restantes
-    )
-
+    # Distribui as requisições restantes
+    # ao longo do restante da janela.
     intervalo = (
-        segundos_restantes
-        / ciclos_estimados
+        segundos_restantes / restantes
     )
 
     intervalo = max(
@@ -281,9 +222,7 @@ def calcular_intervalo():
         intervalo
     )
 
-    return int(
-        intervalo
-    )
+    return int(intervalo)
 
 
 # ============================================================
@@ -292,9 +231,7 @@ def calcular_intervalo():
 
 def executar_pre_live():
 
-    restantes_antes = (
-        requisicoes_restantes()
-    )
+    restantes_antes = requisicoes_restantes()
 
     if restantes_antes <= 0:
 
@@ -305,7 +242,7 @@ def executar_pre_live():
         return
 
     inicio_api = (
-        REQUISICOES_REALIZADAS
+        odds_api.REQUISICOES_REALIZADAS
     )
 
     try:
@@ -326,18 +263,14 @@ def executar_pre_live():
         return
 
     usadas = (
-        REQUISICOES_REALIZADAS
+        odds_api.REQUISICOES_REALIZADAS
         - inicio_api
-    )
-
-    restantes_depois = (
-        requisicoes_restantes()
     )
 
     print(
         f"📡 API | USADAS NO CICLO={usadas} | "
         f"USADAS HOJE={requisicoes_do_dia()} | "
-        f"RESTANTES={restantes_depois}"
+        f"RESTANTES={requisicoes_restantes()}"
     )
 
     if not resultados:
@@ -350,20 +283,14 @@ def executar_pre_live():
 
     for jogo in resultados:
 
-        event_id = jogo.get(
-            "event_id"
-        )
+        event_id = jogo.get("event_id")
 
         if event_id is None:
             continue
 
-        event_id = str(
-            event_id
-        )
+        event_id = str(event_id)
 
-        JOGOS_MONITORADOS[
-            event_id
-        ] = jogo
+        JOGOS_MONITORADOS[event_id] = jogo
 
     print(
         f"PRÉ-LIVE | "
@@ -392,9 +319,7 @@ def executar_live():
 
     try:
 
-        processar_live(
-            ids
-        )
+        processar_live(ids)
 
     except Exception as erro:
 
@@ -426,9 +351,7 @@ def loop():
 
             inicializar_controle_diario()
 
-            restantes = (
-                requisicoes_restantes()
-            )
+            restantes = requisicoes_restantes()
 
             if not horario_ativo():
 
@@ -446,9 +369,7 @@ def loop():
             else:
 
                 print()
-                print(
-                    "============================================================"
-                )
+                print("=" * 60)
 
                 print(
                     f"📡 API | "
@@ -458,20 +379,7 @@ def loop():
 
                 executar_pre_live()
 
-                # ------------------------------------------------
-                # LIVE
-                # ------------------------------------------------
-                #
-                # O odds_api V5.2 atualmente mantém LIVE
-                # desativado. Deixamos o bloco preparado.
-                #
-                # ------------------------------------------------
-
-                if (
-                    requisicoes_restantes()
-                    > 0
-                ):
-
+                if requisicoes_restantes() > 0:
                     executar_live()
 
         except Exception as erro:
@@ -483,8 +391,7 @@ def loop():
             )
 
         duracao = (
-            time.time()
-            - inicio
+            time.time() - inicio
         )
 
         espera = calcular_intervalo()
@@ -501,9 +408,7 @@ def loop():
             f"PRÓXIMO={espera:.0f}s"
         )
 
-        time.sleep(
-            espera
-        )
+        time.sleep(espera)
 
 
 # ============================================================
@@ -515,3 +420,4 @@ if __name__ == "__main__":
     iniciar_servidor()
 
     loop()
+                
