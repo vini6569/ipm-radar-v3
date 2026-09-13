@@ -17,159 +17,70 @@ from odds_api import (
     extrair_mercados,
 )
 
-
 # ============================================================
 # Q PARA ESTUDO
 # ============================================================
-#
-# FAIXA DE ESTUDO:
-#
-# Q = 2.00 ATÉ 3.60
-#
-# O valor fica definido aqui para garantir que o scanner
-# use exatamente esta faixa, independentemente do config.py.
-#
-# ============================================================
 
 Q_MIN = 2.00
-Q_MAX = 3.60
+Q_MAX = 3.50
 
-
-# ============================================================
-# CONVERSÃO
-# ============================================================
 
 def numero(valor, padrao=0.0):
-
     try:
-
         if valor in (None, ""):
             return padrao
-
         return float(valor)
-
     except (TypeError, ValueError):
-
         return padrao
 
 
-# ============================================================
-# PROBABILIDADE IMPLÍCITA
-# ============================================================
-
 def probabilidade_implicita(odd):
-
     odd = numero(odd)
-
-    if odd <= 0:
-        return 0.0
-
-    return 100.0 / odd
+    return 100.0 / odd if odd > 0 else 0.0
 
 
-# ============================================================
-# PROBABILIDADE NORMALIZADA DO X
-# ============================================================
-
-def probabilidade_normalizada(
-    odd_casa,
-    odd_empate,
-    odd_visitante,
-):
-
-    pc = probabilidade_implicita(
-        odd_casa
-    )
-
-    px = probabilidade_implicita(
-        odd_empate
-    )
-
-    pv = probabilidade_implicita(
-        odd_visitante
-    )
+def probabilidade_normalizada(odd_casa, odd_empate, odd_visitante):
+    pc = probabilidade_implicita(odd_casa)
+    px = probabilidade_implicita(odd_empate)
+    pv = probabilidade_implicita(odd_visitante)
 
     total = pc + px + pv
 
-    if total <= 0:
-        return 0.0
-
-    return (
-        px / total
-    ) * 100.0
+    return (px / total) * 100.0 if total > 0 else 0.0
 
 
 # ============================================================
 # Q
 # ============================================================
-#
-# Q = 2 × (Casa × Visitante) / (Casa + Visitante)
-#
-# ============================================================
 
-def calcular_q(
-    odd_casa,
-    odd_visitante,
-):
-
+def calcular_q(odd_casa, odd_visitante):
     casa = numero(odd_casa)
     fora = numero(odd_visitante)
 
     if casa <= 0 or fora <= 0:
         return 0.0
 
-    soma = casa + fora
-
-    if soma <= 0:
-        return 0.0
-
-    return (
-        2.0
-        * casa
-        * fora
-        / soma
-    )
+    return 2.0 * casa * fora / (casa + fora)
 
 
 # ============================================================
-# R
+# R / EQUILÍBRIO
 # ============================================================
 
-def calcular_r(
-    odd_casa,
-    odd_visitante,
-):
-
+def calcular_r(odd_casa, odd_visitante):
     casa = numero(odd_casa)
     fora = numero(odd_visitante)
 
     if casa <= 0 or fora <= 0:
         return 0.0
 
-    menor = min(
-        casa,
-        fora,
-    )
+    menor = min(casa, fora)
+    maior = max(casa, fora)
 
-    maior = max(
-        casa,
-        fora,
-    )
+    return maior / menor if menor > 0 else 0.0
 
-    if menor <= 0:
-        return 0.0
-
-    return maior / menor
-
-
-# ============================================================
-# EQUILÍBRIO
-# ============================================================
 
 def classificar_equilibrio(r):
-
-    r = numero(r)
-
     if r <= 0:
         return "SEM_DADOS"
 
@@ -188,61 +99,29 @@ def classificar_equilibrio(r):
     return "DESEQUILÍBRIO ALTO"
 
 
-# ============================================================
-# PADRÃO
-# ============================================================
-
 def classificar_padrao(r):
-
-    r = numero(r)
-
     if r <= 0:
         return "SEM_DADOS"
 
-    if r <= 1.80:
-        return "PADRÃO_EMPATE"
+    return "PADRÃO_EMPATE" if r <= 1.80 else "PADRÃO_GOL"
 
-    return "PADRÃO_GOL"
-
-
-# ============================================================
-# PERÍODO
-# ============================================================
 
 def identificar_periodo(dt):
-
     hora = dt.time()
 
-    if (
-        time(6, 0)
-        <= hora
-        < time(12, 0)
-    ):
+    if time(6, 0) <= hora < time(12, 0):
         return "06:00 - 12:00"
 
-    if (
-        time(12, 0)
-        <= hora
-        < time(18, 0)
-    ):
+    if time(12, 0) <= hora < time(18, 0):
         return "12:00 - 18:00"
 
-    if (
-        time(18, 0)
-        <= hora
-        or hora < time(0, 0)
-    ):
+    if time(18, 0) <= hora or hora < time(0, 0):
         return "18:00 - 00:00"
 
     return "FORA_DA_JANELA"
 
 
-# ============================================================
-# HORÁRIO
-# ============================================================
-
 def converter_horario(evento):
-
     valor = (
         evento.get("date")
         or evento.get("startTime")
@@ -253,26 +132,16 @@ def converter_horario(evento):
         return None
 
     try:
-
         dt = datetime.fromisoformat(
-            str(valor).replace(
-                "Z",
-                "+00:00"
-            )
+            str(valor).replace("Z", "+00:00")
         )
 
         if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=FUSO_HORARIO)
 
-            dt = dt.replace(
-                tzinfo=FUSO_HORARIO
-            )
-
-        return dt.astimezone(
-            FUSO_HORARIO
-        )
+        return dt.astimezone(FUSO_HORARIO)
 
     except Exception:
-
         return None
 
 
@@ -281,54 +150,20 @@ def converter_horario(evento):
 # ============================================================
 
 def analisar_gols(mercados):
+    over_linha = numero(mercados.get("over_linha"))
+    under_linha = numero(mercados.get("under_linha"))
 
-    over_linha = numero(
-        mercados.get("over_linha")
-    )
+    odd_over = numero(mercados.get("odd_over"))
+    odd_under = numero(mercados.get("odd_under"))
 
-    under_linha = numero(
-        mercados.get("under_linha")
-    )
+    odd_btts_sim = numero(mercados.get("odd_btts_sim"))
+    odd_btts_nao = numero(mercados.get("odd_btts_nao"))
 
-    odd_over = numero(
-        mercados.get("odd_over")
-    )
+    prob_over = probabilidade_implicita(odd_over)
+    prob_under = probabilidade_implicita(odd_under)
 
-    odd_under = numero(
-        mercados.get("odd_under")
-    )
-
-    odd_btts_sim = numero(
-        mercados.get("odd_btts_sim")
-    )
-
-    odd_btts_nao = numero(
-        mercados.get("odd_btts_nao")
-    )
-
-    # --------------------------------------------------------
-    # PROBABILIDADES
-    # --------------------------------------------------------
-
-    prob_over = probabilidade_implicita(
-        odd_over
-    )
-
-    prob_under = probabilidade_implicita(
-        odd_under
-    )
-
-    prob_btts_sim = probabilidade_implicita(
-        odd_btts_sim
-    )
-
-    prob_btts_nao = probabilidade_implicita(
-        odd_btts_nao
-    )
-
-    # --------------------------------------------------------
-    # DISPONIBILIDADE
-    # --------------------------------------------------------
+    prob_btts_sim = probabilidade_implicita(odd_btts_sim)
+    prob_btts_nao = probabilidade_implicita(odd_btts_nao)
 
     over_disponivel = (
         odd_over > 0
@@ -340,168 +175,98 @@ def analisar_gols(mercados):
         and odd_btts_nao > 0
     )
 
-    # --------------------------------------------------------
-    # STATUS OVER
-    # --------------------------------------------------------
-
     if over_disponivel:
-
-        if (
-            prob_over >= 60
-            and odd_over <= 1.70
-        ):
-
+        if prob_over >= 60 and odd_over <= 1.70:
             over_status = "OVER FORTE"
 
-        elif (
-            prob_over >= 55
-            and odd_over <= 1.85
-        ):
-
+        elif prob_over >= 55 and odd_over <= 1.85:
             over_status = "OVER FAVORÁVEL"
 
-        elif (
-            prob_over >= 50
-            and odd_over <= 2.00
-        ):
-
+        elif prob_over >= 50 and odd_over <= 2.00:
             over_status = "OVER MODERADO"
 
         else:
-
             over_status = "OVER NEUTRO"
 
     else:
-
         over_status = "SEM TOTALS"
 
-    # --------------------------------------------------------
-    # STATUS BTTS
-    # --------------------------------------------------------
-
     if btts_disponivel:
-
-        if (
-            prob_btts_sim >= 60
-            and odd_btts_sim <= 1.70
-        ):
-
+        if prob_btts_sim >= 60 and odd_btts_sim <= 1.70:
             btts_status = "BTTS FORTE"
 
-        elif (
-            prob_btts_sim >= 55
-            and odd_btts_sim <= 1.85
-        ):
-
+        elif prob_btts_sim >= 55 and odd_btts_sim <= 1.85:
             btts_status = "BTTS FAVORÁVEL"
 
-        elif (
-            prob_btts_sim >= 50
-            and odd_btts_sim <= 2.00
-        ):
-
+        elif prob_btts_sim >= 50 and odd_btts_sim <= 2.00:
             btts_status = "BTTS MODERADO"
 
         else:
-
             btts_status = "BTTS NEUTRO"
 
     else:
-
         btts_status = "SEM BTTS"
-
-    # --------------------------------------------------------
-    # PONTOS
-    # --------------------------------------------------------
 
     pontos = 0
 
     if over_status == "OVER FORTE":
-
         pontos += 2
 
     elif over_status in (
         "OVER FAVORÁVEL",
         "OVER MODERADO",
     ):
-
         pontos += 1
 
     if btts_status == "BTTS FORTE":
-
         pontos += 2
 
     elif btts_status in (
         "BTTS FAVORÁVEL",
         "BTTS MODERADO",
     ):
-
         pontos += 1
 
-    # --------------------------------------------------------
-    # ESTRUTURA
-    # --------------------------------------------------------
-
     if pontos >= 4:
-
         estrutura_gol = (
             "ESTRUTURA MUITO FAVORÁVEL A GOLS"
         )
 
     elif pontos >= 3:
-
         estrutura_gol = (
             "ESTRUTURA FAVORÁVEL A GOLS"
         )
 
     elif pontos >= 2:
-
         estrutura_gol = (
             "ESTRUTURA MODERADA PARA GOLS"
         )
 
     elif pontos == 1:
-
         estrutura_gol = (
             "ESTRUTURA FRACA PARA GOLS"
         )
 
     else:
-
         estrutura_gol = (
             "SEM CONFIRMAÇÃO PRÉ-LIVE"
         )
 
     return {
-
         "over_linha": over_linha,
-
         "under_linha": under_linha,
-
         "odd_over": odd_over,
-
         "odd_under": odd_under,
-
         "prob_over": prob_over,
-
         "prob_under": prob_under,
-
         "odd_btts_sim": odd_btts_sim,
-
         "odd_btts_nao": odd_btts_nao,
-
         "prob_btts_sim": prob_btts_sim,
-
         "prob_btts_nao": prob_btts_nao,
-
         "over_status": over_status,
-
         "btts_status": btts_status,
-
         "pontos_gol": pontos,
-
         "estrutura_gol": estrutura_gol,
-
         "mercado_gol_disponivel": (
             over_disponivel
             or btts_disponivel
@@ -510,17 +275,13 @@ def analisar_gols(mercados):
 
 
 # ============================================================
-# SCANNER PRÉ-LIVE
+# SCANNER
 # ============================================================
 
 def escanear_pre_live():
-
     print()
     print("=" * 72)
-    print(
-        "🧪 SCANNER PRÉ-LIVE | "
-        "IPM RADAR V5.2"
-    )
+    print("🧪 SCANNER PRÉ-LIVE | IPM RADAR V5.2")
     print("=" * 72)
 
     print(
@@ -533,103 +294,60 @@ def escanear_pre_live():
         f"{Q_MIN:.2f} → {Q_MAX:.2f}"
     )
 
-    print(
-        "⚽ ANÁLISE: TOTALS + BTTS"
-    )
-
+    print("⚽ ANÁLISE: TOTALS + BTTS")
     print("=" * 72)
 
-    # ========================================================
-    # BUSCAR JOGOS
-    # ========================================================
-
     try:
-
-        jogos = (
-            buscar_jogos_pre_live()
-            or []
-        )
+        jogos = buscar_jogos_pre_live() or []
 
     except Exception as erro:
-
         print(
             "ERRO AO BUSCAR JOGOS:",
             type(erro).__name__,
             erro,
         )
-
         return []
 
     if not jogos:
-
-        print(
-            "Nenhum jogo pré-live encontrado."
-        )
-
+        print("Nenhum jogo pré-live encontrado.")
         return []
 
-    jogos = jogos[
-        :MAX_EVENTOS_POR_CONSULTA
-    ]
-
-    print(
-        f"⏳ PRÉ-LIVE: {len(jogos)}"
-    )
-
-    # ========================================================
-    # ODDS
-    # ========================================================
+    jogos = jogos[:MAX_EVENTOS_POR_CONSULTA]
 
     try:
-
-        odds = (
-            buscar_odds_multiplos(
-                jogos
-            )
-            or []
-        )
+        odds = buscar_odds_multiplos(jogos) or []
 
     except Exception as erro:
-
         print(
             "ERRO AO BUSCAR ODDS:",
             type(erro).__name__,
             erro,
         )
-
         odds = []
 
     print(
-        f"📥 ODDS RECEBIDAS: "
+        f"JOGOS PRÉ-LIVE ENCONTRADOS: "
+        f"{len(jogos)}"
+    )
+
+    print(
+        f"ODDS RECEBIDAS: "
         f"{len(odds)}"
     )
 
     print()
 
-    # ========================================================
-    # PROCESSAMENTO
-    # ========================================================
-
     resultados = []
 
     validos_1x2 = 0
-
     fora_q = 0
 
     q_minimo = None
-
     q_maximo = None
-
-    # ========================================================
-    # LOOP
-    # ========================================================
 
     for jogo in jogos:
 
-        if not isinstance(
-            jogo,
-            dict
-        ):
+        if not isinstance(jogo, dict):
             continue
 
         event_id = jogo.get("id")
@@ -646,60 +364,35 @@ def escanear_pre_live():
         )
 
         odd_casa = numero(
-            mercados.get(
-                "odd_casa"
-            )
+            mercados.get("odd_casa")
         )
 
         odd_empate = numero(
-            mercados.get(
-                "odd_empate"
-            )
+            mercados.get("odd_empate")
         )
 
         odd_visitante = numero(
-            mercados.get(
-                "odd_visitante"
-            )
+            mercados.get("odd_visitante")
         )
-
-        # ----------------------------------------------------
-        # 1X2
-        # ----------------------------------------------------
 
         if (
             odd_casa <= 0
             or odd_empate <= 0
             or odd_visitante <= 0
         ):
-
             continue
 
         validos_1x2 += 1
 
-        # ----------------------------------------------------
-        # HORÁRIO
-        # ----------------------------------------------------
-
-        dt = converter_horario(
-            jogo
-        )
+        dt = converter_horario(jogo)
 
         if dt is None:
-
             continue
 
-        periodo = identificar_periodo(
-            dt
-        )
+        periodo = identificar_periodo(dt)
 
         if periodo == "FORA_DA_JANELA":
-
             continue
-
-        # ----------------------------------------------------
-        # Q
-        # ----------------------------------------------------
 
         q = calcular_q(
             odd_casa,
@@ -711,35 +404,17 @@ def escanear_pre_live():
             odd_visitante,
         )
 
-        # ----------------------------------------------------
-        # ESTATÍSTICAS DE Q
-        # ----------------------------------------------------
+        q_minimo = (
+            q
+            if q_minimo is None
+            else min(q_minimo, q)
+        )
 
-        if q_minimo is None:
-
-            q_minimo = q
-
-        else:
-
-            q_minimo = min(
-                q_minimo,
-                q
-            )
-
-        if q_maximo is None:
-
-            q_maximo = q
-
-        else:
-
-            q_maximo = max(
-                q_maximo,
-                q
-            )
-
-        # ----------------------------------------------------
-        # NOMES
-        # ----------------------------------------------------
+        q_maximo = (
+            q
+            if q_maximo is None
+            else max(q_maximo, q)
+        )
 
         casa_nome = (
             jogo.get("home")
@@ -754,241 +429,135 @@ def escanear_pre_live():
         )
 
         # ----------------------------------------------------
-        # DIAGNÓSTICO
+        # DIAGNÓSTICO CRÍTICO
+        # Mostra o Q antes do filtro.
         # ----------------------------------------------------
 
         print(
-            f"🔎 Q | "
-            f"{dt.strftime('%H:%M')} | "
+            f"🔎 Q | {dt.strftime('%H:%M')} | "
             f"{casa_nome} x {fora_nome} | "
             f"Casa={odd_casa:.2f} | "
             f"Fora={odd_visitante:.2f} | "
             f"Q={q:.4f}"
         )
 
-        # ----------------------------------------------------
-        # FILTRO Q
-        # ----------------------------------------------------
-
-        if q < Q_MIN:
-
+        if q < Q_MIN or q > Q_MAX:
             fora_q += 1
-
             continue
-
-        if q > Q_MAX:
-
-            fora_q += 1
-
-            continue
-
-        # ====================================================
-        # GOLS
-        # ====================================================
 
         gols = analisar_gols(
             mercados
         )
 
-        # ====================================================
-        # X
-        # ====================================================
+        resultados.append(
+            {
+                "event_id": str(event_id),
 
-        prob_x = (
-            probabilidade_implicita(
-                odd_empate
-            )
-        )
-
-        prob_x_normalizada = (
-            probabilidade_normalizada(
-                odd_casa,
-                odd_empate,
-                odd_visitante,
-            )
-        )
-
-        # ====================================================
-        # EQUILÍBRIO
-        # ====================================================
-
-        equilibrio = (
-            classificar_equilibrio(
-                r
-            )
-        )
-
-        indice_equilibrio = (
-            100.0 / r
-            if r > 0
-            else 0.0
-        )
-
-        padrao = (
-            classificar_padrao(
-                r
-            )
-        )
-
-        # ====================================================
-        # REGISTRO
-        # ====================================================
-
-        resultados.append({
-
-            "event_id":
-                str(event_id),
-
-            "data":
-                dt.strftime(
+                "data": dt.strftime(
                     "%d/%m/%Y"
                 ),
 
-            "horario":
-                dt.strftime(
+                "horario": dt.strftime(
                     "%H:%M"
                 ),
 
-            "periodo":
-                periodo,
+                "periodo": periodo,
 
-            "casa":
-                casa_nome,
+                "casa": casa_nome,
+                "fora": fora_nome,
 
-            "fora":
-                fora_nome,
+                "odd_casa": odd_casa,
+                "odd_empate": odd_empate,
+                "odd_visitante": odd_visitante,
 
-            "odd_casa":
-                odd_casa,
+                "q": round(q, 4),
+                "r": round(r, 4),
 
-            "odd_empate":
-                odd_empate,
-
-            "odd_visitante":
-                odd_visitante,
-
-            "q":
-                round(
+                "odd_pre_live": round(
                     q,
-                    4
+                    4,
                 ),
 
-            "r":
-                round(
-                    r,
-                    4
-                ),
+                "probabilidade_x":
+                    probabilidade_implicita(
+                        odd_empate
+                    ),
 
-            "odd_pre_live":
-                round(
-                    q,
-                    4
-                ),
+                "probabilidade_x_normalizada":
+                    probabilidade_normalizada(
+                        odd_casa,
+                        odd_empate,
+                        odd_visitante,
+                    ),
 
-            "probabilidade_x":
-                prob_x,
+                "equilibrio":
+                    classificar_equilibrio(
+                        r
+                    ),
 
-            "probabilidade_x_normalizada":
-                prob_x_normalizada,
+                "indice_equilibrio":
+                    round(
+                        100.0 / r,
+                        2,
+                    )
+                    if r > 0
+                    else 0.0,
 
-            "equilibrio":
-                equilibrio,
+                "padrao":
+                    classificar_padrao(
+                        r
+                    ),
 
-            "indice_equilibrio":
-                round(
-                    indice_equilibrio,
-                    2
-                ),
+                "over_linha":
+                    gols["over_linha"],
 
-            "padrao":
-                padrao,
+                "under_linha":
+                    gols["under_linha"],
 
-            # ------------------------------------------------
-            # GOLS
-            # ------------------------------------------------
+                "odd_over":
+                    gols["odd_over"],
 
-            "over_linha":
-                gols[
-                    "over_linha"
-                ],
+                "odd_under":
+                    gols["odd_under"],
 
-            "under_linha":
-                gols[
-                    "under_linha"
-                ],
+                "prob_over":
+                    gols["prob_over"],
 
-            "odd_over":
-                gols[
-                    "odd_over"
-                ],
+                "prob_under":
+                    gols["prob_under"],
 
-            "odd_under":
-                gols[
-                    "odd_under"
-                ],
+                "odd_btts_sim":
+                    gols["odd_btts_sim"],
 
-            "prob_over":
-                gols[
-                    "prob_over"
-                ],
+                "odd_btts_nao":
+                    gols["odd_btts_nao"],
 
-            "prob_under":
-                gols[
-                    "prob_under"
-                ],
+                "prob_btts_sim":
+                    gols["prob_btts_sim"],
 
-            "odd_btts_sim":
-                gols[
-                    "odd_btts_sim"
-                ],
+                "prob_btts_nao":
+                    gols["prob_btts_nao"],
 
-            "odd_btts_nao":
-                gols[
-                    "odd_btts_nao"
-                ],
+                "over_status":
+                    gols["over_status"],
 
-            "prob_btts_sim":
-                gols[
-                    "prob_btts_sim"
-                ],
+                "btts_status":
+                    gols["btts_status"],
 
-            "prob_btts_nao":
-                gols[
-                    "prob_btts_nao"
-                ],
+                "pontos_gol":
+                    gols["pontos_gol"],
 
-            "over_status":
-                gols[
-                    "over_status"
-                ],
+                "estrutura_gol":
+                    gols["estrutura_gol"],
 
-            "btts_status":
-                gols[
-                    "btts_status"
-                ],
+                "mercado_gol_disponivel":
+                    gols[
+                        "mercado_gol_disponivel"
+                    ],
 
-            "pontos_gol":
-                gols[
-                    "pontos_gol"
-                ],
-
-            "estrutura_gol":
-                gols[
-                    "estrutura_gol"
-                ],
-
-            "mercado_gol_disponivel":
-                gols[
-                    "mercado_gol_disponivel"
-                ],
-
-            "radar":
-                True,
-        })
-
-    # ========================================================
-    # ORDENAÇÃO
-    # ========================================================
+                "radar": True,
+            }
+        )
 
     resultados.sort(
         key=lambda x: (
@@ -1000,24 +569,10 @@ def escanear_pre_live():
         )
     )
 
-    # ========================================================
-    # DIAGNÓSTICO FINAL
-    # ========================================================
-
     print()
-
     print("=" * 72)
-
-    print(
-        "📊 DIAGNÓSTICO PRÉ-LIVE"
-    )
-
+    print("📊 DIAGNÓSTICO PRÉ-LIVE")
     print("=" * 72)
-
-    print(
-        f"JOGOS RECEBIDOS: "
-        f"{len(jogos)}"
-    )
 
     print(
         f"1X2 VÁLIDO: "
@@ -1025,19 +580,163 @@ def escanear_pre_live():
     )
 
     if q_minimo is not None:
-
         print(
             f"Q MÍNIMO ENCONTRADO: "
             f"{q_minimo:.4f}"
         )
+    else:
+        print("Q MÍNIMO: --")
+
+    if q_maximo is not None:
+        print(
+            f"Q MÁXIMO ENCONTRADO: "
+            f"{q_maximo:.4f}"
+        )
+    else:
+        print("Q MÁXIMO: --")
+
+    print(
+        f"FORA DO Q: "
+        f"{fora_q}"
+    )
+
+    print(
+        f"DENTRO DO Q "
+        f"{Q_MIN:.2f} → {Q_MAX:.2f}: "
+        f"{len(resultados)}"
+    )
+
+    if resultados:
+
+        print()
+        print(
+            "🚨 CANDIDATOS PRÉ-LIVE "
+            "PARA ESTUDO DE GOLS"
+        )
+
+        for jogo in resultados:
+
+            print(
+                f"🎯 {jogo['horario']} | "
+                f"{jogo['casa']} x "
+                f"{jogo['fora']} | "
+                f"Q={jogo['q']:.2f} | "
+                f"R={jogo['r']:.2f} | "
+                f"OVER={jogo['odd_over']:.2f} | "
+                f"BTTS={jogo['odd_btts_sim']:.2f} | "
+                f"PONTOS={jogo['pontos_gol']} | "
+                f"{jogo['estrutura_gol']}"
+            )
 
     else:
 
+        print()
         print(
-            "Q MÍNIMO ENCONTRADO: --"
+            f"⚠️ NENHUM JOGO DENTRO DO Q "
+            f"{Q_MIN:.2f} → {Q_MAX:.2f}"
         )
 
-    if q_maximo is not None:
+        print(
+            "🔬 O diagnóstico acima mostra os Q "
+            "calculados ANTES do filtro."
+        )
+
+    return resultados
+
+
+# ============================================================
+# EXIBIÇÃO
+# ============================================================
+
+def exibir_scanner(resultados):
+
+    if not resultados:
+        print(
+            "Nenhum resultado para exibir."
+        )
+        return
+
+    print()
+    print("=" * 72)
+
+    for jogo in resultados:
+
+        print()
 
         print(
-            f"Q MÁXIMO ENCON
+            f"⚽ {jogo['horario']} | "
+            f"{jogo['casa']} x "
+            f"{jogo['fora']}"
+        )
+
+        print(
+            f"🏠 {jogo['odd_casa']:.2f} | "
+            f"🤝 X {jogo['odd_empate']:.2f} | "
+            f"🚌 {jogo['odd_visitante']:.2f}"
+        )
+
+        print(
+            f"📐 Q: {jogo['q']:.2f}"
+        )
+
+        print(
+            f"📊 R: {jogo['r']:.2f}"
+        )
+
+        print(
+            f"⚖️ Equilíbrio: "
+            f"{jogo['equilibrio']}"
+        )
+
+        print(
+            f"🎯 P(X): "
+            f"{jogo['probabilidade_x']:.2f}% | "
+            f"P(X) N: "
+            f"{jogo['probabilidade_x_normalizada']:.2f}%"
+        )
+
+        print()
+        print("⚽ MERCADO DE GOLS")
+
+        if jogo["odd_over"] > 0:
+
+            print(
+                f"📈 Over "
+                f"{jogo['over_linha']:.2f}: "
+                f"{jogo['odd_over']:.2f} | "
+                f"P={jogo['prob_over']:.2f}% | "
+                f"{jogo['over_status']}"
+            )
+
+        else:
+
+            print(
+                "📈 Over: sem mercado"
+            )
+
+        if jogo["odd_btts_sim"] > 0:
+
+            print(
+                f"🔄 BTTS SIM: "
+                f"{jogo['odd_btts_sim']:.2f} | "
+                f"P={jogo['prob_btts_sim']:.2f}% | "
+                f"{jogo['btts_status']}"
+            )
+
+        else:
+
+            print(
+                "🔄 BTTS: sem mercado"
+            )
+
+        print(
+            f"🧪 Pontos GOL: "
+            f"{jogo['pontos_gol']}"
+        )
+
+        print(
+            f"🚨 {jogo['estrutura_gol']}"
+        )
+
+        print("=" * 72)
+    
