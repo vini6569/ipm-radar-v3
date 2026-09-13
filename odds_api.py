@@ -22,10 +22,6 @@ MAX_EVENTOS_ODDS_MULTI = 10
 REQUISICOES_REALIZADAS = 0
 
 
-# ============================================================
-# REQUISIÇÃO
-# ============================================================
-
 def _request_json(endpoint, params):
     global REQUISICOES_REALIZADAS
     REQUISICOES_REALIZADAS += 1
@@ -59,20 +55,6 @@ def _request_json(endpoint, params):
     return []
 
 
-# ============================================================
-# EVENTOS
-# ============================================================
-
-def _id_evento(evento):
-    if not isinstance(evento, dict):
-        return None
-    for chave in ("id", "eventId", "event_id", "eventID"):
-        valor = evento.get(chave)
-        if valor is not None and str(valor).strip():
-            return str(valor).strip()
-    return None
-
-
 def _lista_eventos(resposta):
     if isinstance(resposta, list):
         return [x for x in resposta if isinstance(x, dict)]
@@ -84,17 +66,13 @@ def _lista_eventos(resposta):
         valor = resposta.get(chave)
         if isinstance(valor, list):
             return [x for x in valor if isinstance(x, dict)]
-        if isinstance(valor, dict):
-            itens = [v for v in valor.values() if isinstance(v, dict)]
-            if itens:
-                return itens
 
-    if _id_evento(resposta) is not None:
+    if resposta.get("id") is not None:
         return [resposta]
 
     return [
         v for v in resposta.values()
-        if isinstance(v, dict) and _id_evento(v) is not None
+        if isinstance(v, dict) and v.get("id") is not None
     ]
 
 
@@ -111,10 +89,12 @@ def buscar_jogos_ao_vivo():
     if not key:
         return []
 
-    eventos = _lista_eventos(_request_json(
-        "/events/live",
-        {"apiKey": key, "sport": SPORT},
-    ))
+    eventos = _lista_eventos(
+        _request_json(
+            "/events/live",
+            {"apiKey": key, "sport": SPORT},
+        )
+    )
 
     print("JOGOS AO VIVO ENCONTRADOS:", len(eventos))
     return eventos
@@ -124,34 +104,14 @@ def buscar_jogos_ao_vivo_por_ids(event_ids):
     if not event_ids:
         return []
 
-    ids = {str(x).strip() for x in event_ids if x is not None}
-    ids.discard("")
+    ids = {str(x) for x in event_ids if x is not None}
     if not ids:
         return []
 
     eventos = buscar_jogos_ao_vivo()
-    retornados = {_id_evento(e) for e in eventos}
-    retornados.discard(None)
-    encontrados = ids & retornados
-    faltantes = ids - encontrados
-
-    print(
-        f"🔎 LIVE DEBUG | SOLICITADOS={len(ids)} | "
-        f"RECEBIDOS={len(eventos)} | "
-        f"IDS_VÁLIDOS={len(retornados)} | "
-        f"ENCONTRADOS={len(encontrados)} | "
-        f"NÃO_RETORNADOS={len(faltantes)}"
-    )
-
-    if faltantes:
-        print(
-            "⚠️ LIVE IDs NÃO RETORNADOS:",
-            ", ".join(sorted(faltantes))
-        )
-
     filtrados = [
         e for e in eventos
-        if _id_evento(e) in ids
+        if isinstance(e, dict) and str(e.get("id")) in ids
     ]
 
     print(
@@ -160,10 +120,6 @@ def buscar_jogos_ao_vivo_por_ids(event_ids):
     )
     return filtrados
 
-
-# ============================================================
-# DATA / PRÉ-LIVE
-# ============================================================
 
 def _parse_data_evento(evento):
     valor = (
@@ -189,16 +145,18 @@ def buscar_jogos_pre_live():
     if not key:
         return []
 
-    eventos = _lista_eventos(_request_json(
-        "/events",
-        {
-            "apiKey": key,
-            "sport": SPORT,
-            "status": "pending",
-            "limit": 100,
-            "bookmaker": BOOKMAKER,
-        },
-    ))
+    eventos = _lista_eventos(
+        _request_json(
+            "/events",
+            {
+                "apiKey": key,
+                "sport": SPORT,
+                "status": "pending",
+                "limit": 100,
+                "bookmaker": BOOKMAKER,
+            },
+        )
+    )
 
     agora = datetime.now(timezone.utc)
     limite = agora.timestamp() + PRE_LIVE_JANELA_MINUTOS * 60
@@ -220,10 +178,6 @@ def buscar_jogos_pre_live():
     return proximos
 
 
-# ============================================================
-# ODDS MÚLTIPLAS
-# ============================================================
-
 def buscar_odds_multiplos(eventos):
     if not eventos:
         return []
@@ -243,6 +197,7 @@ def buscar_odds_multiplos(eventos):
         return []
 
     ids = ids[:MAX_EVENTOS_POR_CONSULTA]
+
     lotes = [
         ids[i:i + MAX_EVENTOS_ODDS_MULTI]
         for i in range(0, len(ids), MAX_EVENTOS_ODDS_MULTI)
@@ -301,10 +256,6 @@ def buscar_odds_multiplos(eventos):
     return resultado
 
 
-# ============================================================
-# CONVERSÃO
-# ============================================================
-
 def _numero(valor, padrao=0.0):
     try:
         if valor in (None, ""):
@@ -322,10 +273,6 @@ def _inteiro(valor, padrao=0):
     except (TypeError, ValueError):
         return padrao
 
-
-# ============================================================
-# LOCALIZAR EVENTO / MERCADOS
-# ============================================================
 
 def _evento_odds_por_id(odds, event_id):
     if event_id is None:
@@ -426,10 +373,6 @@ def _encontrar_mercado(mercados, nomes):
     return None
 
 
-# ============================================================
-# CATEGORIA
-# ============================================================
-
 def _nome_normalizado(nome):
     return (
         str(nome or "")
@@ -473,10 +416,6 @@ def _categoria_mercado(nome):
 
     return "FT"
 
-
-# ============================================================
-# PLACAR / MINUTO / ESTATÍSTICAS
-# ============================================================
 
 def _extrair_placar(jogo):
     for valor in (
@@ -549,10 +488,6 @@ def _copiar_mercado(mercado):
     }
 
 
-# ============================================================
-# EXTRAIR MERCADOS
-# ============================================================
-
 def extrair_mercados(jogo, odds):
     if not isinstance(jogo, dict):
         return {}
@@ -599,7 +534,6 @@ def extrair_mercados(jogo, odds):
         "odds_cards": [],
     }
 
-    # Todos os mercados e categorias
     destinos = {
         "HT": "odds_ht",
         "CORNERS": "odds_corners",
@@ -626,7 +560,6 @@ def extrair_mercados(jogo, odds):
         dict.fromkeys(resultado["mercados_disponiveis"])
     )
 
-    # Debug
     try:
         casa_nome = jogo.get("home") or jogo.get("homeTeam") or ""
         fora_nome = jogo.get("away") or jogo.get("awayTeam") or ""
@@ -638,13 +571,11 @@ def extrair_mercados(jogo, odds):
     except Exception:
         pass
 
-    # 1X2
     mercado = _encontrar_mercado(
         mercados, ("ML", "Moneyline", "1X2")
     )
     if mercado:
         linha = _primeiro_odds(mercado)
-
         resultado["odd_home"] = _numero(linha.get("home"))
         resultado["odd_draw"] = _numero(
             linha.get("draw"),
@@ -658,7 +589,6 @@ def extrair_mercados(jogo, odds):
     resultado["odd_empate"] = resultado["odd_draw"]
     resultado["odd_visitante"] = resultado["odd_away"]
 
-    # Totals
     mercado = _encontrar_mercado(
         mercados,
         ("Totals", "Total", "Over/Under", "Over Under", "O/U"),
@@ -671,7 +601,6 @@ def extrair_mercados(jogo, odds):
         resultado["odd_under"] = _numero(linha.get("under"))
         resultado["mercados_encontrados"].append("TOTALS")
 
-    # BTTS
     mercado = _encontrar_mercado(
         mercados,
         ("Both Teams To Score", "BTTS", "Both Teams Score"),
@@ -686,7 +615,6 @@ def extrair_mercados(jogo, odds):
         )
         resultado["mercados_encontrados"].append("BTTS")
 
-    # Handicap
     mercado = _encontrar_mercado(
         mercados,
         ("Spread", "Asian Handicap", "Handicap", "Asian Handicap 3-Way"),
@@ -698,7 +626,6 @@ def extrair_mercados(jogo, odds):
         resultado["odd_handicap_away"] = _numero(linha.get("away"))
         resultado["mercados_encontrados"].append("HANDICAP")
 
-    # Double Chance
     mercado = _encontrar_mercado(
         mercados,
         ("Double Chance", "DoubleChance", "DC"),
@@ -710,7 +637,6 @@ def extrair_mercados(jogo, odds):
         resultado["odd_x2"] = _numero(linha.get("X2"))
         resultado["mercados_encontrados"].append("DOUBLE_CHANCE")
 
-    # Draw No Bet
     mercado = _encontrar_mercado(
         mercados,
         ("Draw No Bet", "DrawNoBet", "DNB"),
@@ -724,10 +650,6 @@ def extrair_mercados(jogo, odds):
     return resultado
 
 
-# ============================================================
-# MEMÓRIA
-# ============================================================
-
 def limpar_memoria():
     pass
-        
+    
