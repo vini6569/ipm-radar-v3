@@ -97,7 +97,7 @@ def probabilidade_normalizada(
 #
 # ESTUDO:
 # Q MÍNIMO = 2.00
-# Q MÁXIMO = 3.60
+# Q MÁXIMO = 3.50
 #
 # ============================================================
 
