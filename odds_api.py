@@ -661,7 +661,10 @@ def extrair_mercados(jogo, odds):
     except Exception:
         pass
 
-        mercado_ml = _encontrar_mercado(
+    # ========================================================
+    # MERCADO 1X2 / ML
+    # ========================================================
+    mercado_ml = _encontrar_mercado(
         mercados,
         (
             "ML",
@@ -678,11 +681,9 @@ def extrair_mercados(jogo, odds):
 
     if mercado_ml:
         linhas_ml = _linhas_odds(mercado_ml)
-
-        # Algumas respostas vêm com uma lista de odds.
-        # Procuramos uma linha que realmente contenha Casa/Empate/Fora.
         linha = {}
 
+        # Procura uma linha que realmente tenha Casa/Empate/Fora.
         for candidata in linhas_ml:
             if not isinstance(candidata, dict):
                 continue
@@ -701,12 +702,12 @@ def extrair_mercados(jogo, odds):
         if not linha:
             linha = _primeiro_odds(mercado_ml)
 
-        odd_home = _numero(
+        resultado["odd_home"] = _numero(
             linha.get("home"),
             _numero(linha.get("1"))
         )
 
-        odd_draw = _numero(
+        resultado["odd_draw"] = _numero(
             linha.get("draw"),
             _numero(
                 linha.get("X"),
@@ -714,23 +715,23 @@ def extrair_mercados(jogo, odds):
             )
         )
 
-        odd_away = _numero(
+        resultado["odd_away"] = _numero(
             linha.get("away"),
             _numero(linha.get("2"))
         )
 
-        resultado["odd_home"] = odd_home
-        resultado["odd_draw"] = odd_draw
-        resultado["odd_away"] = odd_away
-
-        # O IPM trabalha com a odd do empate como odd_atual.
-        resultado["odd_atual"] = odd_draw
+        resultado["odd_atual"] = resultado["odd_draw"]
 
         resultado["mercados_encontrados"].append("ML")
 
         print(
             f"💰 ML EXTRAÍDO | "
-            f"CASA={odd_home:.2f} | "
-            f"EMPATE={odd_draw:.2f} | "
-            f"FORA={odd_away:.2f}"
+            f"CASA={resultado['odd_home']:.2f} | "
+            f"EMPATE={resultado['odd_draw']:.2f} | "
+            f"FORA={resultado['odd_away']:.2f}"
         )
+
+    # Aliases usados pelo scanner_pre_live.py e pelo motor IPM.
+    resultado["odd_casa"] = resultado["odd_home"]
+    resultado["odd_empate"] = resultado["odd_draw"]
+    resultado["odd_visitante"] = resultado["odd_away"]
