@@ -480,4 +480,3 @@ def exibir_scanner(resultados):
         print(f"🧪 Pontos GOL: {jogo['pontos_gol']}")
         print(f"🚨 {jogo['estrutura_gol']}")
         print("=" * 72)
-        
