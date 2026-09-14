@@ -146,6 +146,8 @@ def escanear_pre_live():
             "probabilidade_x": probabilidade_implicita(ox),
             "probabilidade_x_normalizada": probabilidade_normalizada(oc,ox,ov),
             "equilibrio": classificar_equilibrio(r), "indice_equilibrio": round(100/r,2),
+            "equilibrio_percentual": round(100/r,2),
+            "desequilibrio_percentual": round(100 - 100/r,2),
             "padrao": classificar_padrao(r), **g,
         })
 
@@ -163,4 +165,3 @@ def escanear_pre_live():
     for j in resultados:
         print(f"🎯 {j['horario']} | {j['casa']} x {j['fora']} | Q={j['q']:.2f} | R={j['r']:.2f} | OVER={j['odd_over']:.2f} | BTTS={j['odd_btts_sim']:.2f} | PONTOS={j['pontos_gol']} | {j['estrutura_gol']}")
     return resultados
-    
