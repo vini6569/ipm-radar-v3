@@ -30,6 +30,30 @@ BOOKMAKER = os.getenv(
 
 
 # ============================================================
+# HORÁRIO
+# ============================================================
+
+HORA_INICIO = 6
+HORA_FIM = 24
+
+
+def horario_ativo(dt=None):
+
+    if dt is None:
+        return True
+
+    hora = dt.astimezone(
+        FUSO_HORARIO
+    ).time()
+
+    return (
+        time(HORA_INICIO, 0)
+        <= hora
+        < time(HORA_FIM, 0)
+    )
+
+
+# ============================================================
 # API
 # ============================================================
 
@@ -92,21 +116,3 @@ def obter_api_key():
         )
 
     return chave
-
-
-# ============================================================
-# HORÁRIO ATIVO
-# ============================================================
-
-def horario_ativo(dt=None):
-
-    if dt is None:
-        return True
-
-    hora = dt.astimezone(
-        FUSO_HORARIO
-    ).time()
-
-    return (
-        time(6, 0) <= hora < time(24, 0)
-    )
