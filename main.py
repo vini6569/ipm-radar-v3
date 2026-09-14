@@ -1,454 +1,107 @@
 # ============================================================
 # MAIN - IPM RADAR V5.2
-# PRÉ-LIVE + LIVE
+# PRÉ-LIVE + LIVE | COMPACTO
 # ============================================================
-
-import os
-import time
-import threading
-
-from datetime import datetime, timedelta
+import os, time, threading
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from config import (
-    horario_ativo,
-    FUSO_HORARIO,
-    HORA_INICIO,
-    HORA_FIM,
-)
-
+from config import horario_ativo, FUSO_HORARIO, Q_MIN, Q_MAX
+from scanner_pre_live import escanear_pre_live
+from monitor_live import registrar_jogos, processar_live, MONITORADOS
+from telegram import enviar_mensagem
 import odds_api
 
-from scanner_pre_live import escanear_pre_live
-from monitor_live import processar_live
-
-
-# ============================================================
-# CONFIGURAÇÃO
-# ============================================================
-
-INTERVALO_MINIMO = int(
-    os.getenv("INTERVALO_MINIMO_RADAR", "60")
-)
-
-INTERVALO_MAXIMO = int(
-    os.getenv("INTERVALO_MAXIMO_RADAR", "900")
-)
-
-LIMITE_DIARIO_API = int(
-    os.getenv("LIMITE_DIARIO_API", "500")
-)
-
-
-# ============================================================
-# ESTADO
-# ============================================================
-
-JOGOS_MONITORADOS = {}
-
+INTERVALO = int(os.getenv("INTERVALO_RADAR","300"))
+LIMITE_DIARIO = int(os.getenv("LIMITE_DIARIO_API","500"))
+ULTIMA_LISTA = None
 DATA_CONTROLE = None
-REQUISICOES_INICIO_DIA = 0
-
-
-# ============================================================
-# SERVIDOR DE SAÚDE
-# ============================================================
+INICIO_CONTADOR = 0
 
 class HealthHandler(BaseHTTPRequestHandler):
-
     def do_GET(self):
-
-        self.send_response(200)
-
-        self.send_header(
-            "Content-Type",
-            "text/plain; charset=utf-8"
-        )
-
-        self.end_headers()
-
-        self.wfile.write(
-            b"IPM RADAR V5.2 OK"
-        )
-
-    def log_message(self, *args):
-        return
-
+        self.send_response(200); self.send_header("Content-Type","text/plain; charset=utf-8")
+        self.end_headers(); self.wfile.write(b"IPM RADAR V5.2 OK")
+    def log_message(self,*args): pass
 
 def iniciar_servidor():
+    porta = int(os.getenv("PORT","10000"))
+    s = HTTPServer(("0.0.0.0",porta),HealthHandler)
+    threading.Thread(target=s.serve_forever,daemon=True).start()
+    print(f"SERVIDOR DE SAUDE | PORTA={porta}")
 
-    porta = int(
-        os.getenv("PORT", "10000")
-    )
-
-    servidor = HTTPServer(
-        ("0.0.0.0", porta),
-        HealthHandler
-    )
-
-    threading.Thread(
-        target=servidor.serve_forever,
-        daemon=True
-    ).start()
-
-    print(
-        f"SERVIDOR DE SAUDE | PORTA={porta}"
-    )
-
-
-# ============================================================
-# CONTADOR DA API
-# ============================================================
-
-def obter_requisicoes_api():
-
-    """
-    Obtém o contador existente no odds_api sem quebrar o robô
-    caso essa variável não exista.
-
-    O scanner/odds_api continua sendo a fonte das requisições.
-    """
-
-    for nome in (
-        "REQUISICOES_REALIZADAS",
-        "REQUESTS_REALIZADAS",
-        "REQUESTS_MADE",
-        "REQUEST_COUNT",
-        "TOTAL_REQUESTS",
-    ):
-
-        valor = getattr(
-            odds_api,
-            nome,
-            None
-        )
-
-        if isinstance(valor, (int, float)):
-
-            return int(valor)
-
-    return 0
-
-
-# ============================================================
-# CONTROLE DIÁRIO DA API
-# ============================================================
-
-def inicializar_controle_diario():
-
-    global DATA_CONTROLE
-    global REQUISICOES_INICIO_DIA
-
-    hoje = datetime.now(
-        FUSO_HORARIO
-    ).date()
-
+def contador():
+    global DATA_CONTROLE, INICIO_CONTADOR
+    hoje = datetime.now(FUSO_HORARIO).date()
     if DATA_CONTROLE != hoje:
+        DATA_CONTROLE, INICIO_CONTADOR = hoje, getattr(odds_api,"REQUISICOES_REALIZADAS",0)
+        print(f"🧮 CONTROLE API | NOVO DIA | DATA={hoje} | LIMITE={LIMITE_DIARIO}")
+    atual = getattr(odds_api,"REQUISICOES_REALIZADAS",0)
+    usadas = max(0,atual-INICIO_CONTADOR)
+    return usadas, max(0,LIMITE_DIARIO-usadas)
 
-        DATA_CONTROLE = hoje
-
-        REQUISICOES_INICIO_DIA = (
-            obter_requisicoes_api()
-        )
-
-        print()
-        print(
-            "🧮 CONTROLE API | NOVO DIA"
-        )
-        print(
-            f"📅 Data: {hoje}"
-        )
-        print(
-            f"📡 Limite diário: "
-            f"{LIMITE_DIARIO_API}"
-        )
-
-
-def requisicoes_do_dia():
-
-    inicializar_controle_diario()
-
-    return max(
-        0,
-        obter_requisicoes_api()
-        - REQUISICOES_INICIO_DIA
-    )
-
-
-def requisicoes_restantes():
-
-    return max(
-        0,
-        LIMITE_DIARIO_API
-        - requisicoes_do_dia()
-    )
-
-
-# ============================================================
-# CÁLCULO DO INTERVALO
-# ============================================================
-
-def calcular_intervalo():
-
-    restantes = requisicoes_restantes()
-
-    if restantes <= 0:
-        return INTERVALO_MAXIMO
-
-    agora = datetime.now(
-        FUSO_HORARIO
-    )
-
-    hoje = agora.date()
-
-    # Janela atravessando meia-noite:
-    # exemplo 06:00 -> 00:00
-    if HORA_INICIO >= HORA_FIM:
-
-        if agora.time() >= HORA_INICIO:
-
-            fim = datetime.combine(
-                hoje + timedelta(days=1),
-                HORA_FIM,
-                tzinfo=FUSO_HORARIO
-            )
-
-        elif agora.time() < HORA_FIM:
-
-            fim = datetime.combine(
-                hoje,
-                HORA_FIM,
-                tzinfo=FUSO_HORARIO
-            )
-
-        else:
-            return INTERVALO_MAXIMO
-
-    else:
-
-        fim = datetime.combine(
-            hoje,
-            HORA_FIM,
-            tzinfo=FUSO_HORARIO
-        )
-
-        if agora >= fim:
-            return INTERVALO_MAXIMO
-
-    segundos_restantes = max(
-        60,
-        (fim - agora).total_seconds()
-    )
-
-    # Distribui as requisições restantes
-    # ao longo do restante da janela.
-    intervalo = (
-        segundos_restantes / restantes
-    )
-
-    intervalo = max(
-        INTERVALO_MINIMO,
-        intervalo
-    )
-
-    intervalo = min(
-        INTERVALO_MAXIMO,
-        intervalo
-    )
-
-    return int(intervalo)
-
-
-# ============================================================
-# PRÉ-LIVE
-# ============================================================
+def mensagens_pre_live(jogos):
+    msgs=[]; linhas=["⚽ PRE-LIVE - IPM RADAR","","📐 Q: %.2f até %.2f"%(Q_MIN,Q_MAX),
+                     "📊 R = maior odd / menor odd","⚖️ Equilíbrio = 100 / R",""]
+    for j in jogos:
+        bloco=[
+            f"⚽ {j.get('horario','--:--')} | {j.get('casa','Casa')} x {j.get('fora','Fora')}",
+            f"🏠 {j.get('odd_casa',0):.2f} | 🤝 X {j.get('odd_empate',0):.2f} | 🚌 {j.get('odd_visitante',0):.2f}",
+            f"📐 Q: {j.get('q',0):.2f} | 📊 R: {j.get('r',0):.2f}",
+            f"⚖️ Equilíbrio: {100/j['r']:.2f}% | ⚠️ Desequilíbrio: {100-100/j['r']:.2f}%" if j.get("r",0)>0 else "⚖️ Equilíbrio: --",
+            f"🎯 Estrutura: {j.get('equilibrio','NAO CLASSIFICADO')}",
+            f"🧭 Padrão: {j.get('padrao','NAO CLASSIFICADO')}",
+            f"⚽ GOLS: {j.get('estrutura_gol','SEM CONFIRMAÇÃO PRÉ-LIVE')}",
+            ""
+        ]
+        if len("\n".join(linhas+bloco)) > 3500:
+            msgs.append("\n".join(linhas)); linhas=["⚽ PRE-LIVE - IPM RADAR","",""]
+        linhas += bloco
+    if len(linhas)>3:
+        linhas += ["--------------------",f"📋 Jogos: {len(jogos)}","🤖 IPM-RADAR-V5.2",
+                   "🧪 Monitoramento estatístico.","⚠️ Não realiza apostas automaticamente."]
+        msgs.append("\n".join(linhas))
+    return msgs
 
 def executar_pre_live():
-
-    restantes_antes = requisicoes_restantes()
-
-    if restantes_antes <= 0:
-
-        print(
-            "⛔ API | COTA DIÁRIA ATINGIDA"
-        )
-
-        return
-
-    inicio_api = obter_requisicoes_api()
-
-    try:
-
-        resultados = (
-            escanear_pre_live()
-            or []
-        )
-
-    except Exception as erro:
-
-        print(
-            "ERRO PRÉ-LIVE:",
-            type(erro).__name__,
-            erro
-        )
-
-        return
-
-    usadas = (
-        obter_requisicoes_api()
-        - inicio_api
-    )
-
-    print(
-        f"📡 API | USADAS NO CICLO={usadas} | "
-        f"USADAS HOJE={requisicoes_do_dia()} | "
-        f"RESTANTES={requisicoes_restantes()}"
-    )
-
+    global ULTIMA_LISTA
+    usados_antes,_ = contador()
+    resultados = escanear_pre_live() or []
+    usados_depois,_ = contador()
+    print(f"📡 API | USADAS NO CICLO={usados_depois-usados_antes} | USADAS HOJE={usados_depois} | RESTANTES={contador()[1]}")
     if not resultados:
-
-        print(
-            "PRÉ-LIVE | Nenhum jogo aprovado."
-        )
-
+        print("PRÉ-LIVE | Nenhum jogo aprovado.")
         return
-
-    for jogo in resultados:
-
-        event_id = jogo.get("event_id")
-
-        if event_id is None:
-            continue
-
-        event_id = str(event_id)
-
-        JOGOS_MONITORADOS[event_id] = jogo
-
-    print(
-        f"PRÉ-LIVE | "
-        f"{len(resultados)} jogos selecionados | "
-        f"RADAR={len(JOGOS_MONITORADOS)}"
-    )
-
-
-# ============================================================
-# LIVE
-# ============================================================
-
-def executar_live():
-
-    if not JOGOS_MONITORADOS:
-
-        print(
-            "LIVE | Nenhum jogo no radar."
-        )
-
+    registrar_jogos(resultados)
+    assinatura=tuple((j.get("event_id"),round(j.get("odd_empate",0),3),round(j.get("q",0),3)) for j in resultados)
+    if assinatura==ULTIMA_LISTA:
+        print("PRÉ-LIVE | Lista igual à anterior.")
         return
-
-    ids = list(
-        JOGOS_MONITORADOS.keys()
-    )
-
-    try:
-
-        processar_live(ids)
-
-    except Exception as erro:
-
-        print(
-            "ERRO LIVE:",
-            type(erro).__name__,
-            erro
-        )
-
-
-# ============================================================
-# LOOP
-# ============================================================
+    for msg in mensagens_pre_live(resultados):
+        enviar_mensagem(msg)
+    ULTIMA_LISTA=assinatura
+    print(f"PRÉ-LIVE | {len(resultados)} jogos no radar | RADAR={len(MONITORADOS)}")
 
 def loop():
-
-    print()
-    print("=" * 60)
-    print("IPM RADAR V5.2 INICIADO")
-    print("=" * 60)
-
-    inicializar_controle_diario()
-
+    print("="*60); print("IPM RADAR V5.2 INICIADO"); print(f"Q: {Q_MIN:.2f} -> {Q_MAX:.2f}")
     while True:
-
-        inicio = time.time()
-
+        inicio=time.time()
         try:
-
-            inicializar_controle_diario()
-
-            restantes = requisicoes_restantes()
-
-            if not horario_ativo():
-
-                print(
-                    "RADAR | Período de pausa."
-                )
-
-            elif restantes <= 0:
-
-                print(
-                    "⛔ RADAR | "
-                    "500 REQUISIÇÕES DIÁRIAS ATINGIDAS."
-                )
-
-            else:
-
-                print()
-                print("=" * 60)
-
-                print(
-                    f"📡 API | "
-                    f"USADAS={requisicoes_do_dia()} | "
-                    f"RESTANTES={restantes}"
-                )
-
+            usadas,restantes=contador()
+            print(f"📡 API | USADAS={usadas} | RESTANTES={restantes}")
+            if horario_ativo() and restantes>0:
                 executar_pre_live()
-
-                if requisicoes_restantes() > 0:
-                    executar_live()
-
-        except Exception as erro:
-
-            print(
-                "ERRO NO LOOP:",
-                type(erro).__name__,
-                erro
-            )
-
-        duracao = (
-            time.time() - inicio
-        )
-
-        espera = calcular_intervalo()
-
-        espera = max(
-            1,
-            espera - duracao
-        )
-
-        print(
-            f"CICLO | {duracao:.1f}s | "
-            f"API HOJE={requisicoes_do_dia()} | "
-            f"RESTANTES={requisicoes_restantes()} | "
-            f"PRÓXIMO={espera:.0f}s"
-        )
-
+                if contador()[1]>0: processar_live()
+            elif not horario_ativo():
+                print("Radar em período de pausa.")
+            else:
+                print("⛔ COTA DIÁRIA ATINGIDA.")
+        except Exception as e:
+            print("ERRO LOOP:",type(e).__name__,e)
+        espera=max(1,INTERVALO-(time.time()-inicio))
+        print(f"CICLO | {time.time()-inicio:.1f}s | PRÓXIMO={espera:.0f}s")
         time.sleep(espera)
 
-
-# ============================================================
-# START
-# ============================================================
-
-if __name__ == "__main__":
-
-    iniciar_servidor()
-
-    loop()
+if __name__=="__main__":
+    iniciar_servidor(); loop()
+    
