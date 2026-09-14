@@ -134,4 +134,3 @@ def processar_live():
         if confirmado: enviar_mensagem(formatar_confirmacao(confirmado))
         leituras += 1
     print(f"LIVE | LEITURAS={leituras}")
-    
