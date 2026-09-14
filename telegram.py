@@ -29,4 +29,3 @@ def enviar_mensagem(mensagem):
     except Exception as e:
         print("ERRO TELEGRAM:",type(e).__name__,e)
         return False
-        
