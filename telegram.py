@@ -430,4 +430,3 @@ def teste_telegram():
 
 if __name__ == "__main__":
     teste_telegram()
-            
