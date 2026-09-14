@@ -55,8 +55,8 @@ PRE_LIVE_JANELA_MINUTOS = int(
 # Q PRÉ-LIVE — ESTUDO DE GOL
 # ============================================================
 
-Q_MIN = 2.00
-Q_MAX = 3.50
+Q_MIN = float(os.getenv("Q_MIN", "2.00"))
+Q_MAX = float(os.getenv("Q_MAX", "3.50"))
 
 # ============================================================
 # FUSO / HORÁRIO
@@ -92,3 +92,4 @@ def horario_ativo():
         return HORA_INICIO <= agora < HORA_FIM
 
     return agora >= HORA_INICIO or agora < HORA_FIM
+    
