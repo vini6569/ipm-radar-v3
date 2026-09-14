@@ -19,10 +19,6 @@ import urllib.error
 from config import Q_MIN, Q_MAX
 
 
-# ============================================================
-# CONFIGURAÇÃO
-# ============================================================
-
 TOKEN = os.getenv(
     "TELEGRAM_BOT_TOKEN",
     ""
@@ -34,26 +30,16 @@ CHAT_ID = os.getenv(
 ).strip()
 
 
-# ============================================================
-# UTILITÁRIO NUMÉRICO
-# ============================================================
-
 def numero(valor, padrao=0.0):
-
     try:
-
         if valor in (None, ""):
             return padrao
-
         return float(valor)
-
     except (TypeError, ValueError):
-
         return padrao
 
 
 def calcular_equilibrio_desequilibrio(r):
-
     r = numero(r)
 
     if r <= 0:
@@ -68,16 +54,9 @@ def calcular_equilibrio_desequilibrio(r):
     )
 
 
-# ============================================================
-# DESCOBRIR CHAT ID
-# ============================================================
-
 def descobrir_chat_id():
-
     if not TOKEN:
-        print(
-            "❌ TELEGRAM_BOT_TOKEN não configurado."
-        )
+        print("❌ TELEGRAM_BOT_TOKEN não configurado.")
         return None
 
     url = (
@@ -86,100 +65,53 @@ def descobrir_chat_id():
     )
 
     try:
-
-        with urllib.request.urlopen(
-            url,
-            timeout=20
-        ) as resposta:
-
-            dados = (
-                resposta
-                .read()
-                .decode("utf-8")
-            )
+        with urllib.request.urlopen(url, timeout=20) as resposta:
+            dados = resposta.read().decode("utf-8")
 
         resultado = json.loads(dados)
 
         if not resultado.get("ok"):
-
-            print(
-                "❌ ERRO AO CONSULTAR TELEGRAM:"
-            )
+            print("❌ ERRO AO CONSULTAR TELEGRAM:")
             print(resultado)
-
             return None
 
-        updates = resultado.get(
-            "result",
-            []
-        )
+        updates = resultado.get("result", [])
 
         if not updates:
-
-            print(
-                "⚠️ Nenhuma mensagem encontrada."
-            )
+            print("⚠️ Nenhuma mensagem encontrada.")
             print(
                 "Envie primeiro uma mensagem "
                 "para o bot no Telegram."
             )
-
             return None
 
         for update in reversed(updates):
-
             mensagem = update.get("message")
-
             if not mensagem:
                 continue
 
             chat = mensagem.get("chat")
-
             if not chat:
                 continue
 
             chat_id = chat.get("id")
 
             if chat_id:
-
-                print(
-                    "CHAT ENCONTRADO:",
-                    chat_id
-                )
-
+                print("CHAT ENCONTRADO:", chat_id)
                 return str(chat_id)
 
-        print(
-            "❌ Não foi possível encontrar chat."
-        )
-
+        print("❌ Não foi possível encontrar chat.")
         return None
 
     except Exception as erro:
-
-        print(
-            "❌ ERRO AO DESCOBRIR CHAT:"
-        )
-        print(
-            type(erro).__name__,
-            erro
-        )
-
+        print("❌ ERRO AO DESCOBRIR CHAT:")
+        print(type(erro).__name__, erro)
         return None
 
 
-# ============================================================
-# ENVIO DE MENSAGEM
-# ============================================================
-
 def enviar_mensagem(mensagem):
-
     if not TOKEN:
-
-        print(
-            "❌ TELEGRAM_BOT_TOKEN não configurado."
-        )
-
+        print("❌ TELEGRAM_BOT_TOKEN não configurado.")
         return False
 
     chat_id = CHAT_ID
@@ -188,11 +120,7 @@ def enviar_mensagem(mensagem):
         chat_id = descobrir_chat_id()
 
     if not chat_id:
-
-        print(
-            "❌ TELEGRAM_CHAT_ID não encontrado."
-        )
-
+        print("❌ TELEGRAM_CHAT_ID não encontrado.")
         return False
 
     url = (
@@ -207,13 +135,10 @@ def enviar_mensagem(mensagem):
     }
 
     dados_codificados = (
-        urllib.parse
-        .urlencode(dados)
-        .encode("utf-8")
+        urllib.parse.urlencode(dados).encode("utf-8")
     )
 
     try:
-
         requisicao = urllib.request.Request(
             url,
             data=dados_codificados,
@@ -229,71 +154,36 @@ def enviar_mensagem(mensagem):
             requisicao,
             timeout=20
         ) as resposta:
-
-            retorno = (
-                resposta
-                .read()
-                .decode("utf-8")
-            )
+            retorno = resposta.read().decode("utf-8")
 
         resultado = json.loads(retorno)
 
         if resultado.get("ok"):
-
-            print(
-                "✅ MENSAGEM ENVIADA PARA O TELEGRAM!"
-            )
-
+            print("✅ MENSAGEM ENVIADA PARA O TELEGRAM!")
             return True
 
-        print(
-            "❌ TELEGRAM RECUSOU A MENSAGEM:"
-        )
+        print("❌ TELEGRAM RECUSOU A MENSAGEM:")
         print(resultado)
-
         return False
 
     except urllib.error.HTTPError as erro:
-
-        print(
-            "❌ ERRO HTTP AO ENVIAR TELEGRAM:"
-        )
+        print("❌ ERRO HTTP AO ENVIAR TELEGRAM:")
         print("Código:", erro.code)
 
         try:
-
-            corpo = (
-                erro
-                .read()
-                .decode("utf-8")
-            )
-
-            print(
-                "Resposta do Telegram:"
-            )
+            corpo = erro.read().decode("utf-8")
+            print("Resposta do Telegram:")
             print(corpo)
-
         except Exception:
             pass
 
         return False
 
     except Exception as erro:
-
-        print(
-            "❌ ERRO AO ENVIAR TELEGRAM:"
-        )
-        print(
-            type(erro).__name__,
-            erro
-        )
-
+        print("❌ ERRO AO ENVIAR TELEGRAM:")
+        print(type(erro).__name__, erro)
         return False
 
-
-# ============================================================
-# ENVIAR ENTRADA DO RADAR
-# ============================================================
 
 def enviar_entrada(
     casa,
@@ -309,7 +199,6 @@ def enviar_entrada(
     ipm,
     sinal
 ):
-
     mensagem = (
         "🚨 IPM RADAR — ENTRADA\n"
         "\n"
@@ -334,10 +223,6 @@ def enviar_entrada(
     return enviar_mensagem(mensagem)
 
 
-# ============================================================
-# ENVIAR CICLO ENCERRADO
-# ============================================================
-
 def enviar_ciclo(
     casa,
     fora,
@@ -346,7 +231,6 @@ def enviar_ciclo(
     gols_total,
     dados=None
 ):
-
     mensagem = (
         "🏁 CICLO FINALIZADO\n"
         "\n"
@@ -357,25 +241,18 @@ def enviar_ciclo(
     )
 
     if isinstance(dados, dict):
-
         ipm = dados.get("ipm")
         mercado = dados.get("mercado")
         odd = dados.get("odd")
 
         if ipm is not None:
-            mensagem += (
-                f"\n🧠 IPM registrado: {ipm}"
-            )
+            mensagem += f"\n🧠 IPM registrado: {ipm}"
 
         if mercado:
-            mensagem += (
-                f"\n🎯 Mercado: {mercado}"
-            )
+            mensagem += f"\n🎯 Mercado: {mercado}"
 
         if odd:
-            mensagem += (
-                f"\n💰 Odd: {odd}"
-            )
+            mensagem += f"\n💰 Odd: {odd}"
 
     mensagem += (
         "\n\n"
@@ -388,12 +265,7 @@ def enviar_ciclo(
     return enviar_mensagem(mensagem)
 
 
-# ============================================================
-# ENVIAR RELATÓRIO DO LABORATÓRIO
-# ============================================================
-
 def enviar_relatorio(texto):
-
     mensagem = (
         "📊 RELATÓRIO — LABORATÓRIO IPM\n"
         "\n"
@@ -405,22 +277,13 @@ def enviar_relatorio(texto):
     return enviar_mensagem(mensagem)
 
 
-# ============================================================
-# ENVIAR LISTA PRÉ-LIVE
-# ============================================================
-
 def enviar_lista_pre_live(
     jogos,
     q_min=None,
     q_max=None
 ):
-
     if not jogos:
-
-        print(
-            "⚠️ NENHUM JOGO PRÉ-LIVE PARA ENVIAR."
-        )
-
+        print("⚠️ NENHUM JOGO PRÉ-LIVE PARA ENVIAR.")
         return False
 
     if q_min is None:
@@ -448,10 +311,8 @@ def enviar_lista_pre_live(
     quantidade = 0
 
     for periodo in periodos:
-
         jogos_periodo = [
-            jogo
-            for jogo in jogos
+            jogo for jogo in jogos
             if jogo.get("periodo") == periodo
         ]
 
@@ -464,53 +325,25 @@ def enviar_lista_pre_live(
         )
 
         for jogo in jogos_periodo:
+            casa = jogo.get("casa", "Casa")
+            fora = jogo.get("fora", "Fora")
+            horario = jogo.get("horario", "--:--")
 
-            casa = jogo.get(
-                "casa",
-                "Casa"
-            )
-
-            fora = jogo.get(
-                "fora",
-                "Fora"
-            )
-
-            horario = jogo.get(
-                "horario",
-                "--:--"
-            )
-
-            odd_casa = numero(
-                jogo.get("odd_casa", 0)
-            )
-
-            odd_empate = numero(
-                jogo.get("odd_empate", 0)
-            )
-
-            odd_visitante = numero(
-                jogo.get("odd_visitante", 0)
-            )
+            odd_casa = numero(jogo.get("odd_casa", 0))
+            odd_empate = numero(jogo.get("odd_empate", 0))
+            odd_visitante = numero(jogo.get("odd_visitante", 0))
 
             q = numero(
                 jogo.get(
                     "q",
-                    jogo.get(
-                        "odd_pre_live",
-                        0
-                    )
+                    jogo.get("odd_pre_live", 0)
                 )
             )
 
-            r = numero(
-                jogo.get("r", 0)
-            )
+            r = numero(jogo.get("r", 0))
 
             prob_x = numero(
-                jogo.get(
-                    "probabilidade_x",
-                    0
-                )
+                jogo.get("probabilidade_x", 0)
             )
 
             prob_x_normalizada = numero(
@@ -538,58 +371,42 @@ def enviar_lista_pre_live(
                 continue
 
             mensagem += (
-                f"⚽ {horario} | "
-                f"{casa} x {fora}\n"
+                f"⚽ {horario} | {casa} x {fora}\n"
                 f"🏠 {odd_casa:.2f} | "
                 f"🤝 X {odd_empate:.2f} | "
                 f"🚌 {odd_visitante:.2f}\n"
                 f"📐 Q: {q:.2f}\n"
                 f"📊 R: {r:.2f}\n"
-                f"⚖️ Equilíbrio: "
-                f"{equilibrio:.2f}%\n"
-                f"⚠️ Desequilíbrio: "
-                f"{desequilibrio:.2f}%\n"
+                f"⚖️ Equilíbrio: {equilibrio:.2f}%\n"
+                f"⚠️ Desequilíbrio: {desequilibrio:.2f}%\n"
                 f"🎯 Estrutura: {classificacao}\n"
                 f"🧭 Padrão: {padrao}\n"
                 f"📊 P(X): {prob_x:.2f}% | "
-                f"P(X) N: "
-                f"{prob_x_normalizada:.2f}%\n"
+                f"P(X) N: {prob_x_normalizada:.2f}%\n"
                 "\n"
             )
 
             quantidade += 1
 
     if quantidade == 0:
-
-        print(
-            "⚠️ Nenhum jogo dentro do intervalo Q."
-        )
-
+        print("⚠️ Nenhum jogo dentro do intervalo Q.")
         return False
 
     mensagem += (
         "────────────────────\n"
-        f"📋 Jogos selecionados: "
-        f"{quantidade}\n"
+        f"📋 Jogos selecionados: {quantidade}\n"
         "\n"
         "🤖 IPM-RADAR-V3\n"
-        "📚 Monitoramento estatístico "
-        "pré-live.\n"
+        "📚 Monitoramento estatístico pré-live.\n"
         "⚠️ Não realiza apostas automaticamente."
     )
 
     return enviar_mensagem(mensagem)
 
 
-# ============================================================
-# TESTE DO TELEGRAM
-# ============================================================
-
 def teste_telegram():
-
     mensagem = (
-        "🧪 TESTE DO TELEGRAM — "
-        "IPM RADAR V3\n"
+        "🧪 TESTE DO TELEGRAM — IPM RADAR V3\n"
         "\n"
         "✅ Robô conectado ao Telegram.\n"
         "📡 Comunicação funcionando.\n"
@@ -604,21 +421,13 @@ def teste_telegram():
     print("=" * 50)
 
     if sucesso:
-        print(
-            "✅ TESTE DO TELEGRAM CONCLUÍDO!"
-        )
+        print("✅ TESTE DO TELEGRAM CONCLUÍDO!")
     else:
-        print(
-            "❌ TESTE DO TELEGRAM FALHOU!"
-        )
+        print("❌ TESTE DO TELEGRAM FALHOU!")
 
     print("=" * 50)
 
 
-# ============================================================
-# EXECUÇÃO DIRETA
-# ============================================================
-
 if __name__ == "__main__":
     teste_telegram()
-    
+            
