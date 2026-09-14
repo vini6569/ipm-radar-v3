@@ -1,118 +1,56 @@
 # ============================================================
 # CONFIG - IPM RADAR V5.2
 # ============================================================
-
 import os
-from datetime import time
+from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
+NOME_BOT = os.getenv("NOME_BOT", "IPM RADAR V5.2")
+VERSAO = "5.2"
 
-# ============================================================
-# GERAL
-# ============================================================
+BASE_URL = os.getenv("ODDS_API_BASE_URL", "https://api.odds-api.io/v3").rstrip("/")
+BOOKMAKER = os.getenv("ODDS_BOOKMAKER", "Bet365")
+SPORT = os.getenv("ODDS_SPORT", "football")
+TIMEOUT_REQUISICAO = int(os.getenv("TIMEOUT_REQUISICAO", "20"))
 
-FUSO_HORARIO = ZoneInfo("America/Sao_Paulo")
+INTERVALO_RADAR = int(os.getenv("INTERVALO_RADAR", "300"))
+MAX_JOGOS_RADAR = int(os.getenv("MAX_JOGOS_RADAR", "30"))
+MAX_EVENTOS_POR_CONSULTA = min(int(os.getenv("MAX_EVENTOS_POR_CONSULTA", "30")), 30)
 
-BASE_URL = os.getenv(
-    "ODDS_API_BASE_URL",
-    "https://api.sportsgameodds.com"
-).rstrip("/")
+IPM_MINIMO_OBSERVACAO = float(os.getenv("IPM_MINIMO_OBSERVACAO", "20"))
+IPM_MINIMO_FORTE = float(os.getenv("IPM_MINIMO_FORTE", "40"))
+IPM_MINIMO_MUITO_FORTE = float(os.getenv("IPM_MINIMO_MUITO_FORTE", "60"))
 
-SPORT = os.getenv(
-    "ODDS_API_SPORT",
-    "soccer"
-)
+IPM_MINIMO_ENTRADA = float(os.getenv("IPM_MINIMO_ENTRADA", "40"))
+MINUTO_MINIMO_ENTRADA = int(os.getenv("MINUTO_MINIMO_ENTRADA", "1"))
+MINUTO_MAXIMO_ENTRADA = int(os.getenv("MINUTO_MAXIMO_ENTRADA", "45"))
+MAX_ENTRADAS_POR_JOGO = int(os.getenv("MAX_ENTRADAS_POR_JOGO", "1"))
 
-BOOKMAKER = os.getenv(
-    "ODDS_API_BOOKMAKER",
-    "bet365"
-)
+MINUTO_REFERENCIA = int(os.getenv("MINUTO_REFERENCIA", "45"))
+JANELA_MINUTO_45 = int(os.getenv("JANELA_MINUTO_45", "2"))
+MAX_PONTOS_TRAJETORIA = int(os.getenv("MAX_PONTOS_TRAJETORIA", "100"))
+VARIACAO_MINIMA_TRAJETORIA = float(os.getenv("VARIACAO_MINIMA_TRAJETORIA", "0.20"))
 
+PRE_LIVE_JANELA_MINUTOS = int(os.getenv("PRE_LIVE_JANELA_MINUTOS", "180"))
+Q_MIN = float(os.getenv("Q_PRE_LIVE_MINIMO", os.getenv("Q_MIN", "2.00")))
+Q_MAX = float(os.getenv("Q_PRE_LIVE_MAXIMO", os.getenv("Q_MAX", "3.00")))
 
-# ============================================================
-# HORÁRIO
-# ============================================================
-
-HORA_INICIO = 6
-HORA_FIM = 24
-
-
-def horario_ativo(dt=None):
-
-    if dt is None:
-        return True
-
-    hora = dt.astimezone(
-        FUSO_HORARIO
-    ).time()
-
-    return (
-        time(HORA_INICIO, 0)
-        <= hora
-        < time(HORA_FIM, 0)
-    )
-
-
-# ============================================================
-# API
-# ============================================================
-
-MAX_EVENTOS_POR_CONSULTA = int(
-    os.getenv(
-        "MAX_EVENTOS_POR_CONSULTA",
-        "20"
-    )
-)
-
-TIMEOUT_REQUISICAO = int(
-    os.getenv(
-        "TIMEOUT_REQUISICAO",
-        "20"
-    )
-)
-
-LIMITE_API_DIARIO = int(
-    os.getenv(
-        "LIMITE_API_DIARIO",
-        "500"
-    )
-)
-
-
-# ============================================================
-# PRÉ-LIVE
-# ============================================================
-
-PRE_LIVE_JANELA_MINUTOS = int(
-    os.getenv(
-        "PRE_LIVE_JANELA_MINUTOS",
-        "180"
-    )
-)
-
-
-# ============================================================
-# Q
-# ============================================================
-
-Q_MIN = 2.00
-Q_MAX = 3.00
-
-
-# ============================================================
-# API KEY
-# ============================================================
+FUSO_HORARIO = ZoneInfo(os.getenv("FUSO_HORARIO", "America/Sao_Paulo"))
+HORA_INICIO = time(6, 0)
+HORA_FIM = time(0, 0)
 
 def obter_api_key():
+    key = os.getenv("ODDS_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError("ODDS_API_KEY não configurada no Render.")
+    return key
 
-    chave = os.getenv(
-        "ODDS_API_KEY",
-        ""
-    ).strip()
+def horario_atual():
+    return datetime.now(FUSO_HORARIO)
 
-    if not chave:
-        raise RuntimeError(
-            "ODDS_API_KEY não configurada."
-        )
-
-    return chave
+def horario_ativo():
+    agora = horario_atual().time()
+    if HORA_INICIO < HORA_FIM:
+        return HORA_INICIO <= agora < HORA_FIM
+    return agora >= HORA_INICIO or agora < HORA_FIM
+    
