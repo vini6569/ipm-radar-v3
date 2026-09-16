@@ -1,9 +1,10 @@
 # ============================================================
 # TELEGRAM
-# IPM-RADAR-V3
+# IPM-RADAR-V5.2
 #
 # Função:
-# Enviar sinais, entradas, resultados e lista pré-live.
+# Enviar sinais, entradas, resultados, lista pré-live
+# e distribuir uma cópia do PRE-LIVE para destinos externos.
 #
 # IMPORTANTE:
 # Este módulo NÃO realiza apostas.
@@ -26,6 +27,23 @@ TOKEN = os.getenv(
 
 CHAT_ID = os.getenv(
     "TELEGRAM_CHAT_ID",
+    ""
+).strip()
+
+# ============================================================
+# BSD WOM LAB — SAÍDA SECUNDÁRIA
+#
+# O BSD é independente do Telegram principal do IPM.
+# Se o BSD estiver indisponível, o IPM continua funcionando.
+# ============================================================
+
+BSD_RECEIVER_URL = os.getenv(
+    "BSD_RECEIVER_URL",
+    ""
+).strip()
+
+BSD_TOKEN = os.getenv(
+    "BSD_TOKEN",
     ""
 ).strip()
 
@@ -53,6 +71,105 @@ def calcular_equilibrio_desequilibrio(r):
         round(desequilibrio, 2),
     )
 
+
+# ============================================================
+# BSD WOM LAB
+# ============================================================
+
+def enviar_para_bsd(mensagem, tipo="PRE-LIVE"):
+    """
+    Envia uma cópia da mensagem para o BSD WOM LAB.
+
+    Características:
+    - Não altera a mensagem original do IPM.
+    - Não interfere no Telegram principal.
+    - Não usa getUpdates.
+    - Não compartilha o bot do IPM com o BSD.
+    - Timeout curto.
+    - Falha do BSD não interrompe o IPM.
+    """
+
+    if not BSD_RECEIVER_URL:
+        print("ℹ️ BSD | DESTINO NÃO CONFIGURADO.")
+        return False
+
+    if not BSD_TOKEN:
+        print("⚠️ BSD | TOKEN NÃO CONFIGURADO.")
+        return False
+
+    dados = {
+        "mensagem": str(mensagem),
+        "fonte": "IPM-RADAR-V5.2",
+        "tipo": str(tipo),
+    }
+
+    dados_json = json.dumps(
+        dados,
+        ensure_ascii=False
+    ).encode("utf-8")
+
+    try:
+        requisicao = urllib.request.Request(
+            BSD_RECEIVER_URL,
+            data=dados_json,
+            method="POST"
+        )
+
+        requisicao.add_header(
+            "Content-Type",
+            "application/json"
+        )
+
+        requisicao.add_header(
+            "Authorization",
+            f"Bearer {BSD_TOKEN}"
+        )
+
+        with urllib.request.urlopen(
+            requisicao,
+            timeout=5
+        ) as resposta:
+
+            retorno = resposta.read().decode("utf-8")
+
+        if 200 <= resposta.status < 300:
+            print(
+                "✅ BSD | ALERTA ENVIADO | "
+                f"TIPO={tipo} | HTTP={resposta.status}"
+            )
+            return True
+
+        print(
+            "⚠️ BSD | RESPOSTA NÃO-2XX | "
+            f"HTTP={resposta.status} | RETORNO={retorno}"
+        )
+        return False
+
+    except urllib.error.HTTPError as erro:
+        print(
+            "⚠️ BSD | ERRO HTTP | "
+            f"CÓDIGO={erro.code}"
+        )
+
+        try:
+            corpo = erro.read().decode("utf-8")
+            print("BSD | RESPOSTA:", corpo)
+        except Exception:
+            pass
+
+        return False
+
+    except Exception as erro:
+        print(
+            "⚠️ BSD | FALHA NO ENVIO | "
+            f"{type(erro).__name__}: {erro}"
+        )
+        return False
+
+
+# ============================================================
+# DESCOBRIR CHAT ID
+# ============================================================
 
 def descobrir_chat_id():
     if not TOKEN:
@@ -108,6 +225,10 @@ def descobrir_chat_id():
         print(type(erro).__name__, erro)
         return None
 
+
+# ============================================================
+# TELEGRAM PRINCIPAL
+# ============================================================
 
 def enviar_mensagem(mensagem):
     if not TOKEN:
@@ -185,6 +306,10 @@ def enviar_mensagem(mensagem):
         return False
 
 
+# ============================================================
+# ENTRADA
+# ============================================================
+
 def enviar_entrada(
     casa,
     fora,
@@ -222,6 +347,10 @@ def enviar_entrada(
 
     return enviar_mensagem(mensagem)
 
+
+# ============================================================
+# CICLO
+# ============================================================
 
 def enviar_ciclo(
     casa,
@@ -265,6 +394,10 @@ def enviar_ciclo(
     return enviar_mensagem(mensagem)
 
 
+# ============================================================
+# RELATÓRIO
+# ============================================================
+
 def enviar_relatorio(texto):
     mensagem = (
         "📊 RELATÓRIO — LABORATÓRIO IPM\n"
@@ -276,6 +409,10 @@ def enviar_relatorio(texto):
 
     return enviar_mensagem(mensagem)
 
+
+# ============================================================
+# LISTA PRÉ-LIVE
+# ============================================================
 
 def enviar_lista_pre_live(
     jogos,
@@ -404,6 +541,10 @@ def enviar_lista_pre_live(
     return enviar_mensagem(mensagem)
 
 
+# ============================================================
+# TESTE TELEGRAM
+# ============================================================
+
 def teste_telegram():
     mensagem = (
         "🧪 TESTE DO TELEGRAM — IPM RADAR V3\n"
@@ -430,3 +571,4 @@ def teste_telegram():
 
 if __name__ == "__main__":
     teste_telegram()
+        
